@@ -25,7 +25,7 @@ COPY server-package.json package.json
 # this takes quite a long time. I guess why it's usually done in bin/build-docker.sh instead.
 RUN echo "--- mhw debug: compiling typescript..."
 RUN npm install typescript
-RUN tsc
+RUN ./node_modules/.bin/tsc
 
 RUN echo "--- Copy TypeScript build artifacts into the original directory structure."
 RUN echo "--- Copy the healthcheck"
