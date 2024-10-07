@@ -15,17 +15,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
     && rm -rf /var/lib/apt/lists/*
 
+
 RUN echo "--- Create app directory"
 WORKDIR /usr/src/app
-
-RUN echo "--- Bundle app source"
-COPY . .
-COPY server-package.json package.json
 
 # this takes quite a long time. I guess why it's usually done in bin/build-docker.sh instead.
 RUN echo "--- mhw debug: compiling typescript..."
 RUN npm install typescript
 RUN ./node_modules/.bin/tsc
+
+
+RUN echo "--- Bundle app source"
+# copy target must match WORKDIR
+COPY ./ /usr/src/app
+COPY server-package.json package.json
+
 
 RUN echo "--- Copy TypeScript build artifacts into the original directory structure."
 RUN echo "--- Copy the healthcheck"
