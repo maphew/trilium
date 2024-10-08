@@ -7,4 +7,5 @@
 node_modules
 
 src/**/*.ts
+!src/types.d.ts
 !src/services/asset_path.ts

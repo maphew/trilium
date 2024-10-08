@@ -19,16 +19,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN echo "--- Create app directory"
 WORKDIR /usr/src/app
 
+RUN echo "--- mhw debug: start"
+# segment node packages ahead of the rest in order to speed up the build
+# c.f. https://stackoverflow.com/a/67015154/14420
+COPY server-package.json package.json
+COPY tsconfig.json .
+COPY src/types.d.ts /usr/src/app/src/types.d.ts
 # this takes quite a long time. I guess why it's usually done in bin/build-docker.sh instead.
-RUN echo "--- mhw debug: compiling typescript..."
 RUN npm install typescript
-RUN ./node_modules/.bin/tsc
+RUN ./node_modules/.bin/tsc -p tsconfig.json
+RUN echo "--- mhw debug: end"
 
 
 RUN echo "--- Bundle app source"
-# copy target must match WORKDIR
-COPY ./ /usr/src/app
-COPY server-package.json package.json
+COPY . .
 
 
 RUN echo "--- Copy TypeScript build artifacts into the original directory structure."
