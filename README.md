@@ -63,6 +63,13 @@ To use TriliumNext on your desktop machine (Linux, MacOS, and Windows) you have 
     * Currently only the latest versions of Chrome & Firefox are supported (and tested).
 * (Coming Soon) TriliumNext will also be provided as a Flatpak
 
+#### Nightly Releases
+
+To use a bleeding edge build, go to Github
+[Actions](https://github.com/TriliumNext/Notes/actions/) - 
+[Nightly Release](https://github.com/TriliumNext/Notes/actions/workflows/nightly.yml)
+and from recent successful run expand _Artifacts_ header and download bundle appropriate for your platform.
+
 ### Mobile
 
 To use TriliumNext on a mobile device:
