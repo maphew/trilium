@@ -12,6 +12,8 @@ permissions:
   contents: write
 jobs:
   nightly-electron:
+    # don't run if this is a forked repo
+    if: github.repository == 'TriliumNext/Notes'
     name: Deploy nightly    
     strategy:
       fail-fast: false
