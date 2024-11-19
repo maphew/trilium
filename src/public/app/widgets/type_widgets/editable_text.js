@@ -12,8 +12,12 @@ import appContext from "../../components/app_context.js";
 import dialogService from "../../services/dialog.js";
 import { initSyntaxHighlighting } from "./ckeditor/syntax_highlight.js";
 import options from "../../services/options.js";
+import server from '../../services/server.js';
 
 const ENABLE_INSPECTOR = false;
+
+// todo: define both default and custom in html_sanitizer.js, make it single source of truth
+const DEFAULT_ALLOWED_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'div', 'span', 'a', 'img', 'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'b', 'i', 'u', 's', 'sub', 'sup', 'br', 'hr', 'figure', 'figcaption', 'code', 'blockquote', 'include-note'];
 
 const mentionSetup = {
     feeds: [
@@ -132,6 +136,22 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);
         const isClassicEditor = (options.get("textNoteEditorType") === "ckeditor-classic")
         const editorClass = (isClassicEditor ? CKEditor.DecoupledEditor : CKEditor.BalloonEditor);
+        
+        // #567 whitelist some html tags - https://github.com/TriliumNext/Notes/issues/567
+        // somwhere around here we import General HTML Support plugin? official example is:
+        //  
+        // import { ClassicEditor, GeneralHtmlSupport } from 'ckeditor5'; 
+        //
+        // and somehere lower down goes:
+        //
+        // ClassicEditor
+        // .create( document.querySelector( '#editor' ), {
+        //     plugins: [ GeneralHtmlSupport, /* ... */ ],
+        // } )
+        // .then( /* ... */ )
+        // .catch( /* ... */ );
+
+
 
         const codeBlockLanguages = buildListOfLanguages();
 
@@ -215,6 +235,52 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                 lazyLoad: async () => await libraryLoader.requireLibrary(libraryLoader.KATEX),
                 forceOutputType: false, // forces output to use outputType
                 enablePreview: true // Enable preview view
+            },
+            // #567 whitelist some html tags - https://github.com/TriliumNext/Notes/issues/567
+            htmlSupport: {
+                allow: [
+                    {
+                        name: async () => {
+                            try {
+                                // Get allowed tags from options, with fallback to default list
+                                const allowedTags = JSON.parse(await server.getOption('allowedHtmlTags')) || DEFAULT_ALLOWED_TAGS;
+                                // Convert array of tags to regex pattern
+                                return new RegExp(`^(${allowedTags.join('|')})$`);
+                            } catch (e) {
+                                return new RegExp(`^(${DEFAULT_ALLOWED_TAGS.join('|')})$`);
+                            }
+                        },
+                        styles: true,
+                        classes: true,
+                        attributes: {
+                            'class': true,
+                            'style': true,
+                            'title': true,
+                            'src': true,
+                            'href': true,
+                            'hash': true,
+                            'disabled': true,
+                            'align': true,
+                            'alt': true,
+                            'center': true,
+                            'data-*': true
+                        }
+                    }
+                ],
+                disallow: [
+                    {
+                        name: /^(script|object|embed|applet|param|base)$/
+                    },
+                    {
+                        attributes: {
+                            'onclick': true,
+                            'onload': true,
+                            'onerror': true,
+                            /^on\w+$/: true,
+                            'href': value => value.match(/^\s*javascript:/i)
+                        }
+                    }
+                ]
             }
         });
     }
