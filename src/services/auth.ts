@@ -17,7 +17,8 @@ function checkAuth(req: AppRequest, res: Response, next: NextFunction) {
         res.redirect("setup");
     }
     else if (!req.session.loggedIn && !utils.isElectron() && !noAuthentication) {
-        res.redirect("login");
+        // res.redirect("login");
+        res.redirect("share");
     }
     else {
         next();
