@@ -1562,12 +1562,12 @@
     "clipped-from": "Clipped from: %s"
   },
   "share": {
-    "settings_title": "Share Settings",
+    "settings_title": "Share and Login Settings",
     "redirect_url_label": "Share Redirect URL",
-    "redirect_url_description": "URL path where users will be redirected after accessing a shared note",
+    "redirect_url_description": "URL to redirect to when user is not logged in (default: 'share')",
     "login_redirect_url_label": "Login Redirect URL",
-    "login_redirect_url_description": "URL path where users will be redirected after logging in",
-    "show_login_label": "Show Login in Share Theme",
-    "show_login_description": "Display login option in the share theme interface"
+    "login_redirect_url_description": "URL to redirect to for login page (default: '/login')",
+    "show_login_label": "Show login link in share theme",
+    "show_login_description": "When enabled, displays a login link in the share theme interface (default: false)"
   }
 }

@@ -11,7 +11,7 @@ const TPL = `
                class="share-redirect-url form-control" 
                name="shareRedirectUrl"
                placeholder="share"/>
-        <small class="form-text text-muted">${t('share.redirect_url_description')}</small>
+        <p>${t('share.redirect_url_description')}</p>
     </div>
 
     <div class="form-group">
@@ -20,7 +20,7 @@ const TPL = `
                class="login-redirect-url form-control" 
                name="loginRedirectUrl"
                placeholder="login"/>
-        <small class="form-text text-muted">${t('share.login_redirect_url_description')}</small>
+        <p>${t('share.login_redirect_url_description')}</p>
     </div>
 
     <div class="form-group">
@@ -30,7 +30,7 @@ const TPL = `
                    name="showLoginInShareTheme"/>
             ${t('share.show_login_label')}
         </label>
-        <small class="form-text text-muted">${t('share.show_login_description')}</small>
+        <p>${t('share.show_login_description')}</p>
     </div>
 </div>
 `;
