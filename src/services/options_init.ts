@@ -136,7 +136,10 @@ const defaultOptions: DefaultOption[] = [
     // Text note configuration
     { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
 
-    { name: "layoutOrientation", value: "vertical", isSynced: false }
+    { name: "layoutOrientation", value: "vertical", isSynced: false },
+    { name: 'shareRedirectUrl', value: 'share', isSynced: true },
+    { name: 'loginRedirectUrl', value: 'login', isSynced: true },
+    { name: 'showLoginInShareTheme', value: 'false', isSynced: true }
 ];
 
 /**

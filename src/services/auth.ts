@@ -9,6 +9,7 @@ import config from "./config.js";
 import passwordService from "./encryption/password.js";
 import type { NextFunction, Request, Response } from 'express';
 import { AppRequest } from '../routes/route-interface.js';
+import optionService from "./options.js";
 
 const noAuthentication = config.General && config.General.noAuthentication === true;
 
@@ -17,8 +18,8 @@ function checkAuth(req: AppRequest, res: Response, next: NextFunction) {
         res.redirect("setup");
     }
     else if (!req.session.loggedIn && !utils.isElectron() && !noAuthentication) {
-        // res.redirect("login");
-        res.redirect("share");
+        const shareRedirectUrl = optionService.getOption('shareRedirectUrl');
+        res.redirect(shareRedirectUrl);
     }
     else {
         next();

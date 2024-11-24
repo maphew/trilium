@@ -1553,5 +1553,21 @@
     "paste": "Paste",
     "paste-as-plain-text": "Paste as plain text",
     "search_online": "Search for \"{{term}}\" with {{searchEngine}}"
+  },
+  "share_page": {
+    "parent": "Parent:",
+    "login": "Login",
+    "child-notes": "Child notes:",
+    "no-content": "This note has no content.",
+    "clipped-from": "Clipped from: %s"
+  },
+  "share": {
+    "settings_title": "Share Settings",
+    "redirect_url_label": "Share Redirect URL",
+    "redirect_url_description": "URL path where users will be redirected after accessing a shared note",
+    "login_redirect_url_label": "Login Redirect URL",
+    "login_redirect_url_description": "URL path where users will be redirected after logging in",
+    "show_login_label": "Show Login in Share Theme",
+    "show_login_description": "Display login option in the share theme interface"
   }
 }

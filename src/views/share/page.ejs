@@ -42,6 +42,10 @@
             </nav>
         <% } %>
 
+        <% if (showLoginInShareTheme === 'true') { %>
+            <a href="<%= loginRedirectUrl %>" class="login-link"><%= t('share_page.login') %></a>
+        <% } %>
+
         <h1 id="title"><%= note.title %></h1>
 
         <% if (note.hasLabel("pageUrl")) { %>
