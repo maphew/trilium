@@ -1564,8 +1564,8 @@
   "share": {
     "settings_title": "Share Settings",
     "redirect_bare_domain": "Redirect bare domain to share",
-    "redirect_bare_domain_description": "When enabled, accessing the root URL (/) will redirect to the share page (/share)",
+    "redirect_bare_domain_description": "When enabled, accessing the root URL (/) will redirect to the share page (/share). Relies on having one more more notes shared, and one having `#shareRoot` attribute defined.",
     "show_login_in_share": "Show login in share theme",
-    "show_login_in_share_description": "When enabled, shows a login button in the share theme"
+    "show_login_in_share_description": "When enabled, shows a login button in the share theme (default: false)"
   }
 }
