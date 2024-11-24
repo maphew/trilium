@@ -54,7 +54,7 @@ import clipperRoute from "./api/clipper.js";
 import similarNotesRoute from "./api/similar_notes.js";
 import keysRoute from "./api/keys.js";
 import backendLogRoute from "./api/backend_log.js";
-import statsRoute from "./api/stats.js";
+import statsRoute from "../stats/stats.js";
 import fontsRoute from "./api/fonts.js";
 import etapiTokensApiRoutes from "./api/etapi_tokens.js";
 import relationMapApiRoute from "./api/relation-map.js";
@@ -102,6 +102,15 @@ const uploadMiddlewareWithErrorHandling = function (req: express.Request, res: e
 };
 
 function register(app: express.Application) {
+    // Add bare domain redirect handler
+    app.use((req, res, next) => {
+        if (req.path === '/' && optionService.getOption('redirectBareDomain')) {
+            res.redirect('/share');
+        } else {
+            next();
+        }
+    });
+
     route(GET, '/', [auth.checkAuth, csrfMiddleware], indexRoute.index);
     route(GET, '/login', [auth.checkAppInitialized, auth.checkPasswordSet], loginRoute.loginPage);
     route(GET, '/set-password', [auth.checkAppInitialized, auth.checkPasswordNotSet], loginRoute.setPasswordPage);
@@ -110,6 +119,9 @@ function register(app: express.Application) {
         windowMs: 15 * 60 * 1000, // 15 minutes
         max: 10, // limit each IP to 10 requests per windowMs
         skipSuccessfulRequests: true // successful auth to rate-limited ETAPI routes isn't counted. However, successful auth to /login is still counted!
+        message: 'Too many login attempts, please try again later.',
+        standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+        legacyHeaders: false // Disable the `X-RateLimit-*` headers
     });
 
     route(PST, '/login', [loginRateLimiter], loginRoute.login);

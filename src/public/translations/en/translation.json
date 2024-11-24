@@ -1562,12 +1562,10 @@
     "clipped-from": "Clipped from: %s"
   },
   "share": {
-    "settings_title": "Share and Login Settings",
-    "redirect_url_label": "Share Redirect URL",
-    "redirect_url_description": "URL to redirect to when user is not logged in (default: 'share')",
-    "login_redirect_url_label": "Login Redirect URL",
-    "login_redirect_url_description": "URL to redirect to for login page (default: '/login')",
-    "show_login_label": "Show login link in share theme",
-    "show_login_description": "When enabled, displays a login link in the share theme interface (default: false)"
+    "settings_title": "Share Settings",
+    "redirect_bare_domain": "Redirect bare domain to share",
+    "redirect_bare_domain_description": "When enabled, accessing the root URL (/) will redirect to the share page (/share)",
+    "show_login_in_share": "Show login in share theme",
+    "show_login_in_share_description": "When enabled, shows a login button in the share theme"
   }
 }
