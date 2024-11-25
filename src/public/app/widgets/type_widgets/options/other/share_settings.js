@@ -17,7 +17,7 @@ const TPL = `
         <div class="custom-control custom-checkbox">
             <input class="custom-control-input show-login-in-share" type="checkbox" id="showLoginInShare">
             <label class="custom-control-label" for="showLoginInShare">${t('share.show_login_in_share')}</label>
-            <p>${t('share.show_login_in_share_description')}</p>
+            <p>${t('share.show_login_in_share_description', { hostname: window.location.hostname })}</p>
         </div>
     </div>
 </div>

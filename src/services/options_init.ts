@@ -102,6 +102,7 @@ const defaultOptions: DefaultOption[] = [
     { name: 'headingStyle', value: 'underline', isSynced: true },
     { name: 'autoCollapseNoteTree', value: 'true', isSynced: true },
     { name: 'autoReadonlySizeText', value: '10000', isSynced: false },
+    { name: 'redirectBareDomain', value: 'false', isSynced: true },
     { name: 'autoReadonlySizeCode', value: '30000', isSynced: false },
     { name: 'dailyBackupEnabled', value: 'true', isSynced: false },
     { name: 'weeklyBackupEnabled', value: 'true', isSynced: false },

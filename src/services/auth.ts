@@ -14,12 +14,12 @@ import optionService from "./options.js";
 const noAuthentication = config.General && config.General.noAuthentication === true;
 
 function checkAuth(req: AppRequest, res: Response, next: NextFunction) {
-    if (!sqlInit.isDbInitialized()) {
-        res.redirect("setup");
-    }
-    else if (!req.session.loggedIn && !utils.isElectron() && !noAuthentication) {
-        const shareRedirectUrl = optionService.getOption('shareRedirectUrl');
-        res.redirect(shareRedirectUrl);
+    if (!req.session.loggedIn && !utils.isElectron() && !noAuthentication) {
+        if (optionService.getOption('redirectBareDomain') === 'true') {
+            res.redirect('/share');
+        } else {
+            res.redirect('login');
+        }
     }
     else {
         next();

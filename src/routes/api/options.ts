@@ -68,8 +68,7 @@ export const ALLOWED_OPTIONS = new Set([
     'firstDayOfWeek',
     'textNoteEditorType',
     'layoutOrientation',
-    'shareRedirectUrl',
-    'loginRedirectUrl',
+    'redirectBareDomain',
     'showLoginInShareTheme'
 ]);
 
