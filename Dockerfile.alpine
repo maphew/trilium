@@ -30,6 +30,13 @@ RUN npx tsc -p tsconfig.prod.json
 # Create dist directory and copy compiled files
 RUN mkdir -p dist && cp -R build/src/* dist/
 
+# Copy static assets before cleanup
+RUN mkdir -p src/public/app-dist && \
+    cp src/public/app/share.js src/public/app-dist/. && \
+    cp -r src/public/app/doc_notes src/public/app-dist/. && \
+    rm -rf src/public/app && \
+    rm -f src/services/asset_path.ts
+
 # Build and optimize for production
 RUN npm run webpack && \
     npm prune --omit=dev && \
@@ -37,12 +44,6 @@ RUN npm run webpack && \
 
 # Cleanup build artifacts after webpack is done
 RUN rm -rf build src/
-
-# Copy static assets
-RUN cp src/public/app/share.js src/public/app-dist/. && \
-    cp -r src/public/app/doc_notes src/public/app-dist/. && \
-    rm -rf src/public/app && \
-    rm -f src/services/asset_path.ts
 
 # Runtime stage
 
