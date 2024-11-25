@@ -1,8 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:base"
-  ],
+  "extends": ["config:recommended"],
   "repositories": ["TriliumNext/Notes"],
   "schedule": ["before 3am"],
   "labels": ["dependencies", "renovate"],

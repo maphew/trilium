@@ -5,6 +5,26 @@ import { t } from "../../../../services/i18n.js";
 
 const TPL = `
 <div class="options-section">
+    <h4>${t("theme.layout")}</h4>
+
+    <div class="form-group row">
+        <div>
+            <label>
+                <input type="radio" name="layout-orientation" value="vertical" />
+                <strong>${t("theme.layout-vertical-title")}</strong>
+                - ${t("theme.layout-vertical-description")}
+            </label>
+        </div>
+
+        <div>
+            <label>
+                <input type="radio" name="layout-orientation" value="horizontal" />
+                <strong>${t("theme.layout-horizontal-title")}</strong>
+                - ${t("theme.layout-horizontal-description")}
+            </label>
+        </div>
+    </div>
+
     <h4>${t("theme.title")}</h4>
     
     <div class="form-group row">
@@ -19,7 +39,7 @@ const TPL = `
                 ${t("theme.override_theme_fonts_label")}
             </label>
         </div>
-    </div>
+    </div>    
 </div>`;
 
 export default class ThemeOptions extends OptionsWidget {
@@ -27,6 +47,11 @@ export default class ThemeOptions extends OptionsWidget {
         this.$widget = $(TPL);
         this.$themeSelect = this.$widget.find(".theme-select");
         this.$overrideThemeFonts = this.$widget.find(".override-theme-fonts");
+        this.$layoutOrientation = this.$widget.find(`input[name="layout-orientation"]`).on("change", async () => {
+            const newLayoutOrientation = this.$widget.find(`input[name="layout-orientation"]:checked`).val();
+            await this.updateOption("layoutOrientation", newLayoutOrientation);
+            utils.reloadFrontendApp("layout orientation change");
+        });
 
         this.$themeSelect.on('change', async () => {
             const newTheme = this.$themeSelect.val();
@@ -57,5 +82,8 @@ export default class ThemeOptions extends OptionsWidget {
         this.$themeSelect.val(options.theme);
 
         this.setCheckboxState(this.$overrideThemeFonts, options.overrideThemeFonts);
+
+        this.$widget.find(`input[name="layout-orientation"][value="${options.layoutOrientation}"]`)
+            .prop("checked", "true");
     }
 }

@@ -5,7 +5,7 @@ import UpdateAvailableWidget from "./update_available.js";
 import options from "../../services/options.js";
 
 const TPL = `
-<div class="dropdown global-menu dropend">
+<div class="dropdown global-menu">
     <style>
     .global-menu {
         width: 53px;
@@ -107,22 +107,6 @@ const TPL = `
 
     <button type="button" data-bs-toggle="dropdown" aria-haspopup="true"
             aria-expanded="false" class="icon-action global-menu-button">
-        <svg viewBox="0 0 256 256" data-bs-toggle="tooltip" title="${t('global_menu.menu')}">
-            <g>
-                <path class="st0" d="m202.9 112.7c-22.5 16.1-54.5 12.8-74.9 6.3l14.8-11.8 14.1-11.3 49.1-39.3-51.2 35.9-14.3 10-14.9 10.5c0.7-21.2 7-49.9 28.6-65.4 1.8-1.3 3.9-2.6 6.1-3.8 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.4 2.8-4.9 5.4-7.4 7.8-3.4 3.5-6.8 6.4-10.1 8.8z"/>
-                <path class="st1" d="m213.1 104c-22.2 12.6-51.4 9.3-70.3 3.2l14.1-11.3 49.1-39.3-51.2 35.9-14.3 10c0.5-18.1 4.9-42.1 19.7-58.6 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.3 2.8-4.8 5.4-7.2 7.8z"/>
-                <path class="st2" d="m220.5 96.2c-21.1 8.6-46.6 5.3-63.7-0.2l49.2-39.4-51.2 35.9c0.3-15.8 3.5-36.6 14.3-52.8 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.8 66z"/>
-            
-                <path class="st3" d="m106.7 179c-5.8-21 5.2-43.8 15.5-57.2l4.8 14.2 4.5 13.4 15.9 47-12.8-47.6-3.6-13.2-3.7-13.9c15.5 6.2 35.1 18.6 40.7 38.8 0.5 1.7 0.9 3.6 1.2 5.5 0.4 2.4 0.6 5 0.7 7.7 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8-1.4-2.6-2.7-5.1-3.8-7.6-1.6-3.5-2.9-6.8-3.8-10z"/>
-                <path class="st4" d="m110.4 188.9c-3.4-19.8 6.9-40.5 16.6-52.9l4.5 13.4 15.9 47-12.8-47.6-3.6-13.2c13.3 5.2 29.9 15 38.1 30.4 0.4 2.4 0.6 5 0.7 7.7 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8-1.4-2.6-2.7-5.2-3.8-7.7z"/>
-                <path class="st5" d="m114.2 196.5c-0.7-18 8.6-35.9 17.3-47.1l15.9 47-12.8-47.6c11.6 4.4 26.1 12.4 35.2 24.8 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8z"/>
-    
-                <path class="st6" d="m86.3 59.1c21.7 10.9 32.4 36.6 35.8 54.9l-15.2-6.6-14.5-6.3-50.6-22 48.8 24.9 13.6 6.9 14.3 7.3c-16.6 7.9-41.3 14.5-62.1 4.1-1.8-0.9-3.6-1.9-5.4-3.2-2.3-1.5-4.5-3.2-6.8-5.1-19.9-16.4-40.3-46.4-42.7-61.5 12.4-6.5 41.5-5.8 64.8-0.3 3.2 0.8 6.2 1.6 9.1 2.5 4 1.3 7.6 2.8 10.9 4.4z"/>
-                <path class="st7" d="m75.4 54.8c18.9 12 28.4 35.6 31.6 52.6l-14.5-6.3-50.6-22 48.7 24.9 13.6 6.9c-14.1 6.8-34.5 13-53.3 8.2-2.3-1.5-4.5-3.2-6.8-5.1-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3 3.1 0.8 6.2 1.6 9.1 2.6z"/>
-                <path class="st8" d="m66.3 52.2c15.3 12.8 23.3 33.6 26.1 48.9l-50.6-22 48.8 24.9c-12.2 6-29.6 11.8-46.5 10-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3z"/>
-            </g>
-        </svg>
-
         <div class="global-menu-button-update-available"></div>
     </button>
 
@@ -138,7 +122,9 @@ const TPL = `
             ${t('global_menu.show_shared_notes_subtree')}
         </li>
 
-        <span class="zoom-container dropdown-item">
+        <div class="dropdown-divider"></div>
+
+        <span class="zoom-container dropdown-item dropdown-item-container">
             <div>
                 <span class="bx bx-empty"></span>
                 ${t('global_menu.zoom')}
@@ -157,7 +143,7 @@ const TPL = `
             </div>
         </span>
 
-        <div class="dropdown-divider"></div>
+        <div class="dropdown-divider zoom-container-separator"></div>
 
         <li class="dropdown-item switch-to-mobile-version-button" data-trigger-command="switchToMobileVersion">
             <span class="bx bx-mobile"></span>
@@ -233,7 +219,7 @@ const TPL = `
             ${t('global_menu.options')}
         </li>
 
-        <div class="dropdown-divider"></div>
+        <div class="dropdown-divider desktop-only"></div>
 
         <li class="dropdown-item show-help-button" data-trigger-command="showHelp">
             <span class="bx bx-help-circle"></span>
@@ -252,7 +238,7 @@ const TPL = `
             <span class="version-text"></span>
         </li>
 
-        <div class="dropdown-divider"></div>
+        <div class="dropdown-divider logout-button-separator"></div>
 
         <li class="dropdown-item logout-button" data-trigger-command="logout">
             <span class="bx bx-log-out"></span>
@@ -263,24 +249,54 @@ const TPL = `
 `;
 
 export default class GlobalMenuWidget extends BasicWidget {
-    constructor() {
+    constructor(isHorizontalLayout) {
         super();
 
         this.updateAvailableWidget = new UpdateAvailableWidget();
+        this.isHorizontalLayout = isHorizontalLayout;        
     }
 
     doRender() {
         this.$widget = $(TPL);
 
-        this.dropdown = bootstrap.Dropdown.getOrCreateInstance(this.$widget.find("[data-bs-toggle='dropdown']"));
+        if (!this.isHorizontalLayout) {
+            this.$widget.addClass("dropend");
+        }
 
-        this.tooltip = new bootstrap.Tooltip(this.$widget.find("[data-bs-toggle='tooltip']"), { trigger: "hover" });
+        const $globalMenuButton = this.$widget.find(".global-menu-button")
+        if (!this.isHorizontalLayout) {
+            $globalMenuButton.prepend($(`\
+                <svg viewBox="0 0 256 256" data-bs-toggle="tooltip" title="${t('global_menu.menu')}">
+                    <g>
+                        <path class="st0" d="m202.9 112.7c-22.5 16.1-54.5 12.8-74.9 6.3l14.8-11.8 14.1-11.3 49.1-39.3-51.2 35.9-14.3 10-14.9 10.5c0.7-21.2 7-49.9 28.6-65.4 1.8-1.3 3.9-2.6 6.1-3.8 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.4 2.8-4.9 5.4-7.4 7.8-3.4 3.5-6.8 6.4-10.1 8.8z"/>
+                        <path class="st1" d="m213.1 104c-22.2 12.6-51.4 9.3-70.3 3.2l14.1-11.3 49.1-39.3-51.2 35.9-14.3 10c0.5-18.1 4.9-42.1 19.7-58.6 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.3 2.8-4.8 5.4-7.2 7.8z"/>
+                        <path class="st2" d="m220.5 96.2c-21.1 8.6-46.6 5.3-63.7-0.2l49.2-39.4-51.2 35.9c0.3-15.8 3.5-36.6 14.3-52.8 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.8 66z"/>
+                    
+                        <path class="st3" d="m106.7 179c-5.8-21 5.2-43.8 15.5-57.2l4.8 14.2 4.5 13.4 15.9 47-12.8-47.6-3.6-13.2-3.7-13.9c15.5 6.2 35.1 18.6 40.7 38.8 0.5 1.7 0.9 3.6 1.2 5.5 0.4 2.4 0.6 5 0.7 7.7 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8-1.4-2.6-2.7-5.1-3.8-7.6-1.6-3.5-2.9-6.8-3.8-10z"/>
+                        <path class="st4" d="m110.4 188.9c-3.4-19.8 6.9-40.5 16.6-52.9l4.5 13.4 15.9 47-12.8-47.6-3.6-13.2c13.3 5.2 29.9 15 38.1 30.4 0.4 2.4 0.6 5 0.7 7.7 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8-1.4-2.6-2.7-5.2-3.8-7.7z"/>
+                        <path class="st5" d="m114.2 196.5c-0.7-18 8.6-35.9 17.3-47.1l15.9 47-12.8-47.6c11.6 4.4 26.1 12.4 35.2 24.8 0.9 23.1-7.1 54.9-15.9 65.7-12-4.3-29.3-24-39.7-42.8z"/>
+            
+                        <path class="st6" d="m86.3 59.1c21.7 10.9 32.4 36.6 35.8 54.9l-15.2-6.6-14.5-6.3-50.6-22 48.8 24.9 13.6 6.9 14.3 7.3c-16.6 7.9-41.3 14.5-62.1 4.1-1.8-0.9-3.6-1.9-5.4-3.2-2.3-1.5-4.5-3.2-6.8-5.1-19.9-16.4-40.3-46.4-42.7-61.5 12.4-6.5 41.5-5.8 64.8-0.3 3.2 0.8 6.2 1.6 9.1 2.5 4 1.3 7.6 2.8 10.9 4.4z"/>
+                        <path class="st7" d="m75.4 54.8c18.9 12 28.4 35.6 31.6 52.6l-14.5-6.3-50.6-22 48.7 24.9 13.6 6.9c-14.1 6.8-34.5 13-53.3 8.2-2.3-1.5-4.5-3.2-6.8-5.1-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3 3.1 0.8 6.2 1.6 9.1 2.6z"/>
+                        <path class="st8" d="m66.3 52.2c15.3 12.8 23.3 33.6 26.1 48.9l-50.6-22 48.8 24.9c-12.2 6-29.6 11.8-46.5 10-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3z"/>
+                    </g>
+                </svg>`));
+            this.tooltip = new bootstrap.Tooltip(this.$widget.find("[data-bs-toggle='tooltip']"), { trigger: "hover" });
+        } else {
+            $globalMenuButton.toggleClass("bx bx-menu");
+        }
+
+        this.dropdown = bootstrap.Dropdown.getOrCreateInstance(this.$widget.find("[data-bs-toggle='dropdown']"), {
+            alignment: "bottom"
+        });
 
         this.$widget.find(".show-about-dialog-button").on('click', () => this.triggerCommand("openAboutDialog"));
 
         const isElectron = utils.isElectron();
 
         this.$widget.find(".logout-button").toggle(!isElectron);
+        this.$widget.find(".logout-button-separator").toggle(!isElectron);
+
         this.$widget.find(".open-dev-tools-button").toggle(isElectron);
         this.$widget.find(".switch-to-mobile-version-button").toggle(!isElectron && utils.isDesktop());
         this.$widget.find(".switch-to-desktop-version-button").toggle(!isElectron && utils.isMobile());
@@ -296,7 +312,7 @@ export default class GlobalMenuWidget extends BasicWidget {
             if ($(e.target).children(".dropdown-menu").length === 1 || $(e.target).hasClass('dropdown-toggle')) {
                 e.stopPropagation();
             }
-        })
+        })        
 
         this.$widget.find(".global-menu-button-update-available").append(
             this.updateAvailableWidget.render()
@@ -306,15 +322,20 @@ export default class GlobalMenuWidget extends BasicWidget {
 
         if (!utils.isElectron()) {
             this.$widget.find(".zoom-container").hide();
+            this.$widget.find(".zoom-container-separator").hide();
         }
 
         this.$zoomState = this.$widget.find(".zoom-state");
         this.$widget.on('show.bs.dropdown', () => {
             this.updateZoomState();
-            this.tooltip.hide();
-            this.tooltip.disable();
+            if (this.tooltip) {
+                this.tooltip.hide();
+                this.tooltip.disable();
+            }
         });
-        this.$widget.on('hide.bs.dropdown', () => this.tooltip.enable());
+        if (this.tooltip) {
+            this.$widget.on('hide.bs.dropdown', () => this.tooltip.enable());
+        }
 
         this.$widget.find(".zoom-buttons").on("click",
             // delay to wait for the actual zoom change

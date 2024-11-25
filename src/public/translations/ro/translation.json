@@ -1449,7 +1449,9 @@
     "close_tab": "Închide tab",
     "move_tab_to_new_window": "Mută acest tab în altă fereastră",
     "new_tab": "Tab nou",
-    "close_right_tabs": "Închide taburile din dreapta"
+    "close_right_tabs": "Închide taburile din dreapta",
+    "copy_tab_to_new_window": "Copiază tab-ul într-o fereastră nouă",
+    "reopen_last_tab": "Redeschide ultimul tab închis"
   },
   "toc": {
     "options": "Setări",
@@ -1527,15 +1529,24 @@
       "label": "Bară de formatare",
       "floating": {
         "title": "Editor cu bară flotantă",
-        "description": "uneltele de editare vor apărea lângă cursor."
+        "description": "uneltele de editare vor apărea lângă cursor;"
       },
       "fixed": {
         "title": "Editor cu bară fixă",
-        "description": "uneltele de editare vor apărea în tab-ul „Formatare” din panglică;"
+        "description": "uneltele de editare vor apărea în tab-ul „Formatare” din panglică."
       }
     }
   },
   "editor": {
     "title": "Editor"
+  },
+  "electron_context_menu": {
+    "add-term-to-dictionary": "Adaugă „{{term}}” în dicționar",
+    "copy": "Copiază",
+    "copy-link": "Copiază legătura",
+    "cut": "Decupează",
+    "paste": "Lipește",
+    "paste-as-plain-text": "Lipește doar textul",
+    "search_online": "Caută „{{term}}” cu {{searchEngine}}"
   }
 }

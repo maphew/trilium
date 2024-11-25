@@ -134,7 +134,13 @@ const defaultOptions: DefaultOption[] = [
     { name: "codeBlockWordWrap", value: "false", isSynced: true },
 
     // Text note configuration
-    { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true }
+    { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
+
+    { name: "layoutOrientation", value: "vertical", isSynced: false },
+
+    // Share settings
+    { name: 'redirectBareDomain', value: 'false', isSynced: true },
+    { name: 'showLoginInShareTheme', value: 'false', isSynced: true }
 ];
 
 /**

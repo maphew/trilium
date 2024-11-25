@@ -88,8 +88,11 @@ export default class Component {
 
         if (fun) {
             return this.callMethod(fun, data);
-        }
-        else {
+        } else {
+            if (!this.parent) {
+                throw new Error(`Component "${this.componentId}" does not have a parent attached to propagate a command.`);
+            }
+
             return this.parent.triggerCommand(name, data);
         }
     }

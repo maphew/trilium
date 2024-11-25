@@ -103,6 +103,10 @@ class ContextMenu {
                     .append(" &nbsp; ") // some space between icon and text
                     .append(item.title);
 
+                if (item.shortcut) {
+                    $link.append($("<kbd>").text(item.shortcut));
+                }
+
                 const $item = $("<li>")
                     .addClass("dropdown-item")
                     .append($link)

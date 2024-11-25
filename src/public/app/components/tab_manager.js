@@ -586,6 +586,11 @@ export default class TabManager extends Component {
         }
     }
 
+    async copyTabToNewWindowCommand({ntxId}) {
+        const {notePath, hoistedNoteId} = this.getNoteContextById(ntxId);
+        this.triggerCommand('openInWindow', {notePath, hoistedNoteId});
+    } 
+
     async reopenLastTabCommand() {
         let closeLastEmptyTab = null;
 

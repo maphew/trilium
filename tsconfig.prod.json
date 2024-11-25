@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "module": "NodeNext",
+    "declaration": false,
+    "sourceMap": true,
+    "outDir": "./build",
+    "strict": true,
+    "noImplicitAny": true,
+    "resolveJsonModule": true,
+    "lib": ["ES2022"],
+    "downlevelIteration": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowJs": true
+  },
+  "include": [
+    "./src/**/*.js",
+    "./src/**/*.ts"
+  ],
+  "exclude": [
+    "./node_modules/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "./spec/**/*",
+    "./spec-es6/**/*",
+    "electron*.ts"
+  ],
+  "files": [
+    "src/types.d.ts"
+  ]
+}

@@ -24,6 +24,7 @@ import RootContainer from "../widgets/containers/root_container.js";
 import SharedInfoWidget from "../widgets/shared_info.js";
 import PromotedAttributesWidget from "../widgets/ribbon_widgets/promoted_attributes.js";
 import ClassicEditorToolbar from "../widgets/ribbon_widgets/classic_editor_toolbar.js";
+import options from "../services/options.js";
 
 const MOBILE_CSS = `
 <style>
@@ -112,15 +113,12 @@ span.fancytree-expander {
 
 export default class MobileLayout {
     getRootWidget(appContext) {
-        return new RootContainer()
+        const launcherPaneIsHorizontal = (options.get("layoutOrientation") === "horizontal");
+
+        return new RootContainer(launcherPaneIsHorizontal)
             .setParent(appContext)
             .cssBlock(MOBILE_CSS)
-            .child(new FlexContainer("column")
-                .id("launcher-pane")
-                .css("width", "53px")
-                .child(new GlobalMenuWidget())
-                .child(new LauncherContainer())
-            )
+            .child(this.#buildLauncherPane(launcherPaneIsHorizontal))
             .child(new FlexContainer("row")
                 .filling()
                 .child(new ScreenContainer("tree", 'column')
@@ -140,12 +138,14 @@ export default class MobileLayout {
                     .child(new FlexContainer('row').contentSized()
                         .css('font-size', 'larger')
                         .css('align-items', 'center')
-                        .child(new MobileDetailMenuWidget().contentSized())
+                        .optChild(!launcherPaneIsHorizontal, new MobileDetailMenuWidget(false).contentSized())
                         .child(new NoteTitleWidget()
                             .contentSized()
                             .css("position: relative;")
                             .css("top: 5px;")
+                            .optCss(launcherPaneIsHorizontal, "padding-left", "0.5em")
                         )
+                        .optChild(launcherPaneIsHorizontal, new MobileDetailMenuWidget(true).contentSized())
                         .child(new CloseDetailButtonWidget().contentSized()))
                     .child(new SharedInfoWidget())
                     .child(new FloatingButtons()
@@ -173,5 +173,26 @@ export default class MobileLayout {
                 .child(new ProtectedSessionPasswordDialog())
                 .child(new ConfirmDialog())
             );
+    }
+
+    #buildLauncherPane(isHorizontal) {
+        let launcherPane;
+
+        if (isHorizontal) {
+            launcherPane = new FlexContainer("row")
+                .class("horizontal")
+                .css("height", "53px")
+                .child(new LauncherContainer(true))
+                .child(new GlobalMenuWidget(true));
+        } else {
+            launcherPane = new FlexContainer("column")                
+                .class("vertical")
+                .css("width", "53px")
+                .child(new GlobalMenuWidget(false))
+                .child(new LauncherContainer(false));
+        }
+
+        launcherPane.id("launcher-pane");
+        return launcherPane;
     }
 }

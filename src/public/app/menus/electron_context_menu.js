@@ -2,6 +2,7 @@ import utils from "../services/utils.js";
 import options from "../services/options.js";
 import zoomService from "../components/zoom.js";
 import contextMenu from "./context_menu.js";
+import { t } from "../services/i18n.js";
 
 function setupContextMenu() {
     const electron = utils.dynamicRequire('electron');
@@ -28,7 +29,7 @@ function setupContextMenu() {
             }
 
             items.push({
-                title: `Add "${params.misspelledWord}" to dictionary`,
+                title: t("electron_context_menu.add-term-to-dictionary", { term: params.misspelledWord }),
                 uiIcon: "bx bx-plus",
                 handler: () => webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
             });
@@ -39,7 +40,8 @@ function setupContextMenu() {
         if (params.isEditable) {
             items.push({
                 enabled: editFlags.canCut && hasText,
-                title: `Cut <kbd>${platformModifier}+X`,
+                title: t("electron_context_menu.cut"),
+                shortcut: `${platformModifier}+X`,
                 uiIcon: "bx bx-cut",
                 handler: () => webContents.cut()
             });
@@ -48,7 +50,8 @@ function setupContextMenu() {
         if (params.isEditable || hasText) {
             items.push({
                 enabled: editFlags.canCopy && hasText,
-                title: `Copy <kbd>${platformModifier}+C`,
+                title: t("electron_context_menu.copy"),
+                shortcut: `${platformModifier}+C`,
                 uiIcon: "bx bx-copy",
                 handler: () => webContents.copy()
             });
@@ -56,7 +59,7 @@ function setupContextMenu() {
 
         if (!["", "javascript:", "about:blank#blocked"].includes(params.linkURL) && params.mediaType === 'none') {
             items.push({
-                title: `Copy link`,
+                title: t("electron_context_menu.copy-link"),
                 uiIcon: "bx bx-copy",
                 handler: () => {
                     electron.clipboard.write({
@@ -70,7 +73,8 @@ function setupContextMenu() {
         if (params.isEditable) {
             items.push({
                 enabled: editFlags.canPaste,
-                title: `Paste <kbd>${platformModifier}+V`,
+                title: t("electron_context_menu.paste"),
+                shortcut: `${platformModifier}+V`,
                 uiIcon: "bx bx-paste",
                 handler: () => webContents.paste()
             });
@@ -79,7 +83,8 @@ function setupContextMenu() {
         if (params.isEditable) {
             items.push({
                 enabled: editFlags.canPaste,
-                title: `Paste as plain text <kbd>${platformModifier}+Shift+V`,
+                title: t("electron_context_menu.paste-as-plain-text"),
+                shortcut: `${platformModifier}+Shift+V`,
                 uiIcon: "bx bx-paste",
                 handler: () => webContents.pasteAndMatchStyle()
             });
@@ -106,9 +111,11 @@ function setupContextMenu() {
             // Replace the placeholder with the real search keyword.
             let searchUrl = searchEngineUrl.replace("{keyword}", encodeURIComponent(params.selectionText));
 
+            items.push({title: "----"});
+
             items.push({
                 enabled: editFlags.canPaste,
-                title: `Search for "${shortenedSelection}" with ${searchEngineName}`,
+                title: t("electron_context_menu.search_online", { term: shortenedSelection, searchEngine: searchEngineName }),
                 uiIcon: "bx bx-search-alt",
                 handler: () => electron.shell.openExternal(searchUrl)
             });

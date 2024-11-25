@@ -9,6 +9,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GHCR_REGISTRY: ghcr.io
+  DOCKERHUB_REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.repository_owner }}/notes
+  TEST_TAG: ${{ github.repository_owner }}/notes:test
+
 jobs:
   build_docker:
     name: Build Docker image
@@ -31,3 +37,65 @@ jobs:
           context: .
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  test_docker:
+    name: Check Docker build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - dockerfile: Dockerfile.alpine
+          - dockerfile: Dockerfile
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        
+      - name: Set IMAGE_NAME to lowercase
+        run: echo "IMAGE_NAME=${IMAGE_NAME,,}" >> $GITHUB_ENV
+      - name: Set TEST_TAG to lowercase
+        run: echo "TEST_TAG=${TEST_TAG,,}" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up node & dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+      
+      - run: npm ci
+      
+      - name: Run the TypeScript build
+        run: npx tsc
+      
+      - name: Create server-package.json
+        run: cat package.json | grep -v electron > server-package.json
+
+      - name: Build and export to Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: ${{ env.TEST_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Validate container run output
+        run: |
+          CONTAINER_ID=$(docker run -d --log-driver=journald --rm --name trilium_local ${{ env.TEST_TAG }})
+          echo "Container ID: $CONTAINER_ID"
+      
+      - name: Wait for the healthchecks to pass
+        uses: stringbean/docker-healthcheck-action@v1
+        with:
+          container: trilium_local
+          wait-time: 50
+          require-status: running
+          require-healthy: true
+
+      # Print the entire log of the container thus far, regardless if the healthcheck failed or succeeded
+      - name: Print entire log
+        if: always()
+        run: |
+          journalctl -u docker CONTAINER_NAME=trilium_local --no-pager
