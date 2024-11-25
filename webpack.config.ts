@@ -15,6 +15,9 @@ export default {
         path: path.resolve(rootDir, 'src/public/app-dist'),
         filename: '[name].js',
     },
+    resolve: {
+        extensions: ['.ts', '.js', '.json']
+    },
     devtool: 'source-map',
     target: 'electron-renderer',
 };

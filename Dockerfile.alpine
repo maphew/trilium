@@ -30,6 +30,10 @@ RUN npx tsc -p tsconfig.prod.json
 # Create dist directory and copy compiled files
 RUN mkdir -p dist && cp -R build/src/* dist/
 
+# Ensure asset_path.js is available for webpack
+RUN mkdir -p src/services && \
+    cp dist/services/asset_path.js src/services/
+
 # Copy static assets before cleanup
 RUN mkdir -p src/public/app-dist && \
     cp src/public/app/share.js src/public/app-dist/. && \
