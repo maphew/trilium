@@ -30,23 +30,21 @@ RUN npx tsc -p tsconfig.prod.json
 # Create dist directory and copy compiled files
 RUN mkdir -p dist && cp -R build/src/* dist/
 
-# Cleanup build artifacts
-# RUN rm -rf build src/ && \
-    # rm -f docker_healthcheck.ts
-    # todo: investigate if docker_healthcheck.ts is actually needed
-RUN rm -rf build src/
-
-
 # Build and optimize for production
 RUN npm run webpack && \
     npm prune --omit=dev && \
     npm cache clean --force
 
+# Cleanup build artifacts after webpack is done
+RUN rm -rf build src/
+
 # Copy static assets
 RUN cp src/public/app/share.js src/public/app-dist/. && \
     cp -r src/public/app/doc_notes src/public/app-dist/. && \
     rm -rf src/public/app && \
-    rm -f src/services/asset_path.ts# Runtime stage
+    rm -f src/services/asset_path.ts
+
+# Runtime stage
 
 FROM node:20.15.1-alpine
 
