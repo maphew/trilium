@@ -19,7 +19,8 @@ WORKDIR /usr/src/app
 # Copy only necessary files for build
 COPY . .
 # COPY server-package.json package.json
-RUN cp server-package.json package.json
+# remove electron from package.json
+RUN cat package.json | grep -v electron > server-package.json && cp server-package.json package.json
 
 # Build and cleanup in a single layer
 RUN cp -R build/src/* src/. && \
