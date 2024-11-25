@@ -1,6 +1,11 @@
 # Build stage
 FROM node:20.15.1-alpine AS builder
 
+# Trust Alpine's certificate
+RUN wget -O /etc/apk/keys/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub https://alpine-pkgs.sgerrand.com/alpine-devel@lists.alpinelinux.org-4a6a0840.rsa.pub
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.20/main/" > /etc/apk/repositories && \
+    echo "https://dl-cdn.alpinelinux.org/alpine/v3.20/community/" >> /etc/apk/repositories
+
 # Configure build dependencies
 RUN apk add --no-cache --virtual .build-dependencies \
     autoconf \
@@ -25,24 +30,27 @@ RUN cat package.json | grep -v electron > server-package.json && cp server-packa
 RUN npm install
 
 # Build TypeScript
-RUN npx tsc -p tsconfig.prod.json
+RUN npx tsc -p tsconfig.prod.json && \
+    echo "TypeScript build completed"
 
-# Create dist directory and copy compiled files
-RUN mkdir -p dist && cp -R build/src/* dist/
+# Debug: Show TypeScript output
+RUN find build/src -type f -name "*.js" | sort
 
-# Ensure asset_path.js is available for webpack
-RUN mkdir -p src/services && \
+# Create dist and required directories
+RUN mkdir -p dist/public/app && \
+    mkdir -p src/public/app-dist
+
+# Copy files in the correct order
+RUN cp -R build/src/* dist/ && \
+    cp -R src/public/app src/public/app-dist/ && \
     cp dist/services/asset_path.js src/services/
 
-# Copy static assets before cleanup
-RUN mkdir -p src/public/app-dist && \
-    cp src/public/app/share.js src/public/app-dist/. && \
-    cp -r src/public/app/doc_notes src/public/app-dist/. && \
-    rm -rf src/public/app && \
-    rm -f src/services/asset_path.ts
+# Debug: Show file structure before webpack
+RUN echo "=== Directory structure before webpack ===" && \
+    find src/public -type f -name "*.js" | sort
 
 # Build and optimize for production
-RUN npm run webpack && \
+RUN NODE_DEBUG=webpack npm run webpack && \
     npm prune --omit=dev && \
     npm cache clean --force
 

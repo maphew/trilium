@@ -16,7 +16,28 @@ export default {
         filename: '[name].js',
     },
     resolve: {
-        extensions: ['.ts', '.js', '.json']
+        extensions: ['.ts', '.js', '.json'],
+        extensionAlias: {
+            '.js': ['.ts', '.js'],
+        }
+    },
+    module: {
+        rules: [
+            {
+                test: /\.[jt]s$/,
+                use: {
+                    loader: 'ts-loader',
+                    options: {
+                        configFile: 'tsconfig.prod.json',
+                        allowTsInNodeModules: true,
+                        compilerOptions: {
+                            sourceMap: true
+                        }
+                    }
+                },
+                exclude: /node_modules/,
+            }
+        ]
     },
     devtool: 'source-map',
     target: 'electron-renderer',

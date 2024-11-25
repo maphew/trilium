@@ -35,3 +35,4 @@ images/app-icons/mac/*.png
 /playwright/.auth/
 /.devcontainer/.devcontainer-internal.json
 /.devcontainer/devcontainer.json
+/build.log
