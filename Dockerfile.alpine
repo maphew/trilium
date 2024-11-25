@@ -21,27 +21,30 @@ COPY . .
 # remove electron from package.json
 RUN cat package.json | grep -v electron > server-package.json && cp server-package.json package.json
 
-# Build and cleanup in a single layer
-# RUN cp -R build/src/* src/. && \
-#     cp build/docker_healthcheck.js . && \
-#     rm -r build && \
-# Build and cleanup in a single layer
-RUN npm install && \
-    npx tsc -p tsconfig.prod.json && \
-    cp -R build/src/* src/. && \
-    cp build/docker_healthcheck.js . && \
-    rm -r build && \
-    rm docker_healthcheck.ts && \
-    npm install && \
-    npm run webpack && \
+# Install dependencies
+RUN npm install
+
+# Build TypeScript
+RUN npx tsc -p tsconfig.prod.json
+
+# Copy built files to src directory
+RUN cp -R build/src/* src/.
+
+# Clean up build artifacts
+RUN rm -r build && \
+    rm -f docker_healthcheck.ts
+
+# Build and optimize for production
+RUN npm run webpack && \
     npm prune --omit=dev && \
-    npm cache clean --force && \
-    cp src/public/app/share.js src/public/app-dist/. && \
+    npm cache clean --force
+
+# Copy static assets
+RUN cp src/public/app/share.js src/public/app-dist/. && \
     cp -r src/public/app/doc_notes src/public/app-dist/. && \
     rm -rf src/public/app && \
-    rm src/services/asset_path.ts
+    rm -f src/services/asset_path.ts# Runtime stage
 
-# Runtime stage
 FROM node:20.15.1-alpine
 
 # Install runtime dependencies
