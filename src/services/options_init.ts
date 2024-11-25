@@ -102,7 +102,6 @@ const defaultOptions: DefaultOption[] = [
     { name: 'headingStyle', value: 'underline', isSynced: true },
     { name: 'autoCollapseNoteTree', value: 'true', isSynced: true },
     { name: 'autoReadonlySizeText', value: '10000', isSynced: false },
-    { name: 'redirectBareDomain', value: 'false', isSynced: true },
     { name: 'autoReadonlySizeCode', value: '30000', isSynced: false },
     { name: 'dailyBackupEnabled', value: 'true', isSynced: false },
     { name: 'weeklyBackupEnabled', value: 'true', isSynced: false },
@@ -138,8 +137,9 @@ const defaultOptions: DefaultOption[] = [
     { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
 
     { name: "layoutOrientation", value: "vertical", isSynced: false },
-    { name: 'shareRedirectUrl', value: 'share', isSynced: true },
-    { name: 'loginRedirectUrl', value: 'login', isSynced: true },
+
+    // Share settings
+    { name: 'redirectBareDomain', value: 'false', isSynced: true },
     { name: 'showLoginInShareTheme', value: 'false', isSynced: true }
 ];
 

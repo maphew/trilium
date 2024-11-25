@@ -91,12 +91,12 @@ const CONTENT_WIDGETS = {
     _optionsOther: [
         SearchEngineOptions,
         TrayOptions,
-        ShareSettingsOptions,
         NoteErasureTimeoutOptions,
         AttachmentErasureTimeoutOptions,
         RevisionsSnapshotIntervalOptions,
         RevisionSnapshotsLimitOptions,
-        NetworkConnectionsOptions
+        NetworkConnectionsOptions,
+        ShareSettingsOptions
     ],
     _optionsAdvanced: [
         DatabaseIntegrityCheckOptions,

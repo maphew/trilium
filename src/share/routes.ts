@@ -158,8 +158,7 @@ function register(router: Router) {
         const { header, content, isEmpty } = contentRenderer.getContent(note);
         const subRoot = getSharedSubTreeRoot(note);
         const showLoginInShareTheme = optionService.getOption('showLoginInShareTheme');
-        const loginRedirectUrl = optionService.getOption('loginRedirectUrl');
-        const opts = { note, header, content, isEmpty, subRoot, assetPath, appPath, showLoginInShareTheme, loginRedirectUrl };
+        const opts = { note, header, content, isEmpty, subRoot, assetPath, appPath, showLoginInShareTheme };
         let useDefaultView = true;
 
         // Check if the user has their own template
