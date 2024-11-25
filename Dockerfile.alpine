@@ -27,7 +27,7 @@ RUN cat package.json | grep -v electron > server-package.json && cp server-packa
 #     rm -r build && \
 # Build and cleanup in a single layer
 RUN npm install && \
-    npx tsc -p tsconfig.build.json && \
+    npx tsc -p tsconfig.prod.json && \
     cp -R build/src/* src/. && \
     cp build/docker_healthcheck.js . && \
     rm -r build && \
