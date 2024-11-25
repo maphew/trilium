@@ -33,6 +33,7 @@ RUN cp -R build/src/* src/.
 # Clean up build artifacts
 RUN rm -r build && \
     rm -f docker_healthcheck.ts
+    # todo: investigate if docker_healthcheck.ts is actually needed
 
 # Build and optimize for production
 RUN npm run webpack && \
@@ -56,7 +57,7 @@ WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/node_modules ./node_modules
 COPY --from=builder /usr/src/app/src ./src
 COPY --from=builder /usr/src/app/db ./db
-COPY --from=builder /usr/src/app/docker_healthcheck.js .
+# COPY --from=builder /usr/src/app/docker_healthcheck.js .
 COPY --from=builder /usr/src/app/start-docker.sh .
 COPY --from=builder /usr/src/app/package.json .
 COPY --from=builder /usr/src/app/config-sample.ini .
