@@ -3,8 +3,8 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'tnext-holy-waterfall-2759'
-primary_region = 'ewr'
+`app = 'tnext-bare2share'
+primary_region = 'sea'
 
 [build]
 

@@ -18,7 +18,8 @@ WORKDIR /usr/src/app
 
 # Copy only necessary files for build
 COPY . .
-COPY server-package.json package.json
+# COPY server-package.json package.json
+RUN cp server-package.json package.json
 
 # Build and cleanup in a single layer
 RUN cp -R build/src/* src/. && \
