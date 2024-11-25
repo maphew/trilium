@@ -7,4 +7,4 @@
 export TRILIUM_DATA_DIR=/data
 
 chown -R node:node /home/node
-exec su -c "node ./src/main" node
+exec su -c "node ./dist/main.js" node
