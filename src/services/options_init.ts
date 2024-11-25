@@ -1,4 +1,5 @@
 import optionService from "./options.js";
+import type { OptionMap } from "./options.js";
 import appInfo from "./app_info.js";
 import utils from "./utils.js";
 import log from "./log.js";
@@ -11,17 +12,35 @@ function initDocumentOptions() {
     optionService.createOption('documentSecret', utils.randomSecureToken(16), false);
 }
 
+/**
+ * Contains additional options to be initialized for a new database, containing the information entered by the user.
+ */
 interface NotSyncedOpts {
     syncServerHost?: string;
     syncProxy?: string;
 }
 
+/**
+ * Represents a correspondence between an option and its default value, to be initialized when the database is missing that particular option (after a migration from an older version, or when creating a new database).
+ */
 interface DefaultOption {
     name: string;
-    value: string;
+    /**
+     * The value to initialize the option with, if the option is not already present in the database.
+     * 
+     * If a function is passed in instead, the function is called if the option does not exist (with access to the current options) and the return value is used instead. Useful to migrate a new option with a value depending on some other option that might be initialized.
+     */
+    value: string | ((options: OptionMap) => string);
     isSynced: boolean;
 }
 
+/**
+ * Initializes the default options for new databases only.
+ * 
+ * @param initialized `true` if the database has been fully initialized (i.e. a new database was created), or `false` if the database is created for sync.
+ * @param theme the theme to set as default, based on a user's system preference.
+ * @param opts additional options to be initialized, for example the sync configuration.
+ */
 async function initNotSyncedOptions(initialized: boolean, theme: string, opts: NotSyncedOpts = {}) {
     optionService.createOption('openNoteContexts', JSON.stringify([
         {
@@ -47,8 +66,12 @@ async function initNotSyncedOptions(initialized: boolean, theme: string, opts: N
     optionService.createOption('syncProxy', opts.syncProxy || '', false);
 }
 
+/**
+ * Contains all the default options that must be initialized on new and existing databases (at startup). The value can also be determined based on other options, provided they have already been initialized.
+ */
 const defaultOptions: DefaultOption[] = [
     { name: 'revisionSnapshotTimeInterval', value: '600', isSynced: true },
+    { name: 'revisionSnapshotNumberLimit', value: '-1', isSynced: true },
     { name: 'protectedSessionTimeout', value: '600', isSynced: true },
     { name: 'zoomFactor', value: process.platform === "win32" ? '0.9' : '1.0', isSynced: false },
     { name: 'overrideThemeFonts', value: 'false', isSynced: false },
@@ -98,9 +121,33 @@ const defaultOptions: DefaultOption[] = [
 
     // Internationalization
     { name: 'locale', value: 'en', isSynced: true },
-    { name: 'firstDayOfWeek', value: '1', isSynced: true }
+    { name: 'firstDayOfWeek', value: '1', isSynced: true },
+
+    // Code block configuration
+    { name: "codeBlockTheme", value: (optionsMap) => {
+        if (optionsMap.theme === "light") {
+            return "default:stackoverflow-light";
+        } else {
+            return "default:stackoverflow-dark";
+        }
+    }, isSynced: false },
+    { name: "codeBlockWordWrap", value: "false", isSynced: true },
+
+    // Text note configuration
+    { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
+
+    { name: "layoutOrientation", value: "vertical", isSynced: false },
+
+    // Share settings
+    { name: 'redirectBareDomain', value: 'false', isSynced: true },
+    { name: 'showLoginInShareTheme', value: 'false', isSynced: true }
 ];
 
+/**
+ * Initializes the options, by checking which options from {@link #allDefaultOptions()} are missing and registering them. It will also check some environment variables such as safe mode, to make any necessary adjustments.
+ * 
+ * This method is called regardless of whether a new database is created, or an existing database is used.
+ */
 function initStartupOptions() {
     const optionsMap = optionService.getOptionMap();
 
@@ -108,9 +155,15 @@ function initStartupOptions() {
 
     for (const {name, value, isSynced} of allDefaultOptions) {
         if (!(name in optionsMap)) {
-            optionService.createOption(name, value, isSynced);
+            let resolvedValue;
+            if (typeof value === "function") {
+                resolvedValue = value(optionsMap);
+            } else {
+                resolvedValue = value;
+            }
 
-            log.info(`Created option "${name}" with default value "${value}"`);
+            optionService.createOption(name, resolvedValue, isSynced);
+            log.info(`Created option "${name}" with default value "${resolvedValue}"`);
         }
     }
 
@@ -125,7 +178,7 @@ function initStartupOptions() {
 }
 
 function getKeyboardDefaultOptions() {
-    return (keyboardActions.DEFAULT_KEYBOARD_ACTIONS
+    return (keyboardActions.getDefaultKeyboardActions()
         .filter(ka => !!ka.actionName) as KeyboardShortcutWithRequiredActionName[])
         .map(ka => ({
             name: `keyboardShortcuts${ka.actionName.charAt(0).toUpperCase()}${ka.actionName.slice(1)}`,

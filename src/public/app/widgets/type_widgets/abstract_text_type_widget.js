@@ -4,8 +4,15 @@ import froca from "../../services/froca.js";
 import linkService from "../../services/link.js";
 import contentRenderer from "../../services/content_renderer.js";
 import utils from "../../services/utils.js";
+import options from "../../services/options.js";
 
 export default class AbstractTextTypeWidget extends TypeWidget {
+
+    doRender() {
+        super.doRender();
+        this.refreshCodeBlockOptions();
+    }
+
     setupImageOpening(singleClickOpens) {
         this.$widget.on("dblclick", "img", e => this.openImageInCurrentTab($(e.target)));
 
@@ -25,7 +32,7 @@ export default class AbstractTextTypeWidget extends TypeWidget {
 
     async openImageInCurrentTab($img) {
         const { noteId, viewScope } = await this.parseFromImage($img);
-
+        
         if (noteId) {
             appContext.tabManager.getActiveContext().setNote(noteId, { viewScope });
         } else {
@@ -33,8 +40,8 @@ export default class AbstractTextTypeWidget extends TypeWidget {
         }
     }
 
-    openImageInNewTab($img) {
-        const { noteId, viewScope } = this.parseFromImage($img);
+    async openImageInNewTab($img) {
+        const { noteId, viewScope } = await this.parseFromImage($img);
 
         if (noteId) {
             appContext.tabManager.openTabWithNoteWithHoisting(noteId, { viewScope });
@@ -108,4 +115,16 @@ export default class AbstractTextTypeWidget extends TypeWidget {
             });
         }
     }
+
+    refreshCodeBlockOptions() {
+        const wordWrap = options.is("codeBlockWordWrap");
+        this.$widget.toggleClass("word-wrap", wordWrap);
+    }
+
+    async entitiesReloadedEvent({loadResults}) {
+        if (loadResults.isOptionReloaded("codeBlockWordWrap")) {
+            this.refreshCodeBlockOptions();            
+        }
+    }
+
 }

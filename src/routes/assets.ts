@@ -102,6 +102,7 @@ function register(app: express.Application) {
     app.use(`/${assetPath}/node_modules/codemirror/keymap/`, persistentCacheStatic(path.join(srcRoot, '..', 'node_modules/codemirror/keymap/')));
 
     app.use(`/${assetPath}/node_modules/mind-elixir/dist/`, persistentCacheStatic(path.join(srcRoot, "..", "node_modules/mind-elixir/dist/")));
+    app.use(`/${assetPath}/node_modules/@highlightjs/cdn-assets/`, persistentCacheStatic(path.join(srcRoot, "..", "node_modules/@highlightjs/cdn-assets/")));
 }
 
 export default {

@@ -4,12 +4,13 @@ import appContext from "../../components/app_context.js";
 import LauncherWidget from "./launcher.js";
 
 export default class LauncherContainer extends FlexContainer {
-    constructor() {
-        super('column');
+    constructor(isHorizontalLayout) {
+        super(isHorizontalLayout ? "row" : "column");
 
         this.id('launcher-container');
-        this.css('height', '100%');
+        this.css(isHorizontalLayout ? "width" : 'height', '100%');
         this.filling();
+        this.isHorizontalLayout = isHorizontalLayout;
 
         this.load();
     }
@@ -29,7 +30,7 @@ export default class LauncherContainer extends FlexContainer {
 
         for (const launcherNote of await visibleLaunchersRoot.getChildNotes()) {
             try {
-                const launcherWidget = new LauncherWidget();
+                const launcherWidget = new LauncherWidget(this.isHorizontalLayout);
                 const success = await launcherWidget.initLauncher(launcherNote);
 
                 if (success) {

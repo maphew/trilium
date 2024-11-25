@@ -1,7 +1,7 @@
-# !!! Don't try to build this Dockerfile directly, run it through bin/build-docker.sh script !!!
-FROM node:20.15.1-bullseye-slim
+# Build stage
+FROM node:20.15.1-bullseye-slim AS builder
 
-RUN echo "--- Configure system dependencies"
+# Configure build dependencies in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf \
     automake \
@@ -12,62 +12,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nasm \
     libpng-dev \
     python3 \
-    gosu \
     && rm -rf /var/lib/apt/lists/*
 
-
-RUN echo "--- Create app directory"
 WORKDIR /usr/src/app
 
-RUN echo "--- mhw debug: start"
-# segment node packages ahead of the rest in order to speed up the build
-# c.f. https://stackoverflow.com/a/67015154/14420
-COPY server-package.json package.json
-COPY tsconfig.json .
-COPY src/types.d.ts /usr/src/app/src/types.d.ts
-# this takes quite a long time. I guess why it's usually done in bin/build-docker.sh instead.
-RUN npm install typescript
-RUN ./node_modules/.bin/tsc -p tsconfig.json
-RUN echo "--- mhw debug: end"
-
-
-RUN echo "--- Bundle app source"
+# Copy only necessary files for build
 COPY . .
+COPY server-package.json package.json
 
-
-RUN echo "--- Copy TypeScript build artifacts into the original directory structure."
-RUN echo "--- Copy the healthcheck"
+# Build and cleanup in a single layer
 RUN cp -R build/src/* src/. && \
     cp build/docker_healthcheck.js . && \
     rm -r build && \
-    rm docker_healthcheck.ts
-
-RUN echo "--- Install app dependencies"
-RUN apt-get purge -y --auto-remove \
-    autoconf \
-    automake \
-    g++ \
-    gcc \
-    libtool \
-    make \
-    nasm \
-    libpng-dev \
-    python3 \
-    && rm -rf /var/lib/apt/lists/*
-RUN npm install && \
+    rm docker_healthcheck.ts && \
+    npm install && \
     npm run webpack && \
-    npm prune --omit=dev
-RUN cp src/public/app/share.js src/public/app-dist/. && \
+    npm prune --omit=dev && \
+    npm cache clean --force && \
+    cp src/public/app/share.js src/public/app-dist/. && \
     cp -r src/public/app/doc_notes src/public/app-dist/. && \
-    rm -rf src/public/app && rm src/services/asset_path.ts
+    rm -rf src/public/app && \
+    rm src/services/asset_path.ts
 
-RUN echo "--- Some setup tools need to be kept"
+# Runtime stage
+FROM node:20.15.1-bullseye-slim
+
+# Install only runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gosu \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/*
 
-RUN echo "--- Start the application"
+WORKDIR /usr/src/app
+
+# Copy only necessary files from builder
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/src ./src
+COPY --from=builder /usr/src/app/db ./db
+COPY --from=builder /usr/src/app/docker_healthcheck.js .
+COPY --from=builder /usr/src/app/start-docker.sh .
+COPY --from=builder /usr/src/app/package.json .
+COPY --from=builder /usr/src/app/config-sample.ini .
+COPY --from=builder /usr/src/app/images ./images
+COPY --from=builder /usr/src/app/translations ./translations
+COPY --from=builder /usr/src/app/libraries ./libraries
+
+# Configure container
 EXPOSE 8080
 CMD [ "./start-docker.sh" ]
-
 HEALTHCHECK --start-period=10s CMD exec gosu node node docker_healthcheck.js

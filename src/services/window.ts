@@ -111,13 +111,9 @@ async function createMainWindow(app: App) {
 }
 
 function configureWebContents(webContents: WebContents, spellcheckEnabled: boolean) {
-    if (!mainWindow) {
-        return;
-    }
-
     remoteMain.enable(webContents);
 
-    mainWindow.webContents.setWindowOpenHandler((details) => {
+    webContents.setWindowOpenHandler((details) => {
         async function openExternal() {
             (await import('electron')).shell.openExternal(details.url);
         }

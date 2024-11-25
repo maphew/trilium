@@ -50,6 +50,9 @@ class NoteContextAwareWidget extends BasicWidget {
     /**
      * @inheritdoc
      * 
+     * <p>
+     * If the widget is not enabled, it will not receive `refreshWithNote` updates.
+     * 
      * @returns {boolean} true when an active note exists
      */
     isEnabled() {

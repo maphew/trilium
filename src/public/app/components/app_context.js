@@ -13,7 +13,7 @@ import MobileScreenSwitcherExecutor from "./mobile_screen_switcher.js";
 import MainTreeExecutors from "./main_tree_executors.js";
 import toast from "../services/toast.js";
 import ShortcutComponent from "./shortcut_component.js";
-import { initLocale } from "../services/i18n.js";
+import { t, initLocale } from "../services/i18n.js";
 
 class AppContext extends Component {
     constructor(isMainWindow) {
@@ -33,11 +33,11 @@ class AppContext extends Component {
         await initLocale();
     }
 
-    setLayout(layout) {        
+    setLayout(layout) {
         this.layout = layout;
     }
 
-    async start() {        
+    async start() {
         this.initComponents();
         this.renderWidgets();
 
@@ -151,7 +151,7 @@ $(window).on('beforeunload', () => {
         if (!component.beforeUnloadEvent()) {
             console.log(`Component ${component.componentId} is not finished saving its state.`);
 
-            toast.showMessage("Please wait for a couple of seconds for the save to finish, then you can try again.", 10000);
+            toast.showMessage(t("app_context.please_wait_for_save"), 10000);
 
             allSaved = false;
         }

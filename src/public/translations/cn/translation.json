@@ -15,8 +15,7 @@
       "message": "发生了严重错误，导致客户端应用程序无法启动：\n\n{{message}}\n\n这很可能是由于脚本以意外的方式失败引起的。请尝试以安全模式启动应用程序并解决问题。"
     },
     "widget-error": {
-      "title": "小部件初始化失败",
-      "message": "标题为 \"{{title}}\" 的小部件由于以下原因无法初始化：\n\n{{message}}"
+      "title": "小部件初始化失败"
     }
   },
   "add_link": {
@@ -73,13 +72,12 @@
     "delete_all_clones_description": "同时删除所有克隆（可以在最近修改中撤消）",
     "erase_notes_description": "通常（软）删除仅标记笔记为已删除，可以在一段时间内通过最近修改对话框撤消。选中此选项将立即擦除笔记，不可撤销。",
     "erase_notes_warning": "永久擦除笔记（无法撤销），包括所有克隆。这将强制应用程序重新加载。",
-    "notes_to_be_deleted": "将删除以下笔记（<span class=\"deleted-notes-count\"></span>）",
+    "notes_to_be_deleted": "将删除以下笔记 ({{- noteCount}})",
     "no_note_to_delete": "没有笔记将被删除（仅克隆）。",
-    "broken_relations_to_be_deleted": "将删除以下关系并断开连接（<span class=\"broke-relations-count\"></span>）",
+    "broken_relations_to_be_deleted": "将删除以下关系并断开连接 ({{- relationCount}})",
     "cancel": "取消",
     "ok": "确定",
-    "note": "笔记",
-    "to_be_deleted": " (将被删除的笔记) 被以下关系 <code>{{attrName}}</code> 引用, 来自 "
+    "deleted_relation_text": "笔记 {{- note}} (将被删除的笔记) 被以下关系 {{- relation}} 引用, 来自 {{- source}}。"
   },
   "export": {
     "export_note_title": "导出笔记",
@@ -247,6 +245,9 @@
     "revisions_deleted": "笔记历史版本已删除。",
     "revision_restored": "笔记历史版本已恢复。",
     "revision_deleted": "笔记历史版本已删除。",
+    "snapshot_interval": "笔记快照保存间隔: {{seconds}}秒。",
+    "maximum_revisions": "当前笔记的最历史数量: {{number}}。",
+    "settings": "笔记历史设置",
     "download_button": "下载",
     "mime": "MIME类型：",
     "file_size": "文件大小：",
@@ -1090,6 +1091,13 @@
     "note_revisions_snapshot_description": "笔记修改快照时间间隔是指经过多少秒后会为笔记创建新的修改历史。更多信息请参见<a href=\"https://triliumnext.github.io/Docs/Wiki/note-revisions.html\" class=\"external\">wiki</a>。",
     "snapshot_time_interval_label": "笔记修改快照时间间隔（单位:秒）"
   },
+  "revisions_snapshot_limit": {
+    "note_revisions_snapshot_limit_title": "笔记历史快照限制",
+    "note_revisions_snapshot_limit_description": "笔记历史快照数限制指的是每个笔记可以保存的最大历史记录数量。其中 -1 表示没有限制，0 表示删除所有历史记录。你可以通过 #versioningLimit 标签设置单个笔记的最大历史记录数量。",
+    "snapshot_number_limit_label": "笔记历史快照数量限制：",
+    "erase_excess_revision_snapshots": "立即删除多余的历史快照",
+    "erase_excess_revision_snapshots_prompt": "多余的历史快照已被删除。"
+  },
   "search_engine": {
     "title": "搜索引擎",
     "custom_search_engine_info": "自定义搜索引擎需要设置名称和URL。如果这两者之一未设置，将默认使用DuckDuckGo作为搜索引擎。",
@@ -1269,7 +1277,7 @@
     "note_is_read_only": "笔记为只读，但可以通过点击按钮进行编辑。",
     "note_is_always_editable": "无论笔记长度如何，始终可编辑。"
   },
-"note-map": {
+  "note-map": {
     "button-link-map": "链接地图",
     "button-tree-map": "树形地图"
   },
@@ -1280,6 +1288,8 @@
     "insert-child-note": "插入子笔记",
     "delete": "删除",
     "search-in-subtree": "在子树中搜索",
+    "hoist-note": "提升笔记",
+    "unhoist-note": "取消提升笔记",
     "edit-branch-prefix": "编辑分支前缀",
     "advanced": "高级",
     "expand-subtree": "展开子树",
@@ -1391,5 +1401,26 @@
   },
   "sql_table_schemas": {
     "tables": "表"
+  },
+  "tab_row": {
+    "close_tab": "关闭标签页",
+    "add_new_tab": "添加新标签页",
+    "close": "关闭",
+    "close_other_tabs": "关闭其他标签页",
+    "close_all_tabs": "关闭所有标签页",
+    "move_tab_to_new_window": "将此标签页移动到新窗口",
+    "new_tab": "新标签页"
+  },
+  "toc": {
+    "table_of_contents": "目录",
+    "options": "选项"
+  },
+  "watched_file_update_status": {
+    "file_last_modified": "文件 <code class=\"file-path\"></code> 最后修改时间为 <span class=\"file-last-modified\"></span>。",
+    "upload_modified_file": "上传修改的文件",
+    "ignore_this_change": "忽略此更改"
+  },
+  "app_context": {
+    "please_wait_for_save": "请等待几秒钟以完成保存，然后您可以尝试再操作一次。"
   }
 }

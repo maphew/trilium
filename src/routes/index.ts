@@ -42,7 +42,7 @@ function index(req: Request, res: Response) {
         isDev: env.isDev(),
         isMainWindow: !req.query.extraWindow,
         isProtectedSessionAvailable: protectedSessionService.isProtectedSessionAvailable(),
-        maxContentWidth: parseInt(options.maxContentWidth),
+        maxContentWidth: Math.max(640, parseInt(options.maxContentWidth)),
         triliumVersion: packageJson.version,
         assetPath: assetPath,
         appPath: appPath

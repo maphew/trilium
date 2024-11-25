@@ -5,6 +5,7 @@
 
 import { t } from "../services/i18n.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
+import attributeService from "../services/attributes.js";
 import FindInText from "./find_in_text.js";
 import FindInCode from "./find_in_code.js";
 import FindInHtml from "./find_in_html.js";
@@ -16,27 +17,26 @@ const waitForEnter = (findWidgetDelayMillis < 0);
 // the focusout handler is called with relatedTarget equal to the label instead
 // of undefined. It's -1 instead of > 0, so they don't tabstop
 const TPL = `
-<div style="contain: none;">
+<div class='find-replace-widget' style="contain: none; border-top: 1px solid var(--main-border-color);">
     <style>
-        .find-widget-box {
-            padding: 10px;
-            border-top: 1px solid var(--main-border-color); 
+        .find-widget-box, .replace-widget-box {
+            padding: 2px 10px 2px 10px;
             align-items: center;
         }
         
-        .find-widget-box > * {
+        .find-widget-box > *, .replace-widget-box > *{
             margin-right: 15px;
         }
         
-        .find-widget-box {
+        .find-widget-box, .replace-widget-box {
             display: flex;
         }
-        
+
         .find-widget-found-wrapper {
             font-weight: bold;
         }
         
-        .find-widget-search-term-input-group {
+        .find-widget-search-term-input-group, .replace-widget-replacetext-input {
             max-width: 300px;
         }
         
@@ -47,19 +47,23 @@ const TPL = `
 
     <div class="find-widget-box">
         <div class="input-group find-widget-search-term-input-group">
-            <input type="text" class="form-control find-widget-search-term-input">
+            <input type="text" class="form-control find-widget-search-term-input" placeholder="${t('find.find_placeholder')}">
             <button class="btn btn-outline-secondary bx bxs-chevron-up find-widget-previous-button" type="button"></button>
             <button class="btn btn-outline-secondary bx bxs-chevron-down find-widget-next-button" type="button"></button>
         </div>
         
         <div class="form-check">
-            <input type="checkbox" class="form-check-input find-widget-case-sensitive-checkbox"> 
-            <label tabIndex="-1" class="form-check-label">${t('find.case_sensitive')}</label>
+            <label tabIndex="-1" class="form-check-label">
+                <input type="checkbox" class="form-check-input find-widget-case-sensitive-checkbox"> 
+                ${t('find.case_sensitive')}
+            </label>
         </div>
 
         <div class="form-check">
-            <input type="checkbox" class="form-check-input find-widget-match-words-checkbox">
-            <label tabIndex="-1" class="form-check-label">${t('find.match_words')}</label>
+            <label tabIndex="-1" class="form-check-label">
+                <input type="checkbox" class="form-check-input find-widget-match-words-checkbox">
+                ${t('find.match_words')}
+            </label>
         </div>
         
         <div class="find-widget-found-wrapper">
@@ -71,6 +75,12 @@ const TPL = `
         <div class="find-widget-spacer"></div>
         
         <div class="find-widget-close-button"><button class="btn icon-action bx bx-x"></button></div>
+    </div>
+
+    <div class="replace-widget-box" style='display: none'>
+        <input type="text" class="form-control replace-widget-replacetext-input" placeholder="${t('find.replace_placeholder')}">
+        <button class="btn btn-sm replace-widget-replaceall-button" type="button">${t('find.replace_all')}</button>
+        <button class="btn btn-sm  replace-widget-replace-button" type="button">${t('find.replace')}</button>
     </div>
 </div>`;
 
@@ -93,8 +103,7 @@ export default class FindWidget extends NoteContextAwareWidget {
 
     doRender() {
         this.$widget = $(TPL);
-        this.$findBox = this.$widget.find('.find-widget-box');
-        this.$findBox.hide();
+        this.$widget.hide();
         this.$input = this.$widget.find('.find-widget-search-term-input');
         this.$currentFound = this.$widget.find('.find-widget-current-found');
         this.$totalFound = this.$widget.find('.find-widget-total-found');
@@ -109,6 +118,13 @@ export default class FindWidget extends NoteContextAwareWidget {
         this.$closeButton = this.$widget.find(".find-widget-close-button");
         this.$closeButton.on("click", () => this.closeSearch());
 
+        this.$replaceWidgetBox = this.$widget.find(".replace-widget-box");
+        this.$replaceTextInput = this.$widget.find(".replace-widget-replacetext-input");
+        this.$replaceAllButton = this.$widget.find(".replace-widget-replaceall-button");
+        this.$replaceAllButton.on("click", () => this.replaceAll());
+        this.$replaceButton = this.$widget.find(".replace-widget-replace-button");
+        this.$replaceButton.on("click", () => this.replace());
+
         this.$input.keydown(async e => {
             if ((e.metaKey || e.ctrlKey) && (e.key === 'F' || e.key === 'f')) {
                 // If ctrl+f is pressed when the findbox is shown, select the
@@ -121,7 +137,7 @@ export default class FindWidget extends NoteContextAwareWidget {
             }
         });
 
-        this.$findBox.keydown(async e => {
+        this.$widget.keydown(async e => {
             if (e.key === 'Escape') {
                 await this.closeSearch();
             }
@@ -142,13 +158,25 @@ export default class FindWidget extends NoteContextAwareWidget {
         }
 
         this.handler = await this.getHandler();
+        
+        const isReadOnly = await this.noteContext.isReadOnly();
 
-        const selectedText = window.getSelection().toString() || "";
-
-        this.$findBox.show();
+        let selectedText = '';
+        if (this.note.type === 'code' && !isReadOnly){
+            const codeEditor = await this.noteContext.getCodeEditor();
+            selectedText = codeEditor.getSelection();
+        }else{
+            selectedText = window.getSelection().toString() || "";
+        }
+        this.$widget.show();
         this.$input.focus();
+        if (['text', 'code'].includes(this.note.type) && !isReadOnly) {
+            this.$replaceWidgetBox.show();
+        }else{
+            this.$replaceWidgetBox.hide();
+        }
 
-        const isAlreadyVisible = this.$findBox.is(":visible");
+        const isAlreadyVisible = this.$widget.is(":visible");
 
         if (isAlreadyVisible) {
             if (selectedText) {
@@ -254,8 +282,8 @@ export default class FindWidget extends NoteContextAwareWidget {
     }
 
     async closeSearch() {
-        if (this.$findBox.is(":visible")) {
-            this.$findBox.hide();
+        if (this.$widget.is(":visible")) {
+            this.$widget.hide();
 
             // Restore any state, if there's a current occurrence clear markers
             // and scroll to and select the last occurrence
@@ -268,13 +296,27 @@ export default class FindWidget extends NoteContextAwareWidget {
         }
     }
 
+    async replace() {
+        const replaceText = this.$replaceTextInput.val();
+        await this.handler.replace(replaceText);
+    }
+
+    async replaceAll() {
+        const replaceText = this.$replaceTextInput.val();
+        await this.handler.replaceAll(replaceText);
+    }
+
     isEnabled() {
         return super.isEnabled() && ['text', 'code', 'render'].includes(this.note.type);
     }
 
-    async entitiesReloadedEvent({loadResults}) {
+    async entitiesReloadedEvent({ loadResults }) {
         if (loadResults.isNoteContentReloaded(this.noteId)) {
             this.$totalFound.text("?")
+        } else if (loadResults.getAttributeRows().find(attr => attr.type === 'label'
+            && (attr.name.toLowerCase().includes('readonly'))
+            && attributeService.isAffecting(attr, this.note))) {
+            this.closeSearch();
         }
     }
 }

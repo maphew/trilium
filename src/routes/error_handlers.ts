@@ -23,13 +23,10 @@ function register(app: Application) {
 
     // error handler
     app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-        if (err && err.message && (
-            (err.message.includes("Router not found for request") && err.message.includes(".js.map"))
-            || (err.message.includes("Router not found for request") && err.message.includes(".css.map"))
-        )) {
-            // ignore
-        } else {
+        if (err.status !== 404) {
             log.info(err);
+        } else {
+            log.info(`${err.status} ${req.method} ${req.url}`);
         }
 
         res.status(err.status || 500);

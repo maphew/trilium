@@ -112,6 +112,13 @@ function eraseRevision(req: Request) {
     eraseService.eraseRevisions([req.params.revisionId]);
 }
 
+function eraseAllExcessRevisions() {
+    let allNoteIds = sql.getRows("SELECT noteId FROM notes WHERE SUBSTRING(noteId, 1, 1) != '_'") as { noteId: string }[];
+    allNoteIds.forEach(row => {
+        becca.getNote(row.noteId)?.eraseExcessRevisionSnapshots()
+    });
+}
+
 function restoreRevision(req: Request) {
     const revision = becca.getRevision(req.params.revisionId);
 
@@ -139,6 +146,8 @@ function restoreRevision(req: Request) {
             }
 
             note.title = revision.title;
+            note.mime = revision.mime;
+            note.type = revision.type as any;
             note.setContent(revisionContent, { forceSave: true });
         });
     }
@@ -211,6 +220,7 @@ export default {
     downloadRevision,
     getEditedNotesOnDate,
     eraseAllRevisions,
+    eraseAllExcessRevisions,
     eraseRevision,
     restoreRevision
 };

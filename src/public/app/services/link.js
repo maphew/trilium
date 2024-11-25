@@ -254,8 +254,15 @@ function goToLinkExt(evt, hrefLink, $link) {
                 window.open(hrefLink, '_blank');
             } else if (hrefLink.toLowerCase().startsWith('file:') && utils.isElectron()) {
                 const electron = utils.dynamicRequire('electron');
-
                 electron.shell.openPath(hrefLink);
+            } else {
+                // Enable protocols supported by CKEditor 5 to be clickable. 
+                // Refer to `allowedProtocols` in https://github.com/TriliumNext/trilium-ckeditor5/blob/main/packages/ckeditor5-build-balloon-block/src/ckeditor.ts.
+                // Adding `:` to these links might be safer.
+                const otherAllowedProtocols = ['mailto:', 'tel:', 'sms:', 'sftp:', 'smb:', 'slack:', 'zotero:'];
+                if (otherAllowedProtocols.some(protocol => hrefLink.toLowerCase().startsWith(protocol))){
+                    window.open(hrefLink, '_blank');
+                }
             }
         }
     }

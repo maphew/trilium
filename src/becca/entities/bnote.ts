@@ -3,6 +3,8 @@
 import protectedSessionService from "../../services/protected_session.js";
 import log from "../../services/log.js";
 import sql from "../../services/sql.js";
+import optionService from "../../services/options.js";
+import eraseService from "../../services/erase.js";
 import utils from "../../services/utils.js";
 import dateUtils from "../../services/date_utils.js";
 import AbstractBeccaEntity from "./abstract_becca_entity.js";
@@ -68,7 +70,7 @@ class BNote extends AbstractBeccaEntity<BNote> {
     /** set during the deletion operation, before it is completed (removed from becca completely). */
     isBeingDeleted!: boolean;
     isDecrypted!: boolean;
-    
+
     ownedAttributes!: BAttribute[];
     parentBranches!: BBranch[];
     parents!: BNote[];
@@ -455,8 +457,8 @@ class BNote extends AbstractBeccaEntity<BNote> {
 
         return this.getAttributes().find(
             attr => attr.name.toLowerCase() === name
-            && (!value || attr.value.toLowerCase() === value)
-            && attr.type === type);
+                && (!value || attr.value.toLowerCase() === value)
+                && attr.type === type);
     }
 
     getRelationTarget(name: string) {
@@ -1107,7 +1109,7 @@ class BNote extends AbstractBeccaEntity<BNote> {
     }
 
     getRevisions(): BRevision[] {
-        return sql.getRows<RevisionRow>("SELECT * FROM revisions WHERE noteId = ?", [this.noteId])
+        return sql.getRows<RevisionRow>("SELECT * FROM revisions WHERE noteId = ? ORDER BY revisions.utcDateCreated ASC", [this.noteId])
             .map(row => new BRevision(row));
     }
 
@@ -1612,8 +1614,29 @@ class BNote extends AbstractBeccaEntity<BNote> {
 
             revision.setContent(noteContent);
 
+            this.eraseExcessRevisionSnapshots()
             return revision;
         });
+    }
+
+    // Limit the number of Snapshots to revisionSnapshotNumberLimit
+    // Delete older Snapshots that exceed the limit
+    eraseExcessRevisionSnapshots() {
+        // lable has a higher priority
+        let revisionSnapshotNumberLimit = parseInt(this.getLabelValue("versioningLimit") ?? "");
+        if (!Number.isInteger(revisionSnapshotNumberLimit)) {
+            revisionSnapshotNumberLimit = parseInt(optionService.getOption('revisionSnapshotNumberLimit'));
+        }
+        if (revisionSnapshotNumberLimit >= 0) {
+            const revisions = this.getRevisions();
+            if (revisions.length - revisionSnapshotNumberLimit > 0) {
+                const revisionIds = revisions
+                    .slice(0, revisions.length - revisionSnapshotNumberLimit)
+                    .map(revision => revision.revisionId)
+                    .filter((id): id is string => id !== undefined);
+                eraseService.eraseRevisions(revisionIds);
+            }
+        }
     }
 
     /**

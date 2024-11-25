@@ -6,11 +6,19 @@ import branchService from "../../services/branches.js";
 import treeService from "../../services/tree.js";
 import { t } from "../../services/i18n.js";
 
-const TPL = `<button type="button" class="action-button bx bx-menu" style="padding-top: 10px;"></button>`;
+const TPL = `<button type="button" class="action-button bx" style="padding-top: 10px;"></button>`;
 
 class MobileDetailMenuWidget extends BasicWidget {
+
+    constructor(isHorizontalLayout) {
+        super();
+        this.isHorizontalLayout = isHorizontalLayout;
+    }
+
     doRender() {
         this.$widget = $(TPL);
+
+        this.$widget.addClass(this.isHorizontalLayout ? "bx-dots-vertical-rounded" : "bx-menu");
 
         this.$widget.on("click", async e => {
             const note = appContext.tabManager.getActiveContextNote();

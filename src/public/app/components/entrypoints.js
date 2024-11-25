@@ -9,6 +9,7 @@ import ws from "../services/ws.js";
 import bundleService from "../services/bundle.js";
 import froca from "../services/froca.js";
 import linkService from "../services/link.js";
+import { t } from "../services/i18n.js";
 
 export default class Entrypoints extends Component {
     constructor() {
@@ -172,13 +173,13 @@ export default class Entrypoints extends Component {
             const resp = await server.post(`sql/execute/${note.noteId}`);
 
             if (!resp.success) {
-                toastService.showError(`Error occurred while executing SQL query: ${resp.error}`);
+                toastService.showError(t("entrypoints.sql-error", { message: resp.error }));
             }
 
             await appContext.triggerEvent('sqlQueryResults', {ntxId: ntxId, results: resp.results});
         }
 
-        toastService.showMessage("Note executed");
+        toastService.showMessage(t("entrypoints.note-executed"));
     }
 
     hideAllPopups() {
@@ -200,6 +201,6 @@ export default class Entrypoints extends Component {
 
         await server.post(`notes/${noteId}/revision`);
 
-        toastService.showMessage("Note revision has been created.");
+        toastService.showMessage(t("entrypoints.note-revision-created"));
     }
 }

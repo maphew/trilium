@@ -25,7 +25,7 @@ const TPL = `
                 </div>
 
                 <div class="delete-notes-list-wrapper">
-                    <h4>${t('delete_notes.notes_to_be_deleted')} (<span class="deleted-notes-count"></span>)</h4>
+                    <h4>${t('delete_notes.notes_to_be_deleted', { noteCount: '<span class="deleted-notes-count"></span>' })}</h4>
 
                     <ul class="delete-notes-list" style="max-height: 200px; overflow: auto;"></ul>
                 </div>
@@ -36,7 +36,7 @@ const TPL = `
 
                 <div class="broken-relations-wrapper">
                     <div class="alert alert-danger">
-                        <h4>${t('delete_notes.broken_relations_to_be_deleted')} (<span class="broke-relations-count"></span>)</h4>
+                        <h4>${t('delete_notes.broken_relations_to_be_deleted', { relationCount: '<span class="broke-relations-count"></span>'})}</h4>
 
                         <ul class="broken-relations-list" style="max-height: 200px; overflow: auto;"></ul>
                     </div>
@@ -126,11 +126,11 @@ export default class DeleteNotesDialog extends BasicWidget {
 
         for (const attr of response.brokenRelations) {
             this.$brokenRelationsList.append(
-                $("<li>")
-                    .append(`${t('delete_notes.note')} `)
-                    .append(await linkService.createLink(attr.value))
-                    .append(` ${t('delete_notes.to_be_deleted', {attrName: attr.name})} `)
-                    .append(await linkService.createLink(attr.noteId))
+                $("<li>").html(t("delete_notes.deleted_relation_text", {
+                    note: (await linkService.createLink(attr.value)).html(),
+                    relation: `<code>${attr.name}</code>`,
+                    source: (await linkService.createLink(attr.noteId)).html()
+                }))
             );
         }
     }

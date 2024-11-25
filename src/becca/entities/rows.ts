@@ -38,9 +38,18 @@ export interface RecentNoteRow {
     utcDateCreated?: string;
 }
 
+/**
+ * Database representation of an option.
+ * 
+ * Options are key-value pairs that are used to store information such as user preferences (for example
+ * the current theme, sync server information), but also information about the state of the application).
+ */
 export interface OptionRow {
+    /** The name of the option. */
     name: string;
+    /** The value of the option. */
     value: string;
+    /** `true` if the value should be synced across multiple instances (e.g. locale) or `false` if it should be local-only (e.g. theme). */
     isSynced: boolean;
     utcDateModified?: string;
 }

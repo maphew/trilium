@@ -15,6 +15,14 @@
     src: url(../fonts/JetBrainsMono-Light.woff2) format('woff');
 }
 
+.table {
+    --bs-table-bg: transparent !important;
+}
+
+:root {
+    --submenu-opening-delay: 300ms;
+}
+
 html {
     /* this fixes FF filter vs. position fixed bug: https://github.com/zadam/trilium/issues/233 */
     height: 100%;
@@ -30,6 +38,14 @@ body {
     color: var(--main-text-color);
     font-family: var(--main-font-family);
     font-size: var(--main-font-size);
+}
+
+body.mobile .desktop-only {
+    display: none !important;
+}
+
+a {
+    text-decoration: none;
 }
 
 a, a:visited, a:hover {
@@ -62,30 +78,10 @@ textarea,
     background: var(--input-background-color) url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='%23ffffff' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/></svg>") right .75rem center/15px 20px no-repeat;
 }
 
-/* Hide number input arrows */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-/* Firefox browser */
-input[type="number"] {
-    -moz-appearance: textfield;
-}
-
-/* Show number input arrows when focus or hover */
-input[type="number"]:focus::-webkit-inner-spin-button,
-input[type="number"]:focus::-webkit-outer-spin-button,
-input[type="number"]:hover::-webkit-inner-spin-button,
-input[type="number"]:hover::-webkit-outer-spin-button {
-    -webkit-appearance: inner-spin-button;
-}
-
 /* Restore default apperance */
-input[type="number"]:focus,
-input[type="number"]:hover {
-    appearance: auto;
+input[type="number"],
+input[type="checkbox"] {
+    appearance: auto !important;
 }
 
 #left-pane input,
@@ -241,7 +237,15 @@ div.ui-tooltip {
 }
 
 .dropdown-divider {
-    background-color: var(--menu-text-color);
+    border-color: var(--dropdown-border-color);
+}
+
+@keyframes dropdown-menu-opening {
+    from {
+        opacity: 0;
+    } to {
+        opacity: 1;
+    }
 }
 
 .dropdown-menu {
@@ -249,6 +253,26 @@ div.ui-tooltip {
     color: var(--menu-text-color) !important;
     background-color: var(--menu-background-color) !important;
     font-size: inherit;
+    box-shadow: 0px 10px 20px rgba(0, 0, 0, var(--dropdown-shadow-opacity));
+    animation: dropdown-menu-opening 100ms ease-in;
+}
+
+@supports(animation-fill-mode: forwards) {
+    /* Delay the opening of submenus */
+    .dropdown-submenu .dropdown-menu {
+        opacity: 0;
+        animation-fill-mode: forwards;
+        animation-delay: var(--submenu-opening-delay);
+    }
+}
+
+.dropdown-menu.static {
+    box-shadow: unset;
+}
+
+.dropend .dropdown-toggle::after {
+    margin-left: .5em;
+    color: var(--muted-text-color);
 }
 
 .dropdown-menu .disabled {
@@ -258,15 +282,27 @@ div.ui-tooltip {
 
 .dropdown-menu .disabled .disabled-tooltip {
     pointer-events: all;
-    color: var(--menu-text-color);
+    margin-left: 8px;
+    font-size: .5em;
+    color: var(--disabled-tooltip-icon-color);
     cursor: help;
+    opacity: .75;
 }
 
-.dropdown-menu a:hover:not(.disabled), .dropdown-item:hover:not(.disabled) {
+.dropdown-menu .disabled .disabled-tooltip:hover {
+    opacity: 1;
+}
+
+.dropdown-menu a:hover:not(.disabled), .dropdown-item:hover:not(.disabled, .dropdown-item-container) {
     color: var(--hover-item-text-color) !important;
     background-color: var(--hover-item-background-color) !important;
     border-color: var(--hover-item-border-color) !important;
     cursor: pointer;
+}
+
+.dropdown-item-container, .dropdown-item-container:hover, .dropdown-item-container:active {
+    background: transparent;
+    cursor: default;
 }
 
 .dropdown-menu a:not(.selected) .check {
@@ -298,6 +334,10 @@ div.ui-tooltip {
     background-color: var(--active-item-background-color) !important;
     border-color: var(--active-item-border-color) !important;
     outline: none;
+}
+
+.dropdown-item .destructive-action-icon {
+    color: var(--dropdown-item-icon-destructive-color);
 }
 
 .CodeMirror {
@@ -394,7 +434,7 @@ button.btn, button.btn-sm {
     padding: 0;
 }
 
-pre:not(.CodeMirror-line) {
+pre:not(.CodeMirror-line):not(.hljs) {
     color: var(--main-text-color) !important;
     white-space: pre-wrap;
     font-size: 100%;
@@ -460,6 +500,7 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
 
 .tooltip {
     font-size: var(--main-font-size) !important;
+    z-index: calc(var(--ck-z-panel) - 1) !important;
 }
 
 .tooltip-trigger {
@@ -727,6 +768,10 @@ div[data-notify="container"] {
     margin: 0 !important;
 }
 
+.ck-content a:hover {
+    text-decoration: underline;
+}
+
 #options-dialog input[type=number] {
     text-align: right;
 }
@@ -812,6 +857,65 @@ a.external:not(.no-arrow):after, a[href^="http://"]:not(.no-arrow):after, a[href
     font-weight: bold !important;
     color: inherit !important;
     vertical-align: baseline !important;
+}
+
+.ck-content pre {
+    border: 0;
+    border-radius: 6px;
+    box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.1), 0px 0px 2px rgba(0, 0, 0, 0.2);
+    padding: 0 !important;
+    margin-top: 2px !important;
+    overflow: unset;
+}
+
+html .note-detail-editable-text :not(figure, .include-note):first-child {
+    /* Create some space for the top-side shadow */
+    margin-top: 1px !important;
+}
+
+.ck.ck-editor__editable pre[data-language]::after {
+    --ck-color-code-block-label-background: rgba(128, 128, 128, .5);
+    border-radius: 0 0 5px 5px;
+    padding: 0px 10px;
+    letter-spacing: .5px;
+    font-weight: bold;
+}
+
+.ck-content pre code {
+    display: block;
+    padding: 1em;
+    overflow: auto;
+}
+
+.ck-content pre code::-webkit-scrollbar {
+    height: 6px;
+}
+
+.ck-content pre code::-webkit-scrollbar-thumb {
+    height: 4px;
+    border: none !important;
+    background: gray !important;
+}
+
+.ck-content pre code::-webkit-scrollbar-track, ::-webkit-scrollbar-thumb {
+    cursor: default;
+}
+
+.note-detail-printable:not(.word-wrap) pre code {
+    white-space: pre;
+    margin-right: 1em;
+}
+
+.code-sample-wrapper .hljs {
+    transition: background-color linear 100ms;
+}
+
+.side-checkbox {
+    display: flex;
+    align-items: end;
+    padding-top: .375rem;
+    padding-bottom: .375rem;
+    line-height: 1.5;
 }
 
 .ck-content .todo-list .todo-list__label > input:before {
@@ -922,6 +1026,18 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
     overflow: auto;
 }
 
+body:not(.mobile) #launcher-pane.horizontal .dropdown-submenu > .dropdown-menu {
+    left: calc(-100% + 10px);
+}
+
+#launcher-pane.horizontal .right-dropdown-widget {
+    width: 53px;
+}
+
+#launcher-pane.vertical .right-dropdown-widget {
+    height: 53px;
+}
+
 /* rotate caret on hover */
 .dropdown-menu > li > a:hover:after {
     text-decoration: underline;
@@ -958,14 +1074,6 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
 .ck.ck-mentions > .ck-list__item .ck-button {
     /* wrap text for very long note path title */
     white-space: normal !important;
-}
-
-/**
-    ckeditor's autocomplete
-    should be higher than 1070 of tooltip
-*/
-.ck.ck-balloon-panel {
-    z-index: 1101;
 }
 
 .area-expander {
@@ -1031,9 +1139,21 @@ li.dropdown-submenu:hover > ul.dropdown-menu {
     cursor: pointer;
     border: none;
     color: var(--launcher-pane-text-color);
-    background-color: var(--launcher-pane-background-color);
-    height: 53px;
+    background-color: var(--launcher-pane-background-color);    
+}
+
+#launcher-pane.vertical .launcher-button {
     width: 100%;
+    height: 53px;
+}
+
+#launcher-pane.horizontal .launcher-button {
+    width: 53px;
+    height: 100%;
+}
+
+#launcher-pane.horizontal .quick-search {
+    width: 350px;
 }
 
 #launcher-pane .icon-action:hover {
@@ -1155,6 +1275,10 @@ button.close:hover {
     flex-grow: 0 !important;
 }
 
+.options-mime-types {
+    column-width: 250px;
+}
+
 textarea {
     cursor: auto;
 }
@@ -1189,3 +1313,9 @@ textarea {
 .jump-to-note-results .aa-suggestions {
     padding: 1rem;
 }
+
+.empty-table-placeholder {
+    text-align: center;
+    color: var(--muted-text-color);
+}
+

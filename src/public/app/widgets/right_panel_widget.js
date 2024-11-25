@@ -1,4 +1,6 @@
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
+import toastService from "../services/toast.js";
+import { t } from "../services/i18n.js";
 
 const WIDGET_TPL = `
 <div class="card widget">
@@ -54,7 +56,9 @@ class RightPanelWidget extends NoteContextAwareWidget {
             this.$buttons.append(buttonWidget.render());
         }
 
-        this.initialized = this.doRenderBody();
+        this.initialized = this.doRenderBody().catch(e => {
+            this.logRenderingError(e);
+        });
     }
 
     /**

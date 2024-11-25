@@ -30,6 +30,7 @@ import ContentWidgetTypeWidget from "./type_widgets/content_widget.js";
 import AttachmentListTypeWidget from "./type_widgets/attachment_list.js";
 import AttachmentDetailTypeWidget from "./type_widgets/attachment_detail.js";
 import MindMapWidget from "./type_widgets/mind_map.js";
+import { getStylesheetUrl, isSyntaxHighlightEnabled } from "../services/syntax_highlight.js";
 
 const TPL = `
 <div class="note-detail">
@@ -255,6 +256,19 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
         }
 
         const {assetPath} = window.glob;
+        const cssToLoad = [
+            `${assetPath}/node_modules/codemirror/lib/codemirror.css`,
+            `${assetPath}/libraries/ckeditor/ckeditor-content.css`,
+            `${assetPath}/node_modules/bootstrap/dist/css/bootstrap.min.css`,
+            `${assetPath}/node_modules/katex/dist/katex.min.css`,
+            `${assetPath}/stylesheets/print.css`,
+            `${assetPath}/stylesheets/relation_map.css`,
+            `${assetPath}/stylesheets/ckeditor-theme.css`
+        ];
+
+        if (isSyntaxHighlightEnabled()) {
+            cssToLoad.push(getStylesheetUrl("default:vs"));
+        }
 
         this.$widget.find('.note-detail-printable:visible').printThis({
             header: $("<div>")
@@ -273,15 +287,7 @@ export default class NoteDetailWidget extends NoteContextAwareWidget {
 </script>
 `,
             importCSS: false,
-            loadCSS: [
-                `${assetPath}/node_modules/codemirror/lib/codemirror.css`,
-                `${assetPath}/libraries/ckeditor/ckeditor-content.css`,
-                `${assetPath}/node_modules/bootstrap/dist/css/bootstrap.min.css`,
-                `${assetPath}/node_modules/katex/dist/katex.min.css`,
-                `${assetPath}/stylesheets/print.css`,
-                `${assetPath}/stylesheets/relation_map.css`,
-                `${assetPath}/stylesheets/ckeditor-theme.css`
-            ],
+            loadCSS: cssToLoad,
             debug: true
         });
     }

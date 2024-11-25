@@ -20,4 +20,10 @@
         vertical-align: middle;
     }
 
+    pre {
+        box-shadow: unset !important;
+        border: .75pt solid gray !important;
+        border-radius: 2pt !important;
+    }
+
 }

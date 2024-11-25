@@ -2,13 +2,7 @@ import BasicWidget from "../basic_widget.js";
 
 const TPL = `
 <div class="dropdown right-dropdown-widget dropend">
-    <style>
-    .right-dropdown-widget {
-        height: 53px;
-    }
-    </style>
-
-    <button type="button" data-bs-toggle="dropdown" data-placement="right"
+    <button type="button" data-bs-toggle="dropdown"
             aria-haspopup="true" aria-expanded="false" 
             class="bx right-dropdown-button launcher-button"></button>
     
@@ -25,6 +19,10 @@ export default class RightDropdownButtonWidget extends BasicWidget {
         this.iconClass = iconClass;
         this.title = title;
         this.dropdownTpl = dropdownTpl;
+
+        this.settings = {
+            titlePlacement: "right"    
+        };
     }
 
     doRender() {
@@ -33,7 +31,10 @@ export default class RightDropdownButtonWidget extends BasicWidget {
         this.dropdown = bootstrap.Dropdown.getOrCreateInstance(this.$widget.find("[data-bs-toggle='dropdown']"));
 
         this.$tooltip = this.$widget.find(".tooltip-trigger").attr("title", this.title);
-        this.tooltip = new bootstrap.Tooltip(this.$tooltip);
+        this.tooltip = new bootstrap.Tooltip(this.$tooltip, {
+            placement: this.settings.titlePlacement,
+            fallbackPlacements: [ this.settings.titlePlacement ]
+        });
 
         this.$widget.find(".right-dropdown-button")
             .addClass(this.iconClass)

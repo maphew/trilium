@@ -6,7 +6,7 @@ function openContextMenu(notePath, e, viewScope = {}, hoistedNoteId = null) {
         x: e.pageX,
         y: e.pageY,
         items: [
-            {title: "Open note in a new tab", command: "openNoteInNewTab", uiIcon: "bx bx-empty"},
+            {title: "Open note in a new tab", command: "openNoteInNewTab", uiIcon: "bx bx-link-external"},
             {title: "Open note in a new split", command: "openNoteInNewSplit", uiIcon: "bx bx-dock-right"},
             {title: "Open note in a new window", command: "openNoteInNewWindow", uiIcon: "bx bx-window-open"}
         ],

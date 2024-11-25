@@ -89,7 +89,8 @@
     "toggle-tray": "Afișează/ascunde aplicația din tray-ul de sistem",
     "unhoist": "Defocalizează complet",
     "zoom-in": "Mărește zoom-ul",
-    "zoom-out": "Micșorează zoom-ul"
+    "zoom-out": "Micșorează zoom-ul",
+    "toggle-classic-editor-toolbar": "Comută tab-ul „Formatare” pentru editorul cu bară fixă"
   },
   "login": {
     "button": "Autentifică",
@@ -157,5 +158,40 @@
     "clipped-from": "Această notiță a fost decupată inițial de pe {{- url}}",
     "no-content": "Această notiță nu are conținut.",
     "parent": "părinte:"
+  },
+  "weekdays": {
+    "monday": "Luni",
+    "tuesday": "Marți",
+    "wednesday": "Miercuri",
+    "thursday": "Joi",
+    "friday": "Vineri",
+    "saturday": "Sâmbătă",
+    "sunday": "Duminică"
+  },
+  "months": {
+    "january": "Ianuarie",
+    "february": "Februarie",
+    "march": "Martie",
+    "april": "Aprilie",
+    "may": "Mai",
+    "june": "Iunie",
+    "july": "Iulie",
+    "august": "August",
+    "september": "Septembrie",
+    "october": "Octombrie",
+    "november": "Noiembrie",
+    "december": "Decembrie"
+  },
+  "special_notes": {
+    "search_prefix": "Căutare:"
+  },
+  "code_block": {
+    "theme_none": "Fără evidențiere de sintaxă",
+    "theme_group_dark": "Teme întunecate",
+    "theme_group_light": "Teme luminoase"
+  },
+  "test_sync": {
+    "not-configured": "Calea către serverul de sincronizare nu este configurată. Configurați sincronizarea înainte.",
+    "successful": "Comunicarea cu serverul de sincronizare a avut loc cu succes, s-a început sincronizarea."
   }
 }

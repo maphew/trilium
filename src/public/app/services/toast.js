@@ -16,7 +16,7 @@ function toast(options) {
     );
 
     $toast.find('.toast-title').text(options.title);
-    $toast.find('.toast-body').text(options.message);
+    $toast.find('.toast-body').html(options.message);
 
     if (options.id) {
         $toast.attr("id", `toast-${options.id}`);

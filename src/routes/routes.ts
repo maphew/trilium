@@ -15,6 +15,7 @@ import rateLimit from "express-rate-limit";
 import AbstractBeccaEntity from "../becca/entities/abstract_becca_entity.js";
 import NotFoundError from "../errors/not_found_error.js";
 import ValidationError from "../errors/validation_error.js";
+import optionService from '../services/options.js';
 
 // page routes
 import setupRoute from "./setup.js";
@@ -109,7 +110,10 @@ function register(app: express.Application) {
     const loginRateLimiter = rateLimit({
         windowMs: 15 * 60 * 1000, // 15 minutes
         max: 10, // limit each IP to 10 requests per windowMs
-        skipSuccessfulRequests: true // successful auth to rate-limited ETAPI routes isn't counted. However, successful auth to /login is still counted!
+        skipSuccessfulRequests: true, // successful auth to rate-limited ETAPI routes isn't counted. However, successful auth to /login is still counted!
+        message: 'Too many login attempts, please try again later.',
+        standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+        legacyHeaders: false // Disable the `X-RateLimit-*` headers
     });
 
     route(PST, '/login', [loginRateLimiter], loginRoute.login);
@@ -184,6 +188,7 @@ function register(app: express.Application) {
 
     apiRoute(GET, '/api/notes/:noteId/revisions', revisionsApiRoute.getRevisions);
     apiRoute(DEL, '/api/notes/:noteId/revisions', revisionsApiRoute.eraseAllRevisions);
+    apiRoute(PST, '/api/revisions/erase-all-excess-revisions', revisionsApiRoute.eraseAllExcessRevisions);
     apiRoute(GET, '/api/revisions/:revisionId', revisionsApiRoute.getRevision);
     apiRoute(GET, '/api/revisions/:revisionId/blob', revisionsApiRoute.getRevisionBlob);
     apiRoute(DEL, '/api/revisions/:revisionId', revisionsApiRoute.eraseRevision);
@@ -217,6 +222,7 @@ function register(app: express.Application) {
     apiRoute(PUT, '/api/options/:name/:value*', optionsApiRoute.updateOption);
     apiRoute(PUT, '/api/options', optionsApiRoute.updateOptions);
     apiRoute(GET, '/api/options/user-themes', optionsApiRoute.getUserThemes);
+    apiRoute(GET, '/api/options/codeblock-themes', optionsApiRoute.getSyntaxHighlightingThemes);
     apiRoute(GET, '/api/options/locales', optionsApiRoute.getSupportedLocales);
 
     apiRoute(PST, '/api/password/change', passwordApiRoute.changePassword);

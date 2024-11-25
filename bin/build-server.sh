@@ -24,11 +24,12 @@ rm -r $PKG_DIR/node/include/node
 rm -r $PKG_DIR/node_modules/electron*
 rm -r $PKG_DIR/electron*.js
 
-printf "#!/bin/sh\n./node/bin/node src/www" > $PKG_DIR/trilium.sh
+printf "#!/bin/sh\n./node/bin/node src/main" > $PKG_DIR/trilium.sh
 chmod 755 $PKG_DIR/trilium.sh
 
 cp bin/tpl/anonymize-database.sql $PKG_DIR/
 
+cp -r translations $PKG_DIR/
 cp -r dump-db $PKG_DIR/
 rm -rf $PKG_DIR/dump-db/node_modules
 

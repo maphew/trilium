@@ -114,10 +114,10 @@ async function handleMessage(event) {
         await executeFrontendUpdate(message.data.entityChanges);
     }
     else if (message.type === 'sync-hash-check-failed') {
-        toastService.showError("Sync check failed!", 60000);
+        toastService.showError(t("ws.sync-check-failed"), 60000);
     }
     else if (message.type === 'consistency-checks-failed') {
-        toastService.showError("Consistency checks failed! See logs for details.", 50 * 60000);
+        toastService.showError(t("ws.consistency-checks-failed"), 50 * 60000);
     }
     else if (message.type === 'api-log-messages') {
         appContext.triggerEvent("apiLogMessages", {noteId: message.noteId, messages: message.messages});
@@ -189,7 +189,7 @@ async function consumeFrontendUpdateData() {
             else {
                 console.log("nonProcessedEntityChanges causing the timeout", nonProcessedEntityChanges);
 
-                toastService.showError(`Encountered error "${e.message}", check out the console.`);
+                toastService.showError(t("ws.encountered-error", { message: e.message }));
             }
         }
 

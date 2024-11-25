@@ -8,6 +8,7 @@ import hoistedNoteService from "./hoisted_note.js";
 import searchService from "./search/services/search.js";
 import SearchContext from "./search/search_context.js";
 import hiddenSubtree from "./hidden_subtree.js";
+import { t } from "i18next";
 const { LBTPL_NOTE_LAUNCHER, LBTPL_CUSTOM_WIDGET, LBTPL_SPACER, LBTPL_SCRIPT } = hiddenSubtree;
 
 function getInboxNote(date: string) {
@@ -75,7 +76,7 @@ function saveSqlConsole(sqlConsoleNoteId: string) {
 function createSearchNote(searchString: string, ancestorNoteId: string) {
     const {note} = noteService.createNewNote({
         parentNoteId: getMonthlyParentNoteId('_search', 'search'),
-        title: `Search: ${searchString}`,
+        title: `${t("special_notes.search_prefix")} ${searchString}`,
         content: "",
         type: 'search',
         mime: 'application/json'

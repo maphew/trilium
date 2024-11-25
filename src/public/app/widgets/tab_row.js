@@ -1,3 +1,4 @@
+import { t } from "../services/i18n.js";
 import BasicWidget from "./basic_widget.js";
 import contextMenu from "../menus/context_menu.js";
 import utils from "../services/utils.js";
@@ -37,11 +38,11 @@ const TAB_TPL = `
     <div class="note-tab-drag-handle"></div>
     <div class="note-tab-icon"></div>
     <div class="note-tab-title"></div>
-    <div class="note-tab-close bx bx-x" title="Close tab" data-trigger-command="closeActiveTab"></div>
+    <div class="note-tab-close bx bx-x" title="${t('tab_row.close_tab')}" data-trigger-command="closeActiveTab"></div>
   </div>
 </div>`;
 
-const NEW_TAB_BUTTON_TPL = `<div class="note-new-tab" data-trigger-command="openNewTab" title="Add new tab">+</div>`;
+const NEW_TAB_BUTTON_TPL = `<div class="note-new-tab" data-trigger-command="openNewTab" title="${t('tab_row.add_new_tab')}">+</div>`;
 const FILLER_TPL = `<div class="tab-row-filler"></div>`;
 
 const TAB_ROW_TPL = `
@@ -53,6 +54,10 @@ const TAB_ROW_TPL = `
         width: 100%;
         background: var(--main-background-color);
         overflow: hidden;
+    }
+
+    .tab-row-widget.full-width {
+        background: var(--launcher-pane-background-color);
     }
     
     .tab-row-widget * {
@@ -258,10 +263,19 @@ export default class TabRowWidget extends BasicWidget {
                 x: e.pageX,
                 y: e.pageY,
                 items: [
-                    {title: "Close", command: "closeTab", uiIcon: "bx bx-x"},
-                    {title: "Close other tabs", command: "closeOtherTabs", uiIcon: "bx bx-x"},
-                    {title: "Close all tabs", command: "closeAllTabs", uiIcon: "bx bx-x"},
-                    {title: "Move this tab to a new window", command: "moveTabToNewWindow", uiIcon: "bx bx-window-open"}
+                    {title: t('tab_row.close'), command: "closeTab", uiIcon: "bx bx-x"},
+                    {title: t('tab_row.close_other_tabs'), command: "closeOtherTabs", uiIcon: "bx bx-empty", enabled: appContext.tabManager.noteContexts.length !== 1},
+                    {title: t('tab_row.close_right_tabs'), command: "closeRightTabs", uiIcon: "bx bx-empty", enabled: appContext.tabManager.noteContexts.at(-1).ntxId !== ntxId},
+                    {title: t('tab_row.close_all_tabs'), command: "closeAllTabs", uiIcon: "bx bx-empty"},
+
+                    {title: "----"},
+
+                    {title: t('tab_row.reopen_last_tab'), command: "reopenLastTab", uiIcon: "bx bx-undo", enabled: appContext.tabManager.recentlyClosedTabs.length !== 0},
+
+                    {title: "----"},
+                    
+                    {title: t('tab_row.move_tab_to_new_window'), command: "moveTabToNewWindow", uiIcon: "bx bx-window-open"},
+                    {title: t('tab_row.copy_tab_to_new_window'), command: "copyTabToNewWindow", uiIcon: "bx bx-empty"}
                 ],
                 selectMenuItemHandler: ({command}) => {
                     this.triggerCommand(command, {ntxId});
@@ -387,7 +401,7 @@ export default class TabRowWidget extends BasicWidget {
         this.$newTab.before($tab);
         this.setVisibility();
         this.setTabCloseEvent($tab);
-        this.updateTitle($tab, 'New tab');
+        this.updateTitle($tab, t('tab_row.new_tab'));
         this.cleanUpPreviouslyDraggedTabs();
         this.layoutTabs();
         this.setupDraggabilly();
@@ -672,7 +686,7 @@ export default class TabRowWidget extends BasicWidget {
         const {note} = noteContext;
 
         if (!note) {
-            this.updateTitle($tab, 'New tab');
+            this.updateTitle($tab, t('tab_row.new_tab'));
             return;
         }
 

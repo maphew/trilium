@@ -2,6 +2,8 @@ import OptionsWidget from "../options_widget.js";
 import utils from "../../../../services/utils.js";
 import { t } from "../../../../services/i18n.js";
 
+const MIN_VALUE = 640;
+
 const TPL = `
 <div class="options-section">
     <h4>${t("max_content_width.title")}</h4>
@@ -11,7 +13,7 @@ const TPL = `
     <div class="form-group row">
         <div class="col-6">
             <label>${t("max_content_width.max_width_label")}</label>
-            <input type="number" min="200" step="10" class="max-content-width form-control options-number-input">
+            <input type="number" min="${MIN_VALUE}" step="10" class="max-content-width form-control options-number-input">
         </div>
     </div>
     
@@ -34,6 +36,6 @@ export default class MaxContentWidthOptions extends OptionsWidget {
     }
 
     async optionsLoaded(options) {
-        this.$maxContentWidth.val(options.maxContentWidth);
+        this.$maxContentWidth.val(Math.max(MIN_VALUE, options.maxContentWidth));
     }
 }

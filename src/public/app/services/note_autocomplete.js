@@ -45,6 +45,16 @@ async function autocompleteSource(term, cb, options = {}) {
         ].concat(results);
     }
 
+    if (term.trim().length >= 1 && options.allowSearchNotes) {
+        results = results.concat([
+            {
+                action: 'search-notes',
+                noteTitle: term,
+                highlightedNotePathTitle: `Search for "${utils.escapeHtml(term)}" <kbd style='color: var(--muted-text-color); background-color: transparent; float: right;'>Ctrl+Enter</kbd>`
+            }
+        ]);
+    }
+
     if (term.match(/^[a-z]+:\/\/.+/i) && options.allowExternalLinks) {
         results = [
             {
@@ -138,6 +148,17 @@ function initNoteAutocomplete($el, options) {
         autocompleteOptions.debug = true;   // don't close on blur
     }
 
+    if (options.allowSearchNotes) {
+        $el.on('keydown', (event) => {
+            if (event.ctrlKey && event.key === 'Enter') {
+                // Prevent Ctrl + Enter from triggering autoComplete.
+                event.stopImmediatePropagation();
+                event.preventDefault();
+                $el.trigger('autocomplete:selected', { action: 'search-notes', noteTitle: $el.autocomplete("val")});
+            }
+        });
+    }
+
     $el.autocomplete({
         ...autocompleteOptions,
         appendTo: document.querySelector('body'),
@@ -192,6 +213,12 @@ function initNoteAutocomplete($el, options) {
             suggestion.notePath = note.getBestNotePathString(hoistedNoteId);
         }
 
+        if (suggestion.action === 'search-notes') {
+            const searchString = suggestion.noteTitle;
+            appContext.triggerCommand('searchNotes', { searchString });
+            return;
+        }
+        
         $el.setSelectedNotePath(suggestion.notePath);
         $el.setSelectedExternalLink(null);
 

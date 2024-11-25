@@ -1,4 +1,4 @@
-import TypeWidget from "./type_widget.js";
+import AbstractCodeTypeWidget from "./abstract_code_type_widget.js";
 
 const TPL = `
 <div class="note-detail-readonly-code note-detail-printable">
@@ -16,12 +16,13 @@ const TPL = `
     <pre class="note-detail-readonly-code-content"></pre>
 </div>`;
 
-export default class ReadOnlyCodeTypeWidget extends TypeWidget {
+export default class ReadOnlyCodeTypeWidget extends AbstractCodeTypeWidget {
     static getType() { return "readOnlyCode"; }
 
     doRender() {
         this.$widget = $(TPL);
-        this.$content = this.$widget.find('.note-detail-readonly-code-content');
+        this.contentSized();
+        this.$editor = this.$widget.find('.note-detail-readonly-code-content');
 
         super.doRender();
     }
@@ -33,7 +34,14 @@ export default class ReadOnlyCodeTypeWidget extends TypeWidget {
             content = this.format(content);
         }
 
-        this.$content.text(content);
+        this._update(note, content);
+        this.show();
+    }
+
+    getExtraOpts() {
+        return {
+            readOnly: true
+        };
     }
 
     async executeWithContentElementEvent({resolve, ntxId}) {
@@ -43,7 +51,7 @@ export default class ReadOnlyCodeTypeWidget extends TypeWidget {
 
         await this.initialized;
 
-        resolve(this.$content);
+        resolve(this.$editor);
     }
 
     format(html) {

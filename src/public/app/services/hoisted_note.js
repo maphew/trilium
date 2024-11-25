@@ -2,6 +2,7 @@ import appContext from "../components/app_context.js";
 import treeService from "./tree.js";
 import dialogService from "./dialog.js";
 import froca from "./froca.js";
+import { t } from "./i18n.js";
 
 function getHoistedNoteId() {
     const activeNoteContext = appContext.tabManager.getActiveContext();
@@ -53,7 +54,7 @@ async function checkNoteAccess(notePath, noteContext) {
         const hoistedNote = await froca.getNote(hoistedNoteId);
 
         if ((!hoistedNote.hasAncestor('_hidden') || resolvedNotePath.includes('_lbBookmarks'))
-            && !await dialogService.confirm(`Requested note '${requestedNote.title}' is outside of hoisted note '${hoistedNote.title}' subtree and you must unhoist to access the note. Do you want to proceed with unhoisting?`)) {
+            && !await dialogService.confirm(t("hoisted_note.confirm_unhoisting", { requestedNote: requestedNote.title, hoistedNote: hoistedNote.title }))) {
             return false;
         }
 

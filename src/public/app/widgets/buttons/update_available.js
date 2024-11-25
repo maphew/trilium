@@ -1,5 +1,6 @@
 import { t } from "../../services/i18n.js";
 import BasicWidget from "../basic_widget.js";
+import utils from "../../services/utils.js";
 
 const TPL = `
 <div style="display: none;">
@@ -34,6 +35,6 @@ export default class UpdateAvailableWidget extends BasicWidget {
     }
 
     updateVersionStatus(latestVersion) {
-        this.$widget.toggle(latestVersion > glob.triliumVersion);
+        this.$widget.toggle(utils.isUpdateAvailable(latestVersion, glob.triliumVersion));
     }
 }

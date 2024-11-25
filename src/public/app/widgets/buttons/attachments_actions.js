@@ -20,6 +20,13 @@ const TPL = `
         width: 20em;
     }
     
+    .attachment-actions .dropdown-item .bx {
+        position: relative;
+        top: 3px;
+        font-size: 120%;
+        margin-right: 5px;
+    }
+
     .attachment-actions .dropdown-item[disabled], .attachment-actions .dropdown-item[disabled]:hover {
         color: var(--muted-text-color) !important;
         background-color: transparent !important;
@@ -32,16 +39,39 @@ const TPL = `
         style="position: relative; top: 3px;"></button>
 
     <div class="dropdown-menu dropdown-menu-right">
-        <a data-trigger-command="openAttachment" class="dropdown-item"
-            title="${t('attachments_actions.open_externally_title')}">${t('attachments_actions.open_externally')}</a>
-        <a data-trigger-command="openAttachmentCustom" class="dropdown-item"
-            title="${t('attachments_actions.open_custom_title')}">${t('attachments_actions.open_custom')}</a>
-        <a data-trigger-command="downloadAttachment" class="dropdown-item">${t('attachments_actions.download')}</a>
-        <a data-trigger-command="renameAttachment" class="dropdown-item">${t('attachments_actions.rename_attachment')}</a>
-        <a data-trigger-command="uploadNewAttachmentRevision" class="dropdown-item">${t('attachments_actions.upload_new_revision')}</a>
-        <a data-trigger-command="copyAttachmentLinkToClipboard" class="dropdown-item">${t('attachments_actions.copy_link_to_clipboard')}</a>
-        <a data-trigger-command="convertAttachmentIntoNote" class="dropdown-item">${t('attachments_actions.convert_attachment_into_note')}</a>
-        <a data-trigger-command="deleteAttachment" class="dropdown-item">${t('attachments_actions.delete_attachment')}</a>
+
+        <li data-trigger-command="openAttachment" class="dropdown-item"
+            title="${t('attachments_actions.open_externally_title')}"><span class="bx bx-file-find"></span> ${t('attachments_actions.open_externally')}</li>
+        
+        <li data-trigger-command="openAttachmentCustom" class="dropdown-item"
+            title="${t('attachments_actions.open_custom_title')}"><span class="bx bx-customize"></span> ${t('attachments_actions.open_custom')}</li>
+        
+        <li data-trigger-command="downloadAttachment" class="dropdown-item">
+            <span class="bx bx-download"></span> ${t('attachments_actions.download')}</li>
+
+        <li data-trigger-command="copyAttachmentLinkToClipboard" class="dropdown-item"><span class="bx bx-link">
+            </span> ${t('attachments_actions.copy_link_to_clipboard')}</li>
+
+        
+        <div class="dropdown-divider"></div>
+
+
+        <li data-trigger-command="uploadNewAttachmentRevision" class="dropdown-item"><span class="bx bx-upload">
+            </span> ${t('attachments_actions.upload_new_revision')}</li>
+
+        <li data-trigger-command="renameAttachment" class="dropdown-item">
+            <span class="bx bx-rename"></span> ${t('attachments_actions.rename_attachment')}</li>
+
+        <li data-trigger-command="deleteAttachment" class="dropdown-item">
+            <span class="bx bx-trash destructive-action-icon"></span> ${t('attachments_actions.delete_attachment')}</li>
+
+
+        <div class="dropdown-divider"></div>
+            
+
+        <li data-trigger-command="convertAttachmentIntoNote" class="dropdown-item"><span class="bx bx-note">
+            </span> ${t('attachments_actions.convert_attachment_into_note')}</li>
+        
     </div>
     
     <input type="file" class="attachment-upload-new-revision-input" style="display: none">
@@ -83,14 +113,14 @@ export default class AttachmentActionsWidget extends BasicWidget {
             const $openAttachmentButton = this.$widget.find("[data-trigger-command='openAttachment']");
             $openAttachmentButton
                 .addClass("disabled")
-                .append($('<span class="disabled-tooltip"> (?)</span>')
+                .append($('<span class="bx bx-info-circle disabled-tooltip" />')
                     .attr("title", t('attachments_actions.open_externally_detail_page'))
                 );
             if (isElectron) {
                 const $openAttachmentCustomButton = this.$widget.find("[data-trigger-command='openAttachmentCustom']");
                 $openAttachmentCustomButton
                     .addClass("disabled")
-                    .append($('<span class="disabled-tooltip"> (?)</span>')
+                    .append($('<span class="bx bx-info-circle disabled-tooltip" />')
                         .attr("title", t('attachments_actions.open_externally_detail_page'))
                     );
             }
@@ -99,7 +129,7 @@ export default class AttachmentActionsWidget extends BasicWidget {
             const $openAttachmentCustomButton = this.$widget.find("[data-trigger-command='openAttachmentCustom']");
             $openAttachmentCustomButton
                 .addClass("disabled")
-                .append($('<span class="disabled-tooltip"> (?)</span>')
+                .append($('<span class="bx bx-info-circle disabled-tooltip" />')
                     .attr("title", t('attachments_actions.open_custom_client_only'))
                 );
         }

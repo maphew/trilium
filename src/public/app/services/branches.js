@@ -5,6 +5,7 @@ import froca from "./froca.js";
 import hoistedNoteService from "./hoisted_note.js";
 import ws from "./ws.js";
 import appContext from "../components/app_context.js";
+import { t } from './i18n.js';
 
 async function moveBeforeBranch(branchIdsToMove, beforeBranchId) {
     branchIdsToMove = filterRootNote(branchIdsToMove);
@@ -13,7 +14,7 @@ async function moveBeforeBranch(branchIdsToMove, beforeBranchId) {
     const beforeBranch = froca.getBranch(beforeBranchId);
 
     if (['root', '_lbRoot', '_lbAvailableLaunchers', '_lbVisibleLaunchers'].includes(beforeBranch.noteId)) {
-        toastService.showError('Cannot move notes here.');
+        toastService.showError(t("branches.cannot-move-notes-here"));
         return;
     }
 
@@ -42,7 +43,7 @@ async function moveAfterBranch(branchIdsToMove, afterBranchId) {
     ];
 
     if (forbiddenNoteIds.includes(afterNote.noteId)) {
-        toastService.showError('Cannot move notes here.');
+        toastService.showError(t("branches.cannot-move-notes-here"));
         return;
     }
 
@@ -62,7 +63,7 @@ async function moveToParentNote(branchIdsToMove, newParentBranchId) {
     const newParentBranch = froca.getBranch(newParentBranchId);
 
     if (newParentBranch.noteId === '_lbRoot') {
-        toastService.showError('Cannot move notes here.');
+        toastService.showError(t("branches.cannot-move-notes-here"));
         return;
     }
 
@@ -192,7 +193,7 @@ function filterRootNote(branchIds) {
 function makeToast(id, message) {
     return {
         id: id,
-        title: "Delete status",
+        title: t("branches.delete-status"),
         message: message,
         icon: "trash"
     };
@@ -207,9 +208,9 @@ ws.subscribeToMessages(async message => {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message.taskId, `Delete notes in progress: ${message.progressCount}`));
+        toastService.showPersistent(makeToast(message.taskId, t("branches.delete-notes-in-progress", { count: message.progressCount })));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message.taskId, "Delete finished successfully.");
+        const toast = makeToast(message.taskId, t("branches.delete-finished-successfully"));
         toast.closeAfter = 5000;
 
         toastService.showPersistent(toast);
@@ -225,9 +226,9 @@ ws.subscribeToMessages(async message => {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message.taskId, `Undeleting notes in progress: ${message.progressCount}`));
+        toastService.showPersistent(makeToast(message.taskId, t("branches.undeleting-notes-in-progress", { count: message.progressCount })));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message.taskId, "Undeleting notes finished successfully.");
+        const toast = makeToast(message.taskId, t("branches.undeleting-notes-finished-successfully"));
         toast.closeAfter = 5000;
 
         toastService.showPersistent(toast);

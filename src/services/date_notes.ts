@@ -9,14 +9,20 @@ import searchService from "../services/search/services/search.js";
 import SearchContext from "../services/search/search_context.js";
 import hoistedNoteService from "./hoisted_note.js";
 import BNote from "../becca/entities/bnote.js";
+import { t } from "i18next";
 
 const CALENDAR_ROOT_LABEL = 'calendarRoot';
 const YEAR_LABEL = 'yearNote';
 const MONTH_LABEL = 'monthNote';
 const DATE_LABEL = 'dateNote';
 
-const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WEEKDAY_TRANSLATION_IDS = [
+    "weekdays.sunday", "weekdays.monday", "weekdays.tuesday", "weekdays.wednesday", "weekdays.thursday", "weekdays.friday", "weekdays.saturday", "weekdays.sunday"
+];
+
+const MONTH_TRANSLATION_IDS = [
+    "months.january", "months.february", "months.march", "months.april", "months.may", "months.june", "months.july", "months.august", "months.september", "months.october", "months.november", "months.december"
+];
 
 type StartOfWeek = "monday" | "sunday";
 
@@ -92,7 +98,7 @@ function getYearNote(dateStr: string, _rootNote: BNote | null = null): BNote {
 
 function getMonthNoteTitle(rootNote: BNote, monthNumber: string, dateObj: Date) {
     const pattern = rootNote.getOwnedLabelValue("monthPattern") || "{monthNumberPadded} - {month}";
-    const monthName = MONTHS[dateObj.getMonth()];
+    const monthName = t(MONTH_TRANSLATION_IDS[dateObj.getMonth()]);
 
     return pattern
         .replace(/{shortMonth3}/g, monthName.slice(0,3))
@@ -138,7 +144,7 @@ function getMonthNote(dateStr: string, _rootNote: BNote | null = null): BNote {
 
 function getDayNoteTitle(rootNote: BNote, dayNumber: string, dateObj: Date) {
     const pattern = rootNote.getOwnedLabelValue("datePattern") || "{dayInMonthPadded} - {weekDay}";
-    const weekDay = DAYS[dateObj.getDay()];
+    const weekDay = t(WEEKDAY_TRANSLATION_IDS[dateObj.getDay()]);
 
     return pattern
         .replace(/{ordinal}/g, ordinal(parseInt(dayNumber)))

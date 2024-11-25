@@ -1,8 +1,7 @@
 import { t } from "../../services/i18n.js";
-import libraryLoader from "../../services/library_loader.js";
-import TypeWidget from "./type_widget.js";
 import keyboardActionService from "../../services/keyboard_actions.js";
 import options from "../../services/options.js";
+import AbstractCodeTypeWidget from "./abstract_code_type_widget.js";
 
 const TPL = `
 <div class="note-detail-code note-detail-printable">
@@ -21,53 +20,31 @@ const TPL = `
     <div class="note-detail-code-editor"></div>
 </div>`;
 
-export default class EditableCodeTypeWidget extends TypeWidget {
+export default class EditableCodeTypeWidget extends AbstractCodeTypeWidget {
     static getType() { return "editableCode"; }
 
     doRender() {
         this.$widget = $(TPL);
+        this.contentSized();
         this.$editor = this.$widget.find('.note-detail-code-editor');
 
         keyboardActionService.setupActionsForElement('code-detail', this.$widget, this);
 
-        super.doRender();
-
-        this.initialized = this.initEditor();
+        super.doRender();        
     }
-
-    async initEditor() {
-        await libraryLoader.requireLibrary(libraryLoader.CODE_MIRROR);
-
-        CodeMirror.keyMap.default["Shift-Tab"] = "indentLess";
-        CodeMirror.keyMap.default["Tab"] = "indentMore";
-
-        // these conflict with backward/forward navigation shortcuts
-        delete CodeMirror.keyMap.default["Alt-Left"];
-        delete CodeMirror.keyMap.default["Alt-Right"];
-
-        CodeMirror.modeURL = `${window.glob.assetPath}/node_modules/codemirror/mode/%N/%N.js`;
-        CodeMirror.modeInfo.find(mode=>mode.name === "JavaScript").mimes.push(...["application/javascript;env=frontend", "application/javascript;env=backend"]);
-        CodeMirror.modeInfo.find(mode=>mode.name === "SQLite").mimes=["text/x-sqlite", "text/x-sqlite;schema=trilium"];
-
-        this.codeEditor = CodeMirror(this.$editor[0], {
-            value: "",
-            viewportMargin: Infinity,
-            indentUnit: 4,
-            matchBrackets: true,
+       
+    getExtraOpts() {
+        return {
             keyMap: options.is('vimKeymapEnabled') ? "vim": "default",
-            matchTags: {bothTags: true},
-            highlightSelectionMatches: {showToken: false, annotateScrollbar: false},
             lint: true,
             gutters: ["CodeMirror-lint-markers"],
-            lineNumbers: true,
             tabindex: 300,
-            // we line wrap partly also because without it horizontal scrollbar displays only when you scroll
-            // all the way to the bottom of the note. With line wrap, there's no horizontal scrollbar so no problem
-            lineWrapping: options.is('codeLineWrapEnabled'),
             dragDrop: false, // with true the editor inlines dropped files which is not what we expect
             placeholder: t('editable_code.placeholder'),
-        });
+        };
+    }
 
+    onEditorInitialized() {
         this.codeEditor.on('change', () => this.spacedUpdate.scheduleUpdate());
     }
 
@@ -75,55 +52,16 @@ export default class EditableCodeTypeWidget extends TypeWidget {
         const blob = await this.note.getBlob();
 
         await this.spacedUpdate.allowUpdateWithoutChange(() => {
-            // CodeMirror breaks pretty badly on null, so even though it shouldn't happen (guarded by a consistency check)
-            // we provide fallback
-            this.codeEditor.setValue(blob.content || "");
-            this.codeEditor.clearHistory();
-
-            let info = CodeMirror.findModeByMIME(note.mime);
-            if (!info) {
-                // Switch back to plain text if CodeMirror does not have a mode for whatever MIME type we're editing.
-                // To avoid inheriting a mode from a previously open code note.
-                info = CodeMirror.findModeByMIME("text/plain");
-            }
-
-            this.codeEditor.setOption("mode", info.mime);
-            CodeMirror.autoLoadMode(this.codeEditor, info.mode);
+            this._update(note, blob.content);
         });
 
         this.show();
-    }
-
-    show() {
-        this.$widget.show();
-
-        if (this.codeEditor) { // show can be called before render
-            this.codeEditor.refresh();
-        }
     }
 
     getData() {
         return {
             content: this.codeEditor.getValue()
         };
-    }
-
-    focus() {
-        this.$editor.focus();
-        this.codeEditor.focus();
-    }
-
-    scrollToEnd() {
-        this.codeEditor.setCursor(this.codeEditor.lineCount(), 0);
-        this.codeEditor.focus();
-    }
-
-    cleanup() {
-        if (this.codeEditor) {
-            this.spacedUpdate.allowUpdateWithoutChange(() => {
-                this.codeEditor.setValue('');
-            });
-        }
     }
 
     async executeWithCodeEditorEvent({resolve, ntxId}) {

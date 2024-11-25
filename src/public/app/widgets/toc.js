@@ -13,7 +13,7 @@
  * to the wrong heading (although what "right" means in those cases is not
  * clear), but it won't crash.
  */
-
+import { t } from "../services/i18n.js";
 import attributeService from "../services/attributes.js";
 import RightPanelWidget from "./right_panel_widget.js";
 import options from "../services/options.js";
@@ -55,14 +55,14 @@ const TPL = `<div class="toc-widget">
 
 export default class TocWidget extends RightPanelWidget {
     get widgetTitle() {
-        return "Table of Contents";
+        return t("toc.table_of_contents");
     }
 
     get widgetButtons() {
         return [
             new OnClickButtonWidget()
                 .icon("bx-cog")
-                .title("Options")
+                .title(t("toc.options"))
                 .titlePlacement("left")
                 .onClick(() => appContext.tabManager.openContextWithNote('_optionsTextNotes', {activate: true}))
                 .class("icon-action"),
@@ -125,18 +125,18 @@ export default class TocWidget extends RightPanelWidget {
      *
      * @param {string} html Note's html content
      * @returns {string} The HTML content with mathematical formulas rendered by KaTeX.
-     */  
+     */
     async replaceMathTextWithKatax(html) {
         const mathTextRegex = /<span class="math-tex">\\\(([\s\S]*?)\\\)<\/span>/g;
         var matches = [...html.matchAll(mathTextRegex)];
         let modifiedText = html;
-    
+
         if (matches.length > 0) {
             // Process all matches asynchronously
             for (const match of matches) {
                 let latexCode = match[1];
                 let rendered;
-    
+
                 try {
                     rendered = katex.renderToString(latexCode, {
                         throwOnError: false
@@ -158,7 +158,7 @@ export default class TocWidget extends RightPanelWidget {
                         rendered = match[0]; // Fall back to original on error
                     }
                 }
-    
+
                 // Replace the matched formula in the modified text
                 modifiedText = modifiedText.replace(match[0], rendered);
             }

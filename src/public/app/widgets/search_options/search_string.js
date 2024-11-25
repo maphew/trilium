@@ -61,9 +61,9 @@ export default class SearchString extends AbstractSearchOption {
 
             await this.setAttribute('label', 'searchString', searchString);
 
-            if (this.note.title.startsWith('Search: ')) {
+            if (this.note.title.startsWith(t("search_string.search_prefix"))) {
                 await server.put(`notes/${this.note.noteId}/title`, {
-                    title: `Search: ${searchString.length < 30 ? searchString : `${searchString.substr(0, 30)}…`}`
+                    title: `${t("search_string.search_prefix")} ${searchString.length < 30 ? searchString : `${searchString.substr(0, 30)}…`}`
                 });
             }
         }, 1000);

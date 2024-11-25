@@ -217,8 +217,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      */
     this.runOnBackend = async (func, params = []) => {
         if (func?.constructor.name === "AsyncFunction" || func?.startsWith?.("async ")) {
-            toastService.showError("You're passing an async function to api.runOnBackend() which will likely not work as you intended. "
-                + "Either make the function synchronous (by removing 'async' keyword), or use api.runAsyncOnBackendWithManualTransactionHandling()");
+            toastService.showError(t("frontend_script_api.async_warning"));
         }
 
         return await this.__runOnBackendInner(func, params, true);
@@ -240,8 +239,7 @@ function FrontendScriptApi(startNote, currentNote, originEntity = null, $contain
      */
     this.runAsyncOnBackendWithManualTransactionHandling = async (func, params = []) => {
         if (func?.constructor.name === "Function" || func?.startsWith?.("function")) {
-            toastService.showError("You're passing a synchronous function to api.runAsyncOnBackendWithManualTransactionHandling(), " +
-                "while you should likely use api.runOnBackend() instead.");
+            toastService.showError(t("frontend_script_api.sync_warning"));
         }
 
         return await this.__runOnBackendInner(func, params, false);

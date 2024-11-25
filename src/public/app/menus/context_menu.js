@@ -3,6 +3,7 @@ import keyboardActionService from '../services/keyboard_actions.js';
 class ContextMenu {
     constructor() {
         this.$widget = $("#context-menu-container");
+        this.$widget.addClass("dropend");
         this.dateContextMenuOpenedMs = 0;
 
         $(document).on('click', () => this.hide());
@@ -10,6 +11,12 @@ class ContextMenu {
 
     async show(options) {
         this.options = options;
+
+        if (this.$widget.hasClass("show")) {
+            // The menu is already visible. Hide the menu then open it again
+            // at the new location to re-trigger the opening animation.
+            await this.hide();
+        }
 
         this.$widget.empty();
 
@@ -96,6 +103,10 @@ class ContextMenu {
                     .append(" &nbsp; ") // some space between icon and text
                     .append(item.title);
 
+                if (item.shortcut) {
+                    $link.append($("<kbd>").text(item.shortcut));
+                }
+
                 const $item = $("<li>")
                     .addClass("dropdown-item")
                     .append($link)
@@ -142,16 +153,24 @@ class ContextMenu {
         }
     }
 
-    hide() {
+    async hide() {
         // this date checking comes from change in FF66 - https://github.com/zadam/trilium/issues/468
         // "contextmenu" event also triggers "click" event which depending on the timing can close the just opened context menu
         // we might filter out right clicks, but then it's better if even right clicks close the context menu
         if (Date.now() - this.dateContextMenuOpenedMs > 300) {
             // seems like if we hide the menu immediately, some clicks can get propagated to the underlying component
             // see https://github.com/zadam/trilium/pull/3805 for details
-            setTimeout(() => this.$widget.hide(), 100);
+            await timeout(100);
+            this.$widget.removeClass("show");
+            this.$widget.hide()
         }
     }
+}
+
+function timeout(ms) {
+    return new Promise((accept, reject) => {
+        setTimeout(accept, ms);
+    });
 }
 
 const contextMenu = new ContextMenu();

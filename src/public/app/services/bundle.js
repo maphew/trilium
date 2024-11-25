@@ -3,6 +3,7 @@ import server from "./server.js";
 import toastService from "./toast.js";
 import froca from "./froca.js";
 import utils from "./utils.js";
+import { t } from "./i18n.js";
 
 async function getAndExecuteBundle(noteId, originEntity = null, script = null, params = null) {
     const bundle = await server.post(`script/bundle/${noteId}`, {
@@ -75,9 +76,23 @@ async function getWidgetBundlesByParent() {
 
         try {
             widget = await executeBundle(bundle);
-            widgetsByParent.add(widget);
-        }
-        catch (e) {
+            if (widget) {
+                widget._noteId = bundle.noteId;
+                widgetsByParent.add(widget);
+            }
+        } catch (e) {
+            const noteId = bundle.noteId;
+            const note = await froca.getNote(noteId);
+            toastService.showPersistent({
+                title: t("toast.bundle-error.title"),
+                icon: "alert",
+                message: t("toast.bundle-error.message", {
+                    id: noteId,
+                    title: note.title,
+                    message: e.message
+                })
+            });
+
             logError("Widget initialization failed: ", e);
             continue;
         }

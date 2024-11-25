@@ -8,7 +8,11 @@ export default class Container extends BasicWidget {
 
     renderChildren() {
         for (const widget of this.children) {
-            this.$widget.append(widget.render());
+            try {
+                this.$widget.append(widget.render());
+            } catch (e) {
+                widget.logRenderingError(e);
+            }
         }
     }
 }

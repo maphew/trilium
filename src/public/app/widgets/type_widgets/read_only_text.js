@@ -1,5 +1,6 @@
 import AbstractTextTypeWidget from "./abstract_text_type_widget.js";
 import libraryLoader from "../../services/library_loader.js";
+import { applySyntaxHighlight } from "../../services/syntax_highlight.js";
 
 const TPL = `
 <div class="note-detail-readonly-text note-detail-printable">
@@ -89,7 +90,7 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
         // we load CKEditor also for read only notes because they contain content styles required for correct rendering of even read only notes
         // we could load just ckeditor-content.css but that causes CSS conflicts when both build CSS and this content CSS is loaded at the same time
         // (see https://github.com/zadam/trilium/issues/1590 for example of such conflict)
-        await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);
+        await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);        
 
         const blob = await note.getBlob();
 
@@ -110,6 +111,8 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
 
             renderMathInElement(this.$content[0], {trust: true});
         }
+
+        await applySyntaxHighlight(this.$content);
     }
 
     async refreshIncludedNoteEvent({noteId}) {

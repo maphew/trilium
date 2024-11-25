@@ -23,6 +23,7 @@ import SearchEngineOptions from "./options/other/search_engine.js";
 import TrayOptions from "./options/other/tray.js";
 import NoteErasureTimeoutOptions from "./options/other/note_erasure_timeout.js";
 import RevisionsSnapshotIntervalOptions from "./options/other/revisions_snapshot_interval.js";
+import RevisionSnapshotsLimitOptions from "./options/other/revision_snapshots_limit.js";
 import NetworkConnectionsOptions from "./options/other/network_connections.js";
 import AdvancedSyncOptions from "./options/advanced/sync.js";
 import DatabaseIntegrityCheckOptions from "./options/advanced/database_integrity_check.js";
@@ -33,6 +34,9 @@ import BackendLogWidget from "./content/backend_log.js";
 import AttachmentErasureTimeoutOptions from "./options/other/attachment_erasure_timeout.js";
 import RibbonOptions from "./options/appearance/ribbon.js";
 import LocalizationOptions from "./options/appearance/i18n.js";
+import CodeBlockOptions from "./options/appearance/code_block.js";
+import EditorOptions from "./options/text_notes/editor.js";
+import ShareSettingsOptions from "./options/other/share_settings.js";
 
 const TPL = `<div class="note-detail-content-widget note-detail-printable">
     <style>
@@ -58,6 +62,7 @@ const CONTENT_WIDGETS = {
         LocalizationOptions,
         ThemeOptions,
         FontsOptions,
+        CodeBlockOptions,
         ZoomFactorOptions,
         NativeTitleBarOptions,
         MaxContentWidthOptions,
@@ -65,6 +70,7 @@ const CONTENT_WIDGETS = {
     ],
     _optionsShortcuts: [ KeyboardShortcutsOptions ],
     _optionsTextNotes: [
+        EditorOptions,
         HeadingStyleOptions,
         TableOfContentsOptions,
         HighlightsListOptions,
@@ -88,7 +94,9 @@ const CONTENT_WIDGETS = {
         NoteErasureTimeoutOptions,
         AttachmentErasureTimeoutOptions,
         RevisionsSnapshotIntervalOptions,
-        NetworkConnectionsOptions
+        RevisionSnapshotsLimitOptions,
+        NetworkConnectionsOptions,
+        ShareSettingsOptions
     ],
     _optionsAdvanced: [
         DatabaseIntegrityCheckOptions,

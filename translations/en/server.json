@@ -89,7 +89,8 @@
     "copy-without-formatting": "Copy selected text without formatting",
     "force-save-revision": "Force creating / saving new note revision of the active note",
     "show-help": "Shows built-in Help / cheatsheet",
-    "toggle-book-properties": "Toggle Book Properties"
+    "toggle-book-properties": "Toggle Book Properties",
+    "toggle-classic-editor-toolbar": "Toggle the Formatting tab for the editor with fixed toolbar"
   },
   "login": {
     "title": "Login",
@@ -157,5 +158,40 @@
     "clipped-from": "This note was originally clipped from {{- url}}",
     "child-notes": "Child notes:",
     "no-content": "This note has no content."
+  },
+  "weekdays": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "months": {
+    "january": "January",
+    "february": "February",
+    "march": "March",
+    "april": "April",
+    "may": "May",
+    "june": "June",
+    "july": "July",
+    "august": "August",
+    "september": "September",
+    "october": "October",
+    "november": "November",
+    "december": "December"
+  },
+  "special_notes": {
+    "search_prefix": "Search:"
+  },
+  "code_block": {
+    "theme_none": "No syntax highlighting",
+    "theme_group_light": "Light themes",
+    "theme_group_dark": "Dark themes"
+  },
+  "test_sync": {
+    "not-configured": "Sync server host is not configured. Please configure sync first.",
+    "successful": "Sync server handshake has been successful, sync has been started."
   }
 }

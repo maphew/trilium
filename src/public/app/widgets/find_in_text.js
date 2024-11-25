@@ -21,6 +21,7 @@ export default class FindInText {
         const findAndReplaceEditing = textEditor.plugins.get('FindAndReplaceEditing');
         findAndReplaceEditing.state.clear(model);
         findAndReplaceEditing.stop();
+        this.editingState = findAndReplaceEditing.state;
         if (searchTerm !== "") {
             // Parameters are callback/text, options.matchCase=false, options.wholeWords=false
             // See https://github.com/ckeditor/ckeditor5/blob/b95e2faf817262ac0e1e21993d9c0bde3f1be594/packages/ckeditor5-find-and-replace/src/findcommand.js#L44
@@ -29,7 +30,7 @@ export default class FindInText {
             // let re = new RegExp(searchTerm, 'gi');
             // let m = text.match(re);
             // totalFound = m ? m.length : 0;
-            const options = { "matchCase" : matchCase, "wholeWords" : wholeWord };
+            const options = { "matchCase": matchCase, "wholeWords": wholeWord };
             findResult = textEditor.execute('find', searchTerm, options);
             totalFound = findResult.results.length;
             // Find the result beyond the cursor
@@ -101,5 +102,19 @@ export default class FindInText {
         this.findResult = null;
 
         textEditor.focus();
+    }
+
+    async replace(replaceText) {
+        if (this.editingState !== undefined && this.editingState.highlightedResult !== null) {
+            const textEditor = await this.getTextEditor();
+            textEditor.execute('replace', replaceText, this.editingState.highlightedResult);
+        }
+    }
+
+    async replaceAll(replaceText) {
+        if (this.editingState !== undefined  && this.editingState.results.length > 0) {
+            const textEditor = await this.getTextEditor();
+            textEditor.execute('replaceAll', replaceText, this.editingState.results);
+        }
     }
 }

@@ -58,8 +58,16 @@ async function exportToZip(taskContext: TaskContext, branch: BBranch, format: "h
 
     function getDataFileName(type: string | null, mime: string, baseFileName: string, existingFileNames: Record<string, number>): string {
         let fileName = baseFileName.trim();
+
+        // Crop fileName to avoid its length exceeding 30 and prevent cutting into the extension.
         if (fileName.length > 30) {
-            fileName = fileName.substr(0, 30).trim();
+            // We use regex to match the extension to preserve multiple dots in extensions (e.g. .tar.gz).
+            let match = fileName.match(/(\.[a-zA-Z0-9_.!#-]+)$/);
+            let ext = match ? match[0] : ''; 
+            // Crop the extension if extension length exceeds 30
+            const croppedExt = ext.slice(-30);
+            // Crop the file name section and append the cropped extension
+            fileName = fileName.slice(0, 30 - croppedExt.length) + croppedExt;
         }
 
         let existingExtension = path.extname(fileName).toLowerCase();
@@ -75,6 +83,9 @@ async function exportToZip(taskContext: TaskContext, branch: BBranch, format: "h
         }
         else if (mime === 'application/x-javascript' || mime === 'text/javascript') {
             newExtension = 'js';
+        }
+        else if (type === 'canvas' || mime === 'application/json') {
+            newExtension = 'json';
         }
         else if (existingExtension.length > 0) { // if the page already has an extension, then we'll just keep it
             newExtension = null;

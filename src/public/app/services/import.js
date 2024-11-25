@@ -36,7 +36,7 @@ export async function uploadFiles(entityType, parentNoteId, files, options) {
             type: 'POST',
             timeout: 60 * 60 * 1000,
             error: function (xhr) {
-                toastService.showError(`Import failed: ${xhr.responseText}`);
+                toastService.showError(t("import.failed", { message: xhr.responseText }));
             },
             contentType: false, // NEEDED, DON'T REMOVE THIS
             processData: false, // NEEDED, DON'T REMOVE THIS

@@ -13,22 +13,23 @@ import ExecuteScriptBulkAction from "../widgets/bulk_actions/execute_script.js";
 import AddLabelBulkAction from "../widgets/bulk_actions/label/add_label.js";
 import AddRelationBulkAction from "../widgets/bulk_actions/relation/add_relation.js";
 import RenameNoteBulkAction from "../widgets/bulk_actions/note/rename_note.js";
+import { t } from "./i18n.js";
 
 const ACTION_GROUPS = [
     {
-        title: 'Labels',
+        title: t("bulk_actions.labels"),
         actions: [AddLabelBulkAction, UpdateLabelValueBulkAction, RenameLabelBulkAction, DeleteLabelBulkAction]
     },
     {
-        title: 'Relations',
+        title: t("bulk_actions.relations"),
         actions: [AddRelationBulkAction, UpdateRelationTargetBulkAction, RenameRelationBulkAction, DeleteRelationBulkAction]
     },
     {
-        title: 'Notes',
+        title: t("bulk_actions.notes"),
         actions: [RenameNoteBulkAction, MoveNoteBulkAction, DeleteNoteBulkAction, DeleteRevisionsBulkAction],
     },
     {
-        title: 'Other',
+        title: t("bulk_actions.other"),
         actions: [ExecuteScriptBulkAction]
     }
 ];

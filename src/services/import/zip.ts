@@ -456,8 +456,8 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
             return;
         }
 
-        let { mime, type } = noteMeta ? noteMeta : detectFileTypeAndMime(taskContext, filePath);
-        type = resolveNoteType(type);
+        let { mime, type: detectedType } = noteMeta ? noteMeta : detectFileTypeAndMime(taskContext, filePath);
+        const type = resolveNoteType(detectedType);
         if (mime == null) {
             throw new Error("Unable to resolve mime type.");
         }
@@ -478,7 +478,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
             // only skeleton was created because of altered order of cloned notes in ZIP, we need to update
             // https://github.com/zadam/trilium/issues/2440
             if (note.type === undefined) {
-                note.type = type as NoteType;
+                note.type = type;
                 note.mime = mime;
                 note.title = noteTitle || "";
                 note.isProtected = isProtected;
@@ -503,7 +503,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
                 title: noteTitle || "",
                 content: content,
                 noteId,
-                type: type as NoteType,
+                type,
                 mime,
                 prefix: noteMeta?.prefix || '',
                 isExpanded: !!noteMeta?.isExpanded,

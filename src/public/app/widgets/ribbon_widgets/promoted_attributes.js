@@ -42,6 +42,10 @@ const TPL = `
         word-break:keep-all;
         white-space: nowrap;
     }
+    .promoted-attribute-cell input[type="checkbox"] {
+        height: 1.5em;
+    }
+    
     </style>
     
     <div class="promoted-attributes-container"></div>

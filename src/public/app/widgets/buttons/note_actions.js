@@ -11,42 +11,91 @@ import { t } from "../../services/i18n.js";
 const TPL = `
 <div class="dropdown note-actions">
     <style>
-    .note-actions {
-        width: 35px;
-        height: 35px;
-    }  
-    
-    .note-actions .dropdown-menu {
-        min-width: 15em;
-    }
-    
-    .note-actions .dropdown-item[disabled], .note-actions .dropdown-item[disabled]:hover {
-        color: var(--muted-text-color) !important;
-        background-color: transparent !important;
-        pointer-events: none; /* makes it unclickable */
-    }
+        .note-actions {
+            width: 35px;
+            height: 35px;
+        }
+
+        .note-actions .dropdown-menu {
+            min-width: 15em;
+        }
+
+        .note-actions .dropdown-item .bx {
+            position: relative;
+            top: 3px;
+            font-size: 120%;
+            margin-right: 5px;
+        }
+
+        .note-actions .dropdown-item[disabled], .note-actions .dropdown-item[disabled]:hover {
+            color: var(--muted-text-color) !important;
+            background-color: transparent !important;
+            pointer-events: none; /* makes it unclickable */
+        }
+
     </style>
 
-    <button type="button" data-bs-toggle="dropdown" aria-haspopup="true" 
-        aria-expanded="false" class="icon-action bx bx-dots-vertical-rounded"></button>
+    <button type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+      class="icon-action bx bx-dots-vertical-rounded"></button>
 
     <div class="dropdown-menu dropdown-menu-right">
-        <a data-trigger-command="convertNoteIntoAttachment" class="dropdown-item">${t('note_actions.convert_into_attachment')}</a>
-        <a data-trigger-command="renderActiveNote" class="dropdown-item render-note-button"><kbd data-command="renderActiveNote"></kbd> ${t('note_actions.re_render_note')}</a>
-        <a data-trigger-command="findInText" class="dropdown-item find-in-text-button">${t('note_actions.search_in_note')} <kbd data-command="findInText"></kbd></a>
-        <a data-trigger-command="showNoteSource" class="dropdown-item show-source-button"><kbd data-command="showNoteSource"></kbd> ${t('note_actions.note_source')}</a>
-        <a data-trigger-command="showAttachments" class="dropdown-item show-attachments-button"><kbd data-command="showAttachments"></kbd> ${t('note_actions.note_attachments')}</a>
-        <a data-trigger-command="openNoteExternally" class="dropdown-item open-note-externally-button"
-           title="${t('note_actions.open_note_externally_title')}">
-            <kbd data-command="openNoteExternally"></kbd> 
-            ${t('note_actions.open_note_externally')}
-        </a>
-        <a data-trigger-command="openNoteCustom" class="dropdown-item open-note-custom-button"><kbd data-command="openNoteCustom"></kbd> ${t('note_actions.open_note_custom')}</a>
-        <a class="dropdown-item import-files-button">${t('note_actions.import_files')}</a>
-        <a class="dropdown-item export-note-button">${t('note_actions.export_note')}</a>
-        <a class="dropdown-item delete-note-button">${t('note_actions.delete_note')}</a>
-        <a data-trigger-command="printActiveNote" class="dropdown-item print-active-note-button"><kbd data-command="printActiveNote"></kbd> ${t('note_actions.print_note')}</a>
-        <a data-trigger-command="forceSaveRevision" class="dropdown-item save-revision-button"><kbd data-command="forceSaveRevision"></kbd> ${t('note_actions.save_revision')}</a>
+        <li data-trigger-command="convertNoteIntoAttachment" class="dropdown-item">
+            <span class="bx bx-paperclip"></span> ${t('note_actions.convert_into_attachment')}
+        </li>
+        
+        <li data-trigger-command="renderActiveNote" class="dropdown-item render-note-button">
+            <span class="bx bx-extension"></span> ${t('note_actions.re_render_note')}<kbd data-command="renderActiveNote"></kbd>
+        </li>
+
+        <li data-trigger-command="findInText" class="dropdown-item find-in-text-button">
+            <span class='bx bx-search'></span> ${t('note_actions.search_in_note')}<kbd data-command="findInText"></kbd>
+        </li>
+
+        <li data-trigger-command="printActiveNote" class="dropdown-item print-active-note-button">
+            <span class="bx bx-printer"></span> ${t('note_actions.print_note')}<kbd data-command="printActiveNote"></kbd></li>
+
+        
+        <div class="dropdown-divider"></div>
+
+        
+        <li class="dropdown-item import-files-button"><span class="bx bx-import"></span> ${t('note_actions.import_files')}</li>
+
+        <li class="dropdown-item export-note-button"><span class="bx bx-export"></span> ${t('note_actions.export_note')}</li>
+
+        
+        <div class="dropdown-divider"></div>
+
+
+
+        <li data-trigger-command="openNoteExternally" class="dropdown-item open-note-externally-button" title="${t('note_actions.open_note_externally_title')}">
+            <span class="bx bx-file-find"></span> ${t('note_actions.open_note_externally')}<kbd data-command="openNoteExternally"></kbd>
+        </li>
+
+        <li data-trigger-command="openNoteCustom" class="dropdown-item open-note-custom-button">
+            <span class="bx bx-customize"></span> ${t('note_actions.open_note_custom')}<kbd data-command="openNoteCustom"></kbd>
+        </li>
+
+        <li data-trigger-command="showNoteSource" class="dropdown-item show-source-button">
+            <span class="bx bx-code"></span> ${t('note_actions.note_source')}<kbd data-command="showNoteSource"></kbd>
+        </li>
+
+        
+        <div class="dropdown-divider"></div>
+
+
+        <li data-trigger-command="forceSaveRevision" class="dropdown-item save-revision-button">
+            <span class="bx bx-save"></span> ${t('note_actions.save_revision')}<kbd data-command="forceSaveRevision"></kbd>
+        </li>
+
+        <li class="dropdown-item delete-note-button"><span class="bx bx-trash destructive-action-icon"></span> ${t('note_actions.delete_note')}</li>
+
+        
+        <div class="dropdown-divider"></div>
+
+        
+        <li data-trigger-command="showAttachments" class="dropdown-item show-attachments-button">
+            <span class="bx bx-paperclip"></span> ${t('note_actions.note_attachments')}<kbd data-command="showAttachments"></kbd>
+        </li>
     </div>
 </div>`;
 
@@ -127,18 +176,18 @@ export default class NoteActionsWidget extends NoteContextAwareWidget {
     }
 
     async convertNoteIntoAttachmentCommand() {
-        if (!await dialogService.confirm(`Are you sure you want to convert note '${this.note.title}' into an attachment of the parent note?`)) {
+        if (!await dialogService.confirm(t("note_actions.convert_into_attachment_prompt", { title: this.note.title }))) {
             return;
         }
 
         const {attachment: newAttachment} = await server.post(`notes/${this.noteId}/convert-to-attachment`);
 
         if (!newAttachment) {
-            toastService.showMessage(`Converting note '${this.note.title}' failed.`);
+            toastService.showMessage(t("note_actions.convert_into_attachment_failed", { title: this.note.title }));
             return;
         }
 
-        toastService.showMessage(`Note '${newAttachment.title}' has been converted to attachment.`);
+        toastService.showMessage(t("note_actions.convert_into_attachment_successful", { title: newAttachment.title }));
         await ws.waitForMaxKnownEntityChangeId();
         await appContext.tabManager.getActiveContext().setNote(newAttachment.ownerId, {
             viewScope: {

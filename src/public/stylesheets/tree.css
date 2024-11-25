@@ -138,13 +138,13 @@ span.fancytree-node.protected > span.fancytree-custom-icon {
 span.fancytree-node.multiple-parents.shared .fancytree-title::after {
     font-family: 'boxicons' !important;
     font-size: smaller;
-    content: " \ec27  \ec03";
+    content: " \eb3d  \ec03";
 }
 
 span.fancytree-node.multiple-parents .fancytree-title::after {
     font-family: 'boxicons' !important;
     font-size: smaller;
-    content: " \ec27"; /* lookup code for "star" in boxicons.css */
+    content: " \eb3d"; /* lookup code for "link-alt" in boxicons.css */
 }
 
 span.fancytree-node.shared .fancytree-title::after {

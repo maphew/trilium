@@ -5,6 +5,7 @@ import ws from "./ws.js";
 import froca from "./froca.js";
 import treeService from "./tree.js";
 import toastService from "./toast.js";
+import { t } from "./i18n.js";
 
 async function createNote(parentNotePath, options = {}) {
     options = Object.assign({
@@ -119,7 +120,7 @@ async function duplicateSubtree(noteId, parentNotePath) {
     activeNoteContext.setNote(`${parentNotePath}/${note.noteId}`);
 
     const origNote = await froca.getNote(noteId);
-    toastService.showMessage(`Note "${origNote.title}" has been duplicated`);
+    toastService.showMessage(t("note_create.duplicated", { title: origNote.title }));
 }
 
 export default {

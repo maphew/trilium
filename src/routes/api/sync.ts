@@ -12,14 +12,15 @@ import syncOptions from "../../services/sync_options.js";
 import utils from "../../services/utils.js";
 import ws from "../../services/ws.js";
 import { Request } from 'express';
-import { EntityChange, EntityChangeRecord } from '../../services/entity_changes_interface.js';
+import { EntityChange } from '../../services/entity_changes_interface.js';
 import ValidationError from "../../errors/validation_error.js";
 import consistencyChecksService from "../../services/consistency_checks.js";
+import { t } from "i18next";
 
 async function testSync() {
     try {
         if (!syncOptions.isSyncSetup()) {
-            return { success: false, message: "Sync server host is not configured. Please configure sync first." };
+            return { success: false, message: t("test_sync.not-configured") };
         }
 
         await syncService.login();
@@ -28,7 +29,7 @@ async function testSync() {
         // this is important in case when sync server has been just initialized
         syncService.sync();
 
-        return { success: true, message: "Sync server handshake has been successful, sync has been started." };
+        return { success: true, message: t("test_sync.successful") };
     }
     catch (e: any) {
         return {

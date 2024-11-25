@@ -3,6 +3,7 @@ import froca from "../services/froca.js";
 import contextMenu from "./context_menu.js";
 import dialogService from "../services/dialog.js";
 import server from "../services/server.js";
+import { t } from '../services/i18n.js';
 
 export default class LauncherContextMenu {
     /**
@@ -33,29 +34,31 @@ export default class LauncherContextMenu {
         const isAvailableItem = parentNoteId === '_lbAvailableLaunchers';
         const isItem = isVisibleItem || isAvailableItem;
         const canBeDeleted = !note.noteId.startsWith("_"); // fixed notes can't be deleted
-        const canBeReset = !canBeDeleted && note.isLaunchBarConfig();;
+        const canBeReset = !canBeDeleted && note.isLaunchBarConfig();
 
         return [
-            (isVisibleRoot || isAvailableRoot) ? { title: 'Add a note launcher', command: 'addNoteLauncher', uiIcon: "bx bx-plus" } : null,
-            (isVisibleRoot || isAvailableRoot) ? { title: 'Add a script launcher', command: 'addScriptLauncher', uiIcon: "bx bx-plus" } : null,
-            (isVisibleRoot || isAvailableRoot) ? { title: 'Add a custom widget', command: 'addWidgetLauncher', uiIcon: "bx bx-plus" } : null,
-            (isVisibleRoot || isAvailableRoot) ? { title: 'Add spacer', command: 'addSpacerLauncher', uiIcon: "bx bx-plus" } : null,
+            (isVisibleRoot || isAvailableRoot) ? { title: t("launcher_context_menu.add-note-launcher"), command: 'addNoteLauncher', uiIcon: "bx bx-note" } : null,
+            (isVisibleRoot || isAvailableRoot) ? { title: t("launcher_context_menu.add-script-launcher"), command: 'addScriptLauncher', uiIcon: "bx bx-code-curly" } : null,
+            (isVisibleRoot || isAvailableRoot) ? { title: t("launcher_context_menu.add-custom-widget"), command: 'addWidgetLauncher', uiIcon: "bx bx-customize" } : null,
+            (isVisibleRoot || isAvailableRoot) ? { title: t("launcher_context_menu.add-spacer"), command: 'addSpacerLauncher', uiIcon: "bx bx-dots-horizontal" } : null,
             (isVisibleRoot || isAvailableRoot) ? { title: "----" } : null,
-            { title: 'Delete <kbd data-command="deleteNotes"></kbd>', command: "deleteNotes", uiIcon: "bx bx-trash", enabled: canBeDeleted },
-            { title: 'Reset', command: "resetLauncher", uiIcon: "bx bx-empty", enabled: canBeReset},
+
+            isAvailableItem ? { title: t("launcher_context_menu.move-to-visible-launchers"), command: "moveLauncherToVisible", uiIcon: "bx bx-show", enabled: true } : null,
+            isVisibleItem ? { title: t("launcher_context_menu.move-to-available-launchers"), command: "moveLauncherToAvailable", uiIcon: "bx bx-hide", enabled: true } : null,
+            (isVisibleItem || isAvailableItem) ? { title: "----" } : null,
+
+            { title: `${t("launcher_context_menu.duplicate-launcher")} <kbd data-command="duplicateSubtree">`, command: "duplicateSubtree", uiIcon: "bx bx-outline", enabled: isItem },
+            { title: `${t("launcher_context_menu.delete")} <kbd data-command="deleteNotes"></kbd>`, command: "deleteNotes", uiIcon: "bx bx-trash destructive-action-icon", enabled: canBeDeleted },
+           
             { title: "----" },
-            isAvailableItem ? { title: 'Move to visible launchers', command: "moveLauncherToVisible", uiIcon: "bx bx-show", enabled: true } : null,
-            isVisibleItem ? { title: 'Move to available launchers', command: "moveLauncherToAvailable", uiIcon: "bx bx-hide", enabled: true } : null,
-            { title: `Duplicate launcher <kbd data-command="duplicateSubtree">`, command: "duplicateSubtree", uiIcon: "bx bx-empty",
-                enabled: isItem }
+           
+            { title: t("launcher_context_menu.reset"), command: "resetLauncher", uiIcon: "bx bx-reset destructive-action-icon", enabled: canBeReset}
         ].filter(row => row !== null);
     }
 
     async selectMenuItemHandler({command}) {
         if (command === 'resetLauncher') {
-            const confirmed = await dialogService.confirm(`Do you really want to reset "${this.node.title}"? 
-                       All data / settings in this note (and its children) will be lost 
-                       and the launcher will be returned to its original location.`);
+            const confirmed = await dialogService.confirm(t("launcher_context_menu.reset_launcher_confirm", { title: this.node.title }));
 
             if (confirmed) {
                 await server.post(`special-notes/launchers/${this.node.data.noteId}/reset`);

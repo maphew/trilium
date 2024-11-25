@@ -7,6 +7,9 @@ import escape from "escape-html";
 import sanitize from "sanitize-filename";
 import mimeTypes from "mime-types";
 import path from "path";
+import { fileURLToPath } from "url";
+import env from "./env.js";
+import { dirname, join } from "path";
 
 const randtoken = generator({source: 'crypto'});
 
@@ -219,11 +222,14 @@ function formatDownloadTitle(fileName: string, type: string | null, mime: string
 function removeTextFileExtension(filePath: string) {
     const extension = path.extname(filePath).toLowerCase();
 
-    if (extension === '.md' || extension === '.markdown' || extension === '.html') {
-        return filePath.substr(0, filePath.length - extension.length);
-    }
-    else {
-        return filePath;
+    switch (extension) {
+        case ".md":
+        case ".markdown":
+        case ".html":
+        case ".htm":
+            return filePath.substr(0, filePath.length - extension.length);
+        default:
+            return filePath;
     }
 }
 
@@ -312,6 +318,20 @@ function isString(x: any) {
     return Object.prototype.toString.call(x) === "[object String]";
 }
 
+/**
+ * Returns the directory for resources. On Electron builds this corresponds to the `resources` subdirectory inside the distributable package.
+ * On development builds, this simply refers to the root directory of the application.
+ * 
+ * @returns the resource dir.
+ */
+export function getResourceDir() {
+    if (isElectron() && !env.isDev()) {
+        return process.resourcesPath;
+    } else {
+        return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+    }    
+}
+
 export default {
     randomSecureToken,
     randomString,
@@ -344,5 +364,6 @@ export default {
     normalize,
     hashedBlobId,
     toMap,
-    isString
+    isString,
+    getResourceDir
 };

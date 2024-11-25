@@ -254,6 +254,8 @@
     "enable_monthly_backup": "Activează copia de siguranță lunară",
     "enable_weekly_backup": "Activează copia de siguranță săptămânală",
     "existing_backups": "Copii de siguranță existente",
+    "date-and-time": "Data și ora",
+    "path": "Calea fișierului",
     "no_backup_yet": "nu există încă nicio copie de siguranță"
   },
   "basic_properties": {
@@ -297,7 +299,11 @@
     "close": "Închide",
     "execute_bulk_actions": "Execută acțiunile în masă",
     "include_descendants": "Include descendenții notiței selectate",
-    "none_yet": "Nicio acțiune... adaugați una printr-un click pe cele disponibile mai jos."
+    "none_yet": "Nicio acțiune... adăugați una printr-un click pe cele disponibile mai jos.",
+    "labels": "Etichete",
+    "notes": "Notițe",
+    "other": "Altele",
+    "relations": "Relații"
   },
   "calendar": {
     "april": "Aprilie",
@@ -381,7 +387,7 @@
     "full_anonymization_description": "Această acțiune va crea o nouă copie a bazei de date și o va anonimiza (se șterge conținutul tuturor notițelor și se menține doar structura și câteva metainformații neconfidențiale) pentru a putea fi partajate online cu scopul de a depana anumite probleme fără a risca expunerea datelor personale.",
     "light_anonymization": "Anonimizare parțială",
     "light_anonymization_description": "Această acțiune va crea o copie a bazei de date și o va anonimiza parțial - mai exact se va șterge conținutul tuturor notițelor, dar titlurile și atributele vor rămâne. De asemenea, script-urile de front-end sau back-end și widget-urile personalizate vor rămâne și ele. Acest lucru oferă mai mult context pentru a depana probleme.",
-    "no_anonymized_database_yet": "încă nu există nicio bază de date anonimizată",
+    "no_anonymized_database_yet": "Încă nu există nicio bază de date anonimizată.",
     "save_fully_anonymized_database": "Salvează bază de date complet anonimizată",
     "save_lightly_anonymized_database": "Salvează bază de date parțial anonimizată",
     "successfully_created_fully_anonymized_database": "S-a creat cu succes o bază de date complet anonimizată în {{anonymizedFilePath}}",
@@ -414,17 +420,16 @@
     "undelete_notes_instruction": "După ștergere, se pot recupera din ecranul Schimbări recente."
   },
   "delete_notes": {
-    "broken_relations_to_be_deleted": "Următoarele relații vor fi întrerupte și șterse (<span class=\"broke-relations-count\"></span>)",
+    "broken_relations_to_be_deleted": "Următoarele relații vor fi întrerupte și șterse ({{- relationCount}})",
     "cancel": "Anulează",
     "delete_all_clones_description": "Șterge și toate clonele (se pot recupera în ecranul Schimbări recente)",
-    "delete_notes_preview": "Șterge previzualizările notițelor",
+    "delete_notes_preview": "Previzualizare ștergerea notițelor",
     "erase_notes_description": "Ștergerea obișnuită doar marchează notițele ca fiind șterse și pot fi recuperate (în ecranul Schimbări recente) pentru o perioadă de timp. Dacă se bifează această opțiune, notițele vor fi șterse imediat fără posibilitatea de a le recupera.",
-    "erase_notes_warning": "șterge notițele permanent (nu se mai pot recupera), incluzând toate clonele. Va forța reîncărcarea aplicației.",
+    "erase_notes_warning": "Șterge notițele permanent (nu se mai pot recupera), incluzând toate clonele. Va forța reîncărcarea aplicației.",
     "no_note_to_delete": "Nicio notiță nu va fi ștearsă (doar clonele).",
-    "note": "Notiță",
-    "notes_to_be_deleted": "Următoarele notițe vor fi șterse (<span class=\"deleted-notes-count\"></span>)",
+    "notes_to_be_deleted": "Următoarele notițe vor fi șterse ({{- noteCount}})",
     "ok": "OK",
-    "to_be_deleted": " (pentru ștergere) este referențiat(ă) de relația <code>{{attrName}}</code> originând de la "
+    "deleted_relation_text": "Notița {{- note}} ce va fi ștearsă este referențiată de relația {{- relation}}, originând din {{- source}}."
   },
   "delete_relation": {
     "allowed_characters": "Se permit caractere alfanumerice, underline și două puncte.",
@@ -554,7 +559,7 @@
     "open_sql_console": "Deschide consola SQL",
     "open_sql_console_history": "Deschide istoricul consolei SQL",
     "options": "Opțiuni",
-    "reload_frontend": "Reîncarcă interfață",
+    "reload_frontend": "Reîncarcă interfața",
     "reload_hint": "Reîncărcarea poate ajuta atunci când există ceva probleme vizuale fără a trebui repornită întreaga aplicație.",
     "reset_zoom_level": "Resetează nivelul de zoom",
     "show_backend_log": "Afișează log-ul din backend",
@@ -685,7 +690,8 @@
     "safeImportTooltip": "Fișierele de Trilium exportate în format <code>.zip</code> pot conține scripturi executabile ce pot avea un comportament malițios. Importarea sigură va dezactiva execuția automată a tuturor scripturilor importate. Debifați „Importare sigură” dacă arhiva importată conține scripturi executabile dorite și aveți încredere deplină în conținutul acestora.",
     "shrinkImages": "Micșorare imagini",
     "shrinkImagesTooltip": "<p>Dacă bifați această opțiune, Trilium va încerca să micșoreze imaginea importată prin scalarea și importarea ei, aspect ce poate afecta calitatea aparentă a imaginii. Dacă nu este bifat, imaginile vor fi importate fără nicio modificare.</p><p>Acest lucru nu se aplică la importuri de tip <code>.zip</code> cu metainformații deoarece se asumă că aceste fișiere sunt deja optimizate.</p>",
-    "textImportedAsText": "Importă HTML, Markdown și TXT ca notițe de tip text dacă este neclar din metainformații"
+    "textImportedAsText": "Importă HTML, Markdown și TXT ca notițe de tip text dacă este neclar din metainformații",
+    "failed": "Eroare la importare: {{message}}."
   },
   "include_archived_notes": {
     "include_archived_notes": "Include notițele arhivate"
@@ -784,8 +790,11 @@
     "open_note_externally_title": "Fișierul va fi deschis într-o aplicație externă și urmărită pentru modificări. Ulterior se va putea încărca versiunea modificată înapoi în Trilium.",
     "print_note": "Imprimare notiță",
     "re_render_note": "Reinterpretare notiță",
-    "save_revision": "Salvează revizia",
-    "search_in_note": "Caută în notiță"
+    "save_revision": "Salvează o nouă revizie",
+    "search_in_note": "Caută în notiță",
+    "convert_into_attachment_failed": "Nu s-a putut converti notița „{{title}}”.",
+    "convert_into_attachment_successful": "Notița „{{title}}” a fost convertită în atașament.",
+    "convert_into_attachment_prompt": "Doriți convertirea notiței „{{title}}” într-un atașament al notiței părinte?"
   },
   "note_erasure_timeout": {
     "deleted_notes_erased": "Notițele șterse au fost eliminate permanent.",
@@ -903,7 +912,15 @@
   },
   "protected_session": {
     "enter_password_instruction": "Afișarea notițelor protejate necesită introducerea parolei:",
-    "start_session_button": "Deschide sesiunea protejată"
+    "start_session_button": "Deschide sesiunea protejată",
+    "started": "Sesiunea protejată este activă.",
+    "wrong_password": "Parolă greșită.",
+    "protecting-finished-successfully": "Protejarea a avut succes.",
+    "protecting-in-progress": "Protejare în curs: {{count}}",
+    "protecting-title": "Stare protejare",
+    "unprotecting-title": "Stare deprotejare",
+    "unprotecting-finished-successfully": "Deprotejarea a avut succes.",
+    "unprotecting-in-progress-count": "Deprotejare în curs: {{count}}"
   },
   "protected_session_password": {
     "close_label": "Închide",
@@ -998,7 +1015,10 @@
     "revision_deleted": "Revizia notiței a fost ștearsă.",
     "revision_last_edited": "Revizia a fost ultima oară modificată pe {{date}}",
     "revision_restored": "Revizia notiței a fost restaurată.",
-    "revisions_deleted": "Notița reviziei a fost ștearsă."
+    "revisions_deleted": "Notița reviziei a fost ștearsă.",
+    "maximum_revisions": "Numărul maxim de revizii pentru notița curentă: {{number}}.",
+    "settings": "Setări revizii ale notițelor",
+    "snapshot_interval": "Intervalul de creare a reviziilor pentru notițe: {{seconds}}s."
   },
   "revisions_button": {
     "note_revisions": "Revizii ale notiței"
@@ -1079,7 +1099,8 @@
     "label_year_comparison": "comparații numerice (de asemenea >, >=, <).",
     "placeholder": "cuvinte cheie pentru căutarea în conținut, #etichetă = valoare...",
     "search_syntax": "Sintaxa de căutare",
-    "title_column": "Textul de căutat:"
+    "title_column": "Textul de căutat:",
+    "search_prefix": "Căutare:"
   },
   "shortcuts": {
     "action_name": "Denumirea acțiunii",
@@ -1131,7 +1152,9 @@
     "force_full_sync_button": "Forțează sincronizare completă",
     "full_sync_triggered": "S-a activat o sincronizare completă",
     "sync_rows_filled_successfully": "Rândurile de sincronizare s-au completat cu succes",
-    "title": "Sincronizare"
+    "title": "Sincronizare",
+    "failed": "Eroare la sincronizare: {{message}}",
+    "finished-successfully": "Sincronizarea a avut succes."
   },
   "sync_2": {
     "config_title": "Configurația sincronizării",
@@ -1164,7 +1187,7 @@
     "light_theme": "Temă luminoasă",
     "override_theme_fonts_label": "Suprascrie fonturile temei",
     "theme_label": "Temă",
-    "title": "Temă"
+    "title": "Tema aplicației"
   },
   "toast": {
     "critical-error": {
@@ -1172,8 +1195,13 @@
       "title": "Eroare critică"
     },
     "widget-error": {
-      "message": "Widget-ul intitulat „{{title}}” nu a putut fi inițializat din cauza:\n\n{{message}}",
-      "title": "Eroare la inițializarea unui widget"
+      "title": "Eroare la inițializarea unui widget",
+      "message-custom": "Widget-ul personalizat din notița cu ID-ul „{{id}}”, întitulată ”{{title}}” nu a putut fi inițializată din cauza:\n\n{{message}}",
+      "message-unknown": "Un widget necunoscut nu a putut fi inițializat din cauza:\n\n{{message}}"
+    },
+    "bundle-error": {
+      "title": "Eroare la încărcarea unui script personalizat",
+      "message": "Scriptul din notița cu ID-ul „{{id}}”, întitulată „{{title}}” nu a putut fi executată din cauza:\n\n{{message}}"
     }
   },
   "tray": {
@@ -1276,7 +1304,11 @@
     "recent-changes-in-subtree": "Schimbări recente în ierarhie",
     "search-in-subtree": "Caută în ierarhie",
     "sort-by": "Ordonare după...",
-    "unprotect-subtree": "Deprotejează ierarhia"
+    "unprotect-subtree": "Deprotejează ierarhia",
+    "hoist-note": "Focalizează notița",
+    "unhoist-note": "Defocalizează notița",
+    "converted-to-attachments": "{{count}} notițe au fost convertite în atașamente.",
+    "convert-to-attachment-confirm": "Doriți convertirea notițelor selectate în atașamente ale notiței părinte?"
   },
   "shared_info": {
     "help_link": "Pentru informații vizitați <a href=\"https://triliumnext.github.io/Docs/Wiki/sharing.html\">wiki-ul</a>.",
@@ -1288,7 +1320,7 @@
     "canvas": "Schiță",
     "code": "Cod sursă",
     "mermaid-diagram": "Diagramă Mermaid",
-    "mind-map": "Hartă mentală",
+    "mind-map": "Hartă mentală (beta)",
     "note-map": "Hartă notițe",
     "relation-map": "Hartă relații",
     "render-note": "Randare notiță",
@@ -1299,7 +1331,8 @@
     "file": "Fișier",
     "image": "Imagine",
     "launcher": "Scurtătură",
-    "widget": "Widget"
+    "widget": "Widget",
+    "confirm-change": "Nu se recomandă schimbarea tipului notiței atunci când ea are un conținut. Procedați oricum?"
   },
   "protect_note": {
     "toggle-off": "Deprotejează notița",
@@ -1322,7 +1355,11 @@
   "open-help-page": "Deschide pagina de informații",
   "find": {
     "match_words": "doar cuvinte întregi",
-    "case_sensitive": "ține cont de majuscule"
+    "case_sensitive": "ține cont de majuscule",
+    "replace_all": "Înlocuiește totul",
+    "replace_placeholder": "Înlocuiește cu...",
+    "replace": "Înlocuiește",
+    "find_placeholder": "Căutați în text..."
   },
   "highlights_list_2": {
     "options": "Setări",
@@ -1365,9 +1402,151 @@
     "hide-archived-notes": "Ascunde notițele arhivate",
     "save-changes": "Salvează și aplică modificările",
     "scroll-active-title": "Mergi la notița activă",
-    "tree-settings-title": "Setări ale ierarhiei notițelor"
+    "tree-settings-title": "Setări ale ierarhiei notițelor",
+    "auto-collapsing-notes-after-inactivity": "Se minimizează notițele după inactivitate...",
+    "saved-search-note-refreshed": "Notița de căutare salvată a fost reîmprospătată."
   },
   "title_bar_buttons": {
     "window-on-top": "Menține fereastra mereu vizibilă"
+  },
+  "note_detail": {
+    "could_not_find_typewidget": "Nu s-a putut găsi widget-ul corespunzător tipului „{{type}}”"
+  },
+  "note_title": {
+    "placeholder": "introduceți titlul notiței aici..."
+  },
+  "revisions_snapshot_limit": {
+    "erase_excess_revision_snapshots": "Șterge acum reviziile excesive",
+    "erase_excess_revision_snapshots_prompt": "Reviziile excesive au fost șterse.",
+    "note_revisions_snapshot_limit_description": "Limita numărului de revizii se referă la numărul maxim de revizii pentru fiecare notiță. -1 reprezintă nicio limită, 0 înseamnă ștergerea tuturor reviziilor. Se poate seta valoarea individual pentru o notiță prin eticheta #versioningLimit.",
+    "note_revisions_snapshot_limit_title": "Limita de revizii a notițelor",
+    "snapshot_number_limit_label": "Numărul maxim de revizii pentru notițe:"
+  },
+  "search_result": {
+    "no_notes_found": "Nu au fost găsite notițe pentru parametrii de căutare dați.",
+    "search_not_executed": "Căutarea n-a fost rulată încă. Clic pe butonul „Căutare” de deasupra pentru a vedea rezultatele."
+  },
+  "show_floating_buttons_button": {
+    "button_title": "Afișează butoanele"
+  },
+  "spacer": {
+    "configure_launchbar": "Configurează bara de lansare"
+  },
+  "sql_result": {
+    "no_rows": "Nu s-a găsit niciun rând pentru această interogare"
+  },
+  "sql_table_schemas": {
+    "tables": "Tabele"
+  },
+  "app_context": {
+    "please_wait_for_save": "Așteptați câteva secunde până se salvează toate datele și apoi reîncercați."
+  },
+  "tab_row": {
+    "add_new_tab": "Adaugă tab nou",
+    "close": "Închide",
+    "close_all_tabs": "Închide toate taburile",
+    "close_other_tabs": "Închide celelalte taburi",
+    "close_tab": "Închide tab",
+    "move_tab_to_new_window": "Mută acest tab în altă fereastră",
+    "new_tab": "Tab nou",
+    "close_right_tabs": "Închide taburile din dreapta",
+    "copy_tab_to_new_window": "Copiază tab-ul într-o fereastră nouă",
+    "reopen_last_tab": "Redeschide ultimul tab închis"
+  },
+  "toc": {
+    "options": "Setări",
+    "table_of_contents": "Cuprins"
+  },
+  "watched_file_update_status": {
+    "file_last_modified": "Fișierul <code class=\"file-path\"></code> a fost ultima oară modificat la data de <span class=\"file-last-modified\"></span>.",
+    "ignore_this_change": "Ignoră această schimbare",
+    "upload_modified_file": "Încarcă fișier modificat"
+  },
+  "clipboard": {
+    "copied": "Notițele au fost copiate în clipboard.",
+    "cut": "Notițele au fost decupate în clipboard."
+  },
+  "entrypoints": {
+    "note-executed": "Notița a fost executată.",
+    "note-revision-created": "S-a creat o revizie a notiței.",
+    "sql-error": "A apărut o eroare la executarea interogării SQL: {{message}}"
+  },
+  "image": {
+    "cannot-copy": "Nu s-a putut copia în clipboard referința către imagine.",
+    "copied-to-clipboard": "S-a copiat o referință către imagine în clipboard. Aceasta se poate lipi în orice notiță text."
+  },
+  "note_create": {
+    "duplicated": "Notița „{{title}}” a fost dublificată."
+  },
+  "branches": {
+    "cannot-move-notes-here": "Nu se pot muta notițe aici.",
+    "delete-finished-successfully": "Ștergerea a avut succes.",
+    "delete-notes-in-progress": "Ștergere în curs: {{count}}",
+    "delete-status": "Starea ștergerii",
+    "undeleting-notes-finished-successfully": "Restaurarea notițelor a avut succes.",
+    "undeleting-notes-in-progress": "Restaurare notițe în curs: {{count}}"
+  },
+  "frontend_script_api": {
+    "async_warning": "Ați trimis o funcție asincronă metodei `api.runOnBackend()` și este posibil să nu se comporte așa cum vă așteptați.\\nFie faceți metoda sincronă (prin ștergerea cuvântului-cheie `async`), sau folosiți `api.runAsyncOnBackendWithManualTransactionHandling()`.",
+    "sync_warning": "Ați trimis o funcție sincronă funcției `api.runAsyncOnBackendWithManualTransactionHandling()`,\\ndar cel mai probabil trebuie folosit `api.runOnBackend()` în schimb."
+  },
+  "ws": {
+    "consistency-checks-failed": "Au fost identificate erori de consistență! Vedeți mai multe detalii în loguri.",
+    "encountered-error": "A fost întâmpinată o eroare: „{{message}}”. Vedeți în loguri pentru mai multe detalii.",
+    "sync-check-failed": "Verificările de sincronizare au eșuat!"
+  },
+  "hoisted_note": {
+    "confirm_unhoisting": "Notița dorită „{{requestedNote}}” este în afara ierarhiei notiței focalizate „{{hoistedNote}}”. Doriți defocalizarea pentru a accesa notița?"
+  },
+  "launcher_context_menu": {
+    "reset_launcher_confirm": "Doriți resetarea lansatorului „{{title}}”? Toate datele și setările din această notiță (și subnotițele ei) vor fi pierdute, iar lansatorul va fi resetat în poziția lui originală.",
+    "add-custom-widget": "Adaugă un widget personalizat",
+    "add-note-launcher": "Adaugă un lansator de notiță",
+    "add-script-launcher": "Adaugă un lansator de script",
+    "add-spacer": "Adaugă un separator",
+    "delete": "Șterge",
+    "duplicate-launcher": "Dublifică lansatorul",
+    "move-to-available-launchers": "Mută în Lansatoare disponibile",
+    "move-to-visible-launchers": "Mută în Lansatoare vizibile",
+    "reset": "Resetează"
+  },
+  "editable-text": {
+    "auto-detect-language": "Automat"
+  },
+  "highlighting": {
+    "color-scheme": "Temă de culori",
+    "title": "Evidențiere de sintaxă pentru notițele de tip text",
+    "description": "Controlează evidențierea de sintaxă pentru blocurile de cod în interiorul notițelor text, notițele de tip cod nu vor fi afectate de aceste setări."
+  },
+  "code_block": {
+    "word_wrapping": "Încadrare text"
+  },
+  "classic_editor_toolbar": {
+    "title": "Formatare"
+  },
+  "editing": {
+    "editor_type": {
+      "label": "Bară de formatare",
+      "floating": {
+        "title": "Editor cu bară flotantă",
+        "description": "uneltele de editare vor apărea lângă cursor;"
+      },
+      "fixed": {
+        "title": "Editor cu bară fixă",
+        "description": "uneltele de editare vor apărea în tab-ul „Formatare” din panglică."
+      }
+    }
+  },
+  "editor": {
+    "title": "Editor"
+  },
+  "electron_context_menu": {
+    "add-term-to-dictionary": "Adaugă „{{term}}” în dicționar",
+    "copy": "Copiază",
+    "copy-link": "Copiază legătura",
+    "cut": "Decupează",
+    "paste": "Lipește",
+    "paste-as-plain-text": "Lipește doar textul",
+    "search_online": "Caută „{{term}}” cu {{searchEngine}}"
   }
 }

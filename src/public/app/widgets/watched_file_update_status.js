@@ -1,3 +1,4 @@
+import { t } from "../services/i18n.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
 import server from "../services/server.js";
 import fileWatcher from "../services/file_watcher.js";
@@ -11,12 +12,12 @@ const TPL = `
         }
     </style>
     
-    <p>File <code class="file-path"></code> has been last modified on <span class="file-last-modified"></span>.</p> 
+    <p>${t("watched_file_update_status.file_last_modified", { count: '' })}</p> 
 
     <div style="display: flex; flex-direction: row; justify-content: space-evenly;">
-        <button class="btn btn-sm file-upload-button">Upload modified file</button>
+        <button class="btn btn-sm file-upload-button">${t("watched_file_update_status.upload_modified_file")}</button>
         
-        <button class="btn btn-sm ignore-this-change-button">Ignore this change</button>
+        <button class="btn btn-sm ignore-this-change-button">${t("watched_file_update_status.ignore_this_change")}</button>
     </div>
 </div>`;
 

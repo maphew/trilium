@@ -10,12 +10,14 @@ import CommandButtonWidget from "../buttons/command_button.js";
 import utils from "../../services/utils.js";
 import TodayLauncher from "../buttons/launcher/today_launcher.js";
 import HistoryNavigationButton from "../buttons/history_navigation.js";
+import QuickSearchLauncherWidget from "../quick_search_launcher.js";
 
 export default class LauncherWidget extends BasicWidget {
-    constructor() {
+    constructor(isHorizontalLayout) {
         super();
 
         this.innerWidget = null;
+        this.isHorizontalLayout = isHorizontalLayout;
     }
 
     isEnabled() {
@@ -63,6 +65,9 @@ export default class LauncherWidget extends BasicWidget {
         }
 
         this.child(this.innerWidget);
+        if (this.isHorizontalLayout && this.innerWidget.settings) {
+            this.innerWidget.settings.titlePlacement = "bottom";
+        }
 
         return true;
     }
@@ -86,29 +91,31 @@ export default class LauncherWidget extends BasicWidget {
 
     initBuiltinWidget(note) {
         const builtinWidget = note.getLabelValue("builtinWidget");
-
-        if (builtinWidget === 'calendar') {
-            return new CalendarWidget(note.title, note.getIcon());
-        } else if (builtinWidget === 'spacer') {
-            // || has to be inside since 0 is a valid value
-            const baseSize = parseInt(note.getLabelValue("baseSize") || "40");
-            const growthFactor = parseInt(note.getLabelValue("growthFactor") || "100");
-
-            return new SpacerWidget(baseSize, growthFactor);
-        } else if (builtinWidget === 'bookmarks') {
-            return new BookmarkButtons();
-        } else if (builtinWidget === 'protectedSession') {
-            return new ProtectedSessionStatusWidget();
-        } else if (builtinWidget === 'syncStatus') {
-            return new SyncStatusWidget();
-        } else if (builtinWidget === 'backInHistoryButton') {
-            return new HistoryNavigationButton(note, "backInNoteHistory");
-        } else if (builtinWidget === 'forwardInHistoryButton') {
-            return new HistoryNavigationButton(note, "forwardInNoteHistory");
-        } else if (builtinWidget === 'todayInJournal') {
-            return new TodayLauncher(note);
-        } else {
-            throw new Error(`Unrecognized builtin widget ${builtinWidget} for launcher ${note.noteId} "${note.title}"`);
+        switch (builtinWidget) {
+            case "calendar":
+                return new CalendarWidget(note.title, note.getIcon());
+            case "spacer":
+                // || has to be inside since 0 is a valid value
+                const baseSize = parseInt(note.getLabelValue("baseSize") || "40");
+                const growthFactor = parseInt(note.getLabelValue("growthFactor") || "100");
+        
+                return new SpacerWidget(baseSize, growthFactor);
+            case "bookmarks":
+                return new BookmarkButtons();
+            case "protectedSession":
+                return new ProtectedSessionStatusWidget();
+            case "syncStatus":
+                return new SyncStatusWidget();
+            case "backInHistoryButton":
+                return new HistoryNavigationButton(note, "backInNoteHistory");
+            case "forwardInHistoryButton":
+                return new HistoryNavigationButton(note, "forwardInNoteHistory");
+            case "todayInJournal":
+                return new TodayLauncher(note);
+            case "quickSearch":
+                return new QuickSearchLauncherWidget(this.isHorizontalLayout);
+            default:
+                throw new Error(`Unrecognized builtin widget ${builtinWidget} for launcher ${note.noteId} "${note.title}"`);
         }
     }
 }

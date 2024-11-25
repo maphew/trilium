@@ -1,6 +1,8 @@
 # TriliumNext Notes
 
-[English](https://github.com/TriliumNext/Notes/blob/master/README.md) | [Chinese](https://github.com/TriliumNext/Notes/blob/master/README-ZH_CN.md) | [Russian](https://github.com/TriliumNext/Notes/blob/master/README.ru.md) | [Japanese](https://github.com/TriliumNext/Notes/blob/master/README.ja.md) | [Italian](https://github.com/TriliumNext/Notes/blob/master/README.it.md) | [Spanish](https://github.com/TriliumNext/Notes/blob/master/README.es.md)
+![Docker Pulls](https://img.shields.io/docker/pulls/triliumnext/notes) ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/triliumnext/notes/total)
+
+[English](./README.md) | [Chinese](./README-ZH_CN.md) | [Russian](./README.ru.md) | [Japanese](./README.ja.md) | [Italian](./README.it.md) | [Spanish](./README.es.md)
 
 TriliumNext Notes is an open-source, cross-platform hierarchical note taking application with focus on building large personal knowledge bases.
 
@@ -15,6 +17,8 @@ See [screenshots](https://triliumnext.github.io/Docs/Wiki/screenshot-tour) for q
 ### Migrating from Trilium?
 
 There are no special migration steps to migrate from a zadam/Trilium instance to a TriliumNext/Notes instance. Just upgrade your Trilium instance to the latest version and [install TriliumNext/Notes as usual](#-installation) 
+
+Versions up to and including [v0.90.4](https://github.com/TriliumNext/Notes/releases/tag/v0.90.4) are compatible with the latest zadam/trilium version of [v0.63.7](https://github.com/zadam/trilium/releases/tag/v0.63.7). Any later versions of TriliumNext have their sync versions incremented.
 
 ## 💬 Discuss with us
 
@@ -62,6 +66,16 @@ To use TriliumNext on your desktop machine (Linux, MacOS, and Windows) you have 
 * Access TriliumNext via the web interface of a server installation (see below)
     * Currently only the latest versions of Chrome & Firefox are supported (and tested).
 * (Coming Soon) TriliumNext will also be provided as a Flatpak
+
+#### MacOS
+Currently when running TriliumNext/Notes on MacOS, you may get the following error:
+> Apple could not verify "TriliumNext Notes" is free of malware and may harm your Mac or compromise your privacy.
+
+You will need to run the command on your shell to resolve the error (documented [here](https://github.com/TriliumNext/Notes/issues/329#issuecomment-2287164137)):
+
+```bash
+xattr -c "/path/to/Trilium Next.app"
+```
 
 ### Mobile
 

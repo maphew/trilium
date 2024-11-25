@@ -9,9 +9,9 @@ import electronContextMenu from "./menus/electron_context_menu.js";
 import glob from "./services/glob.js";
 import { t } from "./services/i18n.js";
 
+await appContext.earlyInit();
+
 bundleService.getWidgetBundlesByParent().then(async widgetBundles => {
-    await appContext.earlyInit();
-    
     // A dynamic import is required for layouts since they initialize components which require translations.
     const DesktopLayout = (await import("./layouts/desktop_layout.js")).default;
 

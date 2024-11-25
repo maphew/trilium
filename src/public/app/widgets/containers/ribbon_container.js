@@ -216,7 +216,7 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         this.$tabContainer.empty();
 
         for (const ribbonWidget of this.ribbonWidgets) {
-            const ret = ribbonWidget.getTitle(note);
+            const ret = await ribbonWidget.getTitle(note);
 
             if (!ret.show) {
                 continue;
@@ -349,6 +349,21 @@ export default class RibbonContainer extends NoteContextAwareWidget {
         else if (loadResults.getAttributeRows(this.componentId).find(attr => attributeService.isAffecting(attr, this.note))) {
             this.refreshWithNote(this.note, true);
         }
+    }
+
+    noteTypeMimeChangedEvent() {
+        // We are ignoring the event which triggers a refresh since it is usually already done by a different
+        // event and causing a race condition in which the items appear twice.
+    }
+
+    /**
+     * Executed as soon as the user presses the "Edit" floating button in a read-only text note.
+     * 
+     * <p>
+     * We need to refresh the ribbon for cases such as the classic editor which relies on the read-only state.
+     */
+    readOnlyTemporarilyDisabledEvent() {        
+        this.refresh();
     }
 
     getActiveRibbonWidget() {

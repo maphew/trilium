@@ -16,7 +16,12 @@
     },
     "widget-error": {
       "title": "Failed to initialize a widget",
-      "message": "Widget with title \"{{title}}\" could not be initialized due to:\n\n{{message}}"
+      "message-custom": "Custom widget from note with ID \"{{id}}\", titled \"{{title}}\" could not be initialized due to:\n\n{{message}}",
+      "message-unknown": "Unknown widget could not be initialized due to:\n\n{{message}}"
+    },
+    "bundle-error": {
+      "title": "Failed to load a custom script",
+      "message": "Script from note with ID \"{{id}}\", titled \"{{title}}\" could not be executed due to:\n\n{{message}}"
     }
   },
   "add_link": {
@@ -46,7 +51,11 @@
     "chosen_actions": "Chosen actions",
     "execute_bulk_actions": "Execute bulk actions",
     "bulk_actions_executed": "Bulk actions have been executed successfully.",
-    "none_yet": "None yet... add an action by clicking one of the available ones above."
+    "none_yet": "None yet... add an action by clicking one of the available ones above.",
+    "labels": "Labels",
+    "relations": "Relations",
+    "notes": "Notes",
+    "other": "Other"
   },
   "clone_to": {
     "clone_notes_to": "Clone notes to...",
@@ -70,16 +79,15 @@
   },
   "delete_notes": {
     "delete_notes_preview": "Delete notes preview",
-    "delete_all_clones_description": "delete also all clones (can be undone in recent changes)",
+    "delete_all_clones_description": "Delete also all clones (can be undone in recent changes)",
     "erase_notes_description": "Normal (soft) deletion only marks the notes as deleted and they can be undeleted (in recent changes dialog) within a period of time. Checking this option will erase the notes immediately and it won't be possible to undelete the notes.",
-    "erase_notes_warning": "erase notes permanently (can't be undone), including all clones. This will force application reload.",
-    "notes_to_be_deleted": "Following notes will be deleted (<span class=\"deleted-notes-count\"></span>)",
+    "erase_notes_warning": "Erase notes permanently (can't be undone), including all clones. This will force application reload.",
+    "notes_to_be_deleted": "Following notes will be deleted ({{- noteCount}})",
     "no_note_to_delete": "No note will be deleted (only clones).",
-    "broken_relations_to_be_deleted": "Following relations will be broken and deleted (<span class=\"broke-relations-count\"></span>)",
+    "broken_relations_to_be_deleted": "Following relations will be broken and deleted ({{- relationCount}})",
     "cancel": "Cancel",
     "ok": "OK",
-    "note": "Note",
-    "to_be_deleted": " (to be deleted) is referenced by relation <code>{{attrName}}</code> originating from "
+    "deleted_relation_text": "Note {{- note}} (to be deleted) is referenced by relation {{- relation}} originating from {{- source}}."
   },
   "export": {
     "export_note_title": "Export note",
@@ -166,7 +174,8 @@
     "textImportedAsText": "Import HTML, Markdown and TXT as text notes if it's unclear from metadata",
     "codeImportedAsCode": "Import recognized code files (e.g. <code>.json</code>) as code notes if it's unclear from metadata",
     "replaceUnderscoresWithSpaces": "Replace underscores with spaces in imported note names",
-    "import": "Import"
+    "import": "Import",
+    "failed": "Import failed: {{message}}."
   },
   "include_note": {
     "dialog_title": "Include note",
@@ -233,20 +242,23 @@
     "confirm_undelete": "Do you want to undelete this note and its sub-notes?"
   },
   "revisions": {
-    "note_revisions": "Note revisions",
+    "note_revisions": "Note Revisions",
     "delete_all_revisions": "Delete all revisions of this note",
     "delete_all_button": "Delete all revisions",
-    "help_title": "Help on Note revisions",
+    "help_title": "Help on Note Revisions",
     "revision_last_edited": "This revision was last edited on {{date}}",
-    "confirm_delete_all": "Do you want to delete all revisions of this note? This action will erase revision title and content, but still preserve revision metadata.",
+    "confirm_delete_all": "Do you want to delete all revisions of this note? This action will erase the revision title and content, but still preserve the revision metadata.",
     "no_revisions": "No revisions for this note yet...",
     "restore_button": "Restore this revision",
-    "confirm_restore": "Do you want to restore this revision? This will overwrite current title and content of the note with this revision.",
+    "confirm_restore": "Do you want to restore this revision? This will overwrite the current title and content of the note with this revision.",
     "delete_button": "Delete this revision",
-    "confirm_delete": "Do you want to delete this revision? This action will delete revision title and content, but still preserve revision metadata.",
-    "revisions_deleted": "Note revisions has been deleted.",
+    "confirm_delete": "Do you want to delete this revision? This action will delete the revision title and content, but still preserve the revision metadata.",
+    "revisions_deleted": "Note revisions have been deleted.",
     "revision_restored": "Note revision has been restored.",
     "revision_deleted": "Note revision has been deleted.",
+    "snapshot_interval": "Note Revision Snapshot Interval: {{seconds}}s.",
+    "maximum_revisions": "Note Revision Snapshot Limit: {{number}}.",
+    "settings": "Note Revision Settings",
     "download_button": "Download",
     "mime": "MIME: ",
     "file_size": "File size:",
@@ -629,7 +641,10 @@
     "export_note": "Export note",
     "delete_note": "Delete note",
     "print_note": "Print note",
-    "save_revision": "Save revision"
+    "save_revision": "Save revision",
+    "convert_into_attachment_failed": "Converting note '{{title}}' failed.",
+    "convert_into_attachment_successful": "Note '{{title}}' has been converted to attachment.",
+    "convert_into_attachment_prompt": "Are you sure you want to convert note '{{title}}' into an attachment of the parent note?"
   },
   "onclick_button": {
     "no_click_handler": "Button widget '{{componentId}}' has no defined click handler"
@@ -884,7 +899,8 @@
     "label_rock_or_pop": "only one of the labels must be present",
     "label_year_comparison": "numerical comparison (also >, >=, <).",
     "label_date_created": "notes created in the last month",
-    "error": "Search error: {{error}}"
+    "error": "Search error: {{error}}",
+    "search_prefix": "Search:"
   },
   "attachment_detail": {
     "open_help_page": "Open help page on attachments",
@@ -918,7 +934,15 @@
   },
   "protected_session": {
     "enter_password_instruction": "Showing protected note requires entering your password:",
-    "start_session_button": "Start protected session"
+    "start_session_button": "Start protected session",
+    "started": "Protected session has been started.",
+    "wrong_password": "Wrong password.",
+    "protecting-finished-successfully": "Protecting finished successfully.",
+    "unprotecting-finished-successfully": "Unprotecting finished successfully.",
+    "protecting-in-progress": "Protecting in progress: {{count}}",
+    "unprotecting-in-progress-count": "Unprotecting in progress: {{count}}",
+    "protecting-title": "Protecting status",
+    "unprotecting-title": "Unprotecting status"
   },
   "relation_map": {
     "open_in_new_tab": "Open in new tab",
@@ -973,7 +997,7 @@
     "error_creating_anonymized_database": "Could not create anonymized database, check backend logs for details",
     "successfully_created_fully_anonymized_database": "Created fully anonymized database in {{anonymizedFilePath}}",
     "successfully_created_lightly_anonymized_database": "Created lightly anonymized database in {{anonymizedFilePath}}",
-    "no_anonymized_database_yet": "no anonymized database yet"
+    "no_anonymized_database_yet": "No anonymized database yet."
   },
   "database_integrity_check": {
     "title": "Database Integrity Check",
@@ -989,7 +1013,9 @@
     "fill_entity_changes_button": "Fill entity changes records",
     "full_sync_triggered": "Full sync triggered",
     "filling_entity_changes": "Filling entity changes rows...",
-    "sync_rows_filled_successfully": "Sync rows filled successfully"
+    "sync_rows_filled_successfully": "Sync rows filled successfully",
+    "finished-successfully": "Sync finished successfully.",
+    "failed": "Sync failed: {{message}}"
   },
   "vacuum_database": {
     "title": "Vacuum Database",
@@ -1031,11 +1057,16 @@
     "edited_notes_message": "Edited Notes ribbon tab will automatically open on day notes"
   },
   "theme": {
-    "title": "Theme",
+    "title": "Application Theme",
     "theme_label": "Theme",
     "override_theme_fonts_label": "Override theme fonts",
     "light_theme": "Light",
-    "dark_theme": "Dark"
+    "dark_theme": "Dark",
+    "layout": "Layout",
+    "layout-vertical-title": "Vertical",
+    "layout-horizontal-title": "Horizontal",
+    "layout-vertical-description": "launcher bar is on the left (default)",
+    "layout-horizontal-description": "launcher bar is underneath the tab bar, the tab bar is now full width."
   },
   "zoom_factor": {
     "title": "Zoom Factor (desktop build only)",
@@ -1086,9 +1117,16 @@
     "deleted_notes_erased": "Deleted notes have been erased."
   },
   "revisions_snapshot_interval": {
-    "note_revisions_snapshot_interval_title": "Note Revisions Snapshot Interval",
-    "note_revisions_snapshot_description": "Note revision snapshot time interval is time in seconds after which a new note revision will be created for the note. See <a href=\"https://triliumnext.github.io/Docs/Wiki/note-revisions.html\" class=\"external\">wiki</a> for more info.",
-    "snapshot_time_interval_label": "Note revision snapshot time interval (in seconds)"
+    "note_revisions_snapshot_interval_title": "Note Revision Snapshot Interval",
+    "note_revisions_snapshot_description": "The Note revision snapshot interval is the time in seconds after which a new note revision will be created for the note. See <a href=\"https://triliumnext.github.io/Docs/Wiki/note-revisions.html\" class=\"external\">wiki</a> for more info.",
+    "snapshot_time_interval_label": "Note revision snapshot time interval (in seconds):"
+  },
+  "revisions_snapshot_limit": {
+    "note_revisions_snapshot_limit_title": "Note Revision Snapshot Limit",
+    "note_revisions_snapshot_limit_description": "The note revision snapshot number limit refers to the maximum number of revisions that can be saved for each note. Where -1 means no limit, 0 means delete all revisions. You can set the maximum revisions for a single note through the #versioningLimit label.",
+    "snapshot_number_limit_label": "Note revision snapshot number limit:",
+    "erase_excess_revision_snapshots": "Erase excess revision snapshots now",
+    "erase_excess_revision_snapshots_prompt": "Excess revision snapshots have been erased."
   },
   "search_engine": {
     "title": "Search Engine",
@@ -1154,6 +1192,8 @@
     "backup_now": "Backup now",
     "backup_database_now": "Backup database now",
     "existing_backups": "Existing backups",
+    "date-and-time": "Date & time",
+    "path": "Path",
     "database_backed_up_to": "Database has been backed up to",
     "no_backup_yet": "no backup yet"
   },
@@ -1189,7 +1229,7 @@
   "password": {
     "heading": "Password",
     "alert_message": "Please take care to remember your new password. Password is used for logging into the web interface and to encrypt protected notes. If you forget your password, then all your protected notes are forever lost.",
-    "reset_link": "click here to reset it.",
+    "reset_link": "Click here to reset it.",
     "old_password": "Old password",
     "new_password": "New password",
     "new_password_confirmation": "New password confirmation",
@@ -1280,6 +1320,8 @@
     "insert-child-note": "Insert child note",
     "delete": "Delete",
     "search-in-subtree": "Search in subtree",
+    "hoist-note": "Hoist note",
+    "unhoist-note": "Unhoist note",
     "edit-branch-prefix": "Edit branch prefix",
     "advanced": "Advanced",
     "expand-subtree": "Expand subtree",
@@ -1299,7 +1341,9 @@
     "duplicate-subtree": "Duplicate subtree",
     "export": "Export",
     "import-into-note": "Import into note",
-    "apply-bulk-actions": "Apply bulk actions"
+    "apply-bulk-actions": "Apply bulk actions",
+    "converted-to-attachments": "{{count}} notes have been converted to attachments.",
+    "convert-to-attachment-confirm": "Are you sure you want to convert note selected notes into attachments of their parent notes?"
   },
   "shared_info": {
     "shared_publicly": "This note is shared publicly on",
@@ -1317,12 +1361,13 @@
     "mermaid-diagram": "Mermaid Diagram",
     "canvas": "Canvas",
     "web-view": "Web View",
-    "mind-map": "Mind Map",
+    "mind-map": "Mind Map (Beta)",
     "file": "File",
     "image": "Image",
     "launcher": "Launcher",
     "doc": "Doc",
-    "widget": "Widget"
+    "widget": "Widget",
+    "confirm-change": "It is not recommended to change note type when note content is not empty. Do you want to continue anyway?"
   },
   "protect_note": {
     "toggle-on": "Protect the note",
@@ -1344,8 +1389,12 @@
   },
   "open-help-page": "Open help page",
   "find": {
-    "case_sensitive": "case sensitive",
-    "match_words": "match words"
+    "case_sensitive": "Case sensitive",
+    "match_words": "Match words",
+    "find_placeholder": "Find in text...",
+    "replace_placeholder": "Replace with...",
+    "replace": "Replace",
+    "replace_all": "Replace all"
   },
   "highlights_list_2": {
     "title": "Highlights List",
@@ -1368,7 +1417,9 @@
     "hide-archived-notes": "Hide archived notes",
     "automatically-collapse-notes": "Automatically collapse notes",
     "automatically-collapse-notes-title": "Notes will be collapsed after period of inactivity to declutter the tree.",
-    "save-changes": "Save & apply changes"
+    "save-changes": "Save & apply changes",
+    "auto-collapsing-notes-after-inactivity": "Auto collapsing notes after inactivity...",
+    "saved-search-note-refreshed": "Saved search note refreshed."
   },
   "title_bar_buttons": {
     "window-on-top": "Keep this window on top."
@@ -1391,5 +1442,130 @@
   },
   "sql_table_schemas": {
     "tables": "Tables"
+  },
+  "tab_row": {
+    "close_tab": "Close tab",
+    "add_new_tab": "Add new tab",
+    "close": "Close",
+    "close_other_tabs": "Close other tabs",
+    "close_right_tabs": "Close tabs to the right",
+    "close_all_tabs": "Close all tabs",
+    "reopen_last_tab": "Reopen last closed tab",
+    "move_tab_to_new_window": "Move this tab to a new window",
+    "copy_tab_to_new_window": "Copy this tab to a new window",
+    "new_tab": "New tab"
+  },
+  "toc": {
+    "table_of_contents": "Table of Contents",
+    "options": "Options"
+  },
+  "watched_file_update_status": {
+    "file_last_modified": "File <code class=\"file-path\"></code> has been last modified on <span class=\"file-last-modified\"></span>.",
+    "upload_modified_file": "Upload modified file",
+    "ignore_this_change": "Ignore this change"
+  },
+  "app_context": {
+    "please_wait_for_save": "Please wait for a couple of seconds for the save to finish, then you can try again."
+  },
+  "note_create": {
+    "duplicated": "Note \"{{title}}\" has been duplicated."
+  },
+  "image": {
+    "copied-to-clipboard": "A reference to the image has been copied to clipboard. This can be pasted in any text note.",
+    "cannot-copy": "Could not copy the image reference to clipboard."
+  },
+  "clipboard": {
+    "cut": "Note(s) have been cut into clipboard.",
+    "copied": "Note(s) have been copied into clipboard."
+  },
+  "entrypoints": {
+    "note-revision-created": "Note revision has been created.",
+    "note-executed": "Note executed.",
+    "sql-error": "Error occurred while executing SQL query: {{message}}"
+  },
+  "branches": {
+    "cannot-move-notes-here": "Cannot move notes here.",
+    "delete-status": "Delete status",
+    "delete-notes-in-progress": "Delete notes in progress: {{count}}",
+    "delete-finished-successfully": "Delete finished successfully.",
+    "undeleting-notes-in-progress": "Undeleting notes in progress: {{count}}",
+    "undeleting-notes-finished-successfully": "Undeleting notes finished successfully."
+  },
+  "frontend_script_api": {
+    "async_warning": "You're passing an async function to `api.runOnBackend()` which will likely not work as you intended.\\nEither make the function synchronous (by removing `async` keyword), or use `api.runAsyncOnBackendWithManualTransactionHandling()`.",
+    "sync_warning": "You're passing a synchronous function to `api.runAsyncOnBackendWithManualTransactionHandling()`,\\nwhile you should likely use `api.runOnBackend()` instead."
+  },
+  "ws": {
+    "sync-check-failed": "Sync check failed!",
+    "consistency-checks-failed": "Consistency checks failed! See logs for details.",
+    "encountered-error": "Encountered error \"{{message}}\", check out the console."
+  },
+  "hoisted_note": {
+    "confirm_unhoisting": "Requested note '{{requestedNote}}' is outside of hoisted note '{{hoistedNote}}' subtree and you must unhoist to access the note. Do you want to proceed with unhoisting?"
+  },
+  "launcher_context_menu": {
+    "reset_launcher_confirm": "Do you really want to reset \"{{title}}\"? All data / settings in this note (and its children) will be lost and the launcher will be returned to its original location.",
+    "add-note-launcher": "Add a note launcher",
+    "add-script-launcher": "Add a script launcher",
+    "add-custom-widget": "Add a custom widget",
+    "add-spacer": "Add spacer",
+    "delete": "Delete",
+    "reset": "Reset",
+    "move-to-visible-launchers": "Move to visible launchers",
+    "move-to-available-launchers": "Move to available launchers",
+    "duplicate-launcher": "Duplicate launcher"
+  },
+  "editable-text": {
+    "auto-detect-language": "Auto-detected"
+  },
+  "highlighting": {
+    "title": "Code Syntax Highlighting for Text Notes",
+    "description": "Controls the syntax highlighting for code blocks inside text notes, code notes will not be affected.",
+    "color-scheme": "Color Scheme"
+  },
+  "code_block": {
+    "word_wrapping": "Word wrapping"
+  },
+  "classic_editor_toolbar": {
+    "title": "Formatting"
+  },
+  "editor": {
+    "title": "Editor"
+  },
+  "editing": {
+    "editor_type": {
+      "label": "Formatting toolbar",
+      "floating": {
+        "title": "Floating",
+        "description": "editing tools appear near the cursor;"
+      },
+      "fixed": {
+        "title": "Fixed",
+        "description": "editing tools appear in the \"Formatting\" ribbon tab."
+      }
+    }
+  },
+  "electron_context_menu": {
+    "add-term-to-dictionary": "Add \"{{term}}\" to dictionary",
+    "cut": "Cut",
+    "copy": "Copy",
+    "copy-link": "Copy link",
+    "paste": "Paste",
+    "paste-as-plain-text": "Paste as plain text",
+    "search_online": "Search for \"{{term}}\" with {{searchEngine}}"
+  },
+  "share_page": {
+    "parent": "Parent:",
+    "login": "Login",
+    "child-notes": "Child notes:",
+    "no-content": "This note has no content.",
+    "clipped-from": "Clipped from: %s"
+  },
+  "share": {
+    "settings_title": "Share Settings",
+    "redirect_bare_domain": "Redirect bare domain to share",
+    "redirect_bare_domain_description": "When enabled, accessing the root URL (/) will redirect to the share page (/share). Relies on having one more more notes shared, and one having `#shareRoot` attribute defined. (default: false)",
+    "show_login_in_share": "Show login in share theme",
+    "show_login_in_share_description": "When enabled, shows a login button in the share theme (default: false). Probably best to leave it disabled and visit '{{hostname}}/login' manually to login."
   }
 }

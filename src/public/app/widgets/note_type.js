@@ -101,7 +101,7 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
             this.$noteTypeDropdown.append($typeLink);
         }
 
-        for (const mimeType of await mimeTypesService.getMimeTypes()) {
+        for (const mimeType of mimeTypesService.getMimeTypes()) {
             if (!mimeType.enabled) {
                 continue;
             }
@@ -128,7 +128,7 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
 
     async findTypeTitle(type, mime) {
         if (type === 'code') {
-            const mimeTypes = await mimeTypesService.getMimeTypes();
+            const mimeTypes = mimeTypesService.getMimeTypes();
             const found = mimeTypes.find(mt => mt.mime === mime);
 
             return found ? found.title : mime;
@@ -159,7 +159,7 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
             return true;
         }
 
-        return await dialogService.confirm("It is not recommended to change note type when note content is not empty. Do you want to continue anyway?");
+        return await dialogService.confirm(t("note_types.confirm-change"));
     }
 
     async entitiesReloadedEvent({ loadResults }) {

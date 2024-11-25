@@ -133,13 +133,16 @@ export default class FontsOptions extends OptionsWidget {
         this.$widget.find(".reload-frontend-button").on("click", () => utils.reloadFrontendApp("changes from appearance options"));
     }
 
+    isEnabled() {
+        return this._isEnabled;
+    }
+
     async optionsLoaded(options) {
-        if (options.overrideThemeFonts !== 'true') {
-            this.toggleInt(false);
+        this._isEnabled = (options.overrideThemeFonts === 'true');
+        this.toggleInt(this._isEnabled);
+        if (!this._isEnabled) {
             return;
         }
-
-        this.toggleInt(true);
 
         this.$mainFontSize.val(options.mainFontSize);
         this.fillFontFamilyOptions(this.$mainFontFamily, options.mainFontFamily);

@@ -42,7 +42,21 @@ const TPL = `
 <div class="options-section">
     <h4>${t('backup.existing_backups')}</h4>
     
-    <ul class="existing-backup-list"></ul>
+    <table class="table table-stripped">
+        <colgroup>
+            <col width="33%" />
+            <col />
+        </colgroup>
+        <thead>
+            <tr>
+                <th>${t("backup.date-and-time")}</th>
+                <th>${t("backup.path")}</th>
+            </tr>
+        </thead>
+        <tbody class="existing-backup-list-items">
+        </tbody>
+    </table>
+
 </div>
 `;
 
@@ -73,7 +87,7 @@ export default class BackupOptions extends OptionsWidget {
         this.$monthlyBackupEnabled.on('change', () =>
             this.updateCheckboxOption('monthlyBackupEnabled', this.$monthlyBackupEnabled));
 
-        this.$existingBackupList = this.$widget.find(".existing-backup-list");
+        this.$existingBackupList = this.$widget.find(".existing-backup-list-items");
     }
 
     optionsLoaded(options) {
@@ -85,11 +99,34 @@ export default class BackupOptions extends OptionsWidget {
             this.$existingBackupList.empty();
 
             if (!backupFiles.length) {
-                backupFiles = [{filePath: t('backup.no_backup_yet'), mtime: ''}];
+                this.$existingBackupList.append($(`
+                    <tr>
+                        <td class="empty-table-placeholder" colspan="2">${t('backup.no_backup_yet')}</td>
+                    </tr>
+                `));
+
+                return;
             }
 
+            // Sort the backup files by modification date & time in a desceding order
+            backupFiles.sort((a, b) => {
+                if (a.mtime < b.mtime) return 1;
+                if (a.mtime > b.mtime) return -1;
+                return 0;
+            });
+
+            const dateTimeFormatter = new Intl.DateTimeFormat(navigator.language, {
+                dateStyle: "medium",
+                timeStyle: "medium"
+            });
+
             for (const {filePath, mtime} of backupFiles) {
-                this.$existingBackupList.append($("<li>").text(`${filePath} ${mtime ? ` - ${mtime}` : ''}`));
+                this.$existingBackupList.append($(`
+                    <tr>
+                        <td>${(mtime) ? dateTimeFormatter.format(new Date(mtime)) : "-"}</td>
+                        <td>${filePath}</td>
+                    </tr>
+                `));
             }
         });
     }

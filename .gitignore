@@ -5,6 +5,7 @@ build/
 src/public/app-dist/
 npm-debug.log
 yarn-error.log
+po-*/
 
 *.db
 !integration-tests/db/document.db

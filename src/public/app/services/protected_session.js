@@ -6,6 +6,7 @@ import appContext from "../components/app_context.js";
 import froca from "./froca.js";
 import utils from "./utils.js";
 import options from "./options.js";
+import { t } from './i18n.js';
 
 let protectedSessionDeferred = null;
 
@@ -50,7 +51,7 @@ async function setupProtectedSession(password) {
     const response = await server.post('login/protected', { password: password });
 
     if (!response.success) {
-        toastService.showError("Wrong password.", 3000);
+        toastService.showError(t("protected_session.wrong_password"), 3000);
         return;
     }
 
@@ -72,7 +73,7 @@ ws.subscribeToMessages(async message => {
             protectedSessionDeferred = null;
         }
 
-        toastService.showMessage("Protected session has been started.");
+        toastService.showMessage(t("protected_session.started"));
     }
     else if (message.type === 'protectedSessionLogout') {
         utils.reloadFrontendApp(`Protected session logout`);
@@ -85,10 +86,10 @@ async function protectNote(noteId, protect, includingSubtree) {
     await server.put(`notes/${noteId}/protect/${protect ? 1 : 0}?subtree=${includingSubtree ? 1 : 0}`);
 }
 
-function makeToast(message, protectingLabel, text) {
+function makeToast(message, title, text) {
     return {
         id: message.taskId,
-        title: `${protectingLabel} status`,
+        title,
         message: text,
         icon: message.data.protect ? "check-shield" : "shield"
     };
@@ -99,15 +100,19 @@ ws.subscribeToMessages(async message => {
         return;
     }
 
-    const protectingLabel = message.data.protect ? "Protecting" : "Unprotecting";
-
+    const isProtecting = message.data.protect;
+    const title = isProtecting ? t("protected_session.protecting-title") : t("protected_session.unprotecting-title");
+    
     if (message.type === 'taskError') {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message, protectingLabel,`${protectingLabel} in progress: ${message.progressCount}`));
+        const count = message.progressCount;
+        const text = ( isProtecting ? t("protected_session.protecting-in-progress", { count }) : t("protected_session.unprotecting-in-progress-count", { count }));
+        toastService.showPersistent(makeToast(message, title, text));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message, protectingLabel, `${protectingLabel} finished successfully.`);
+        const text = (isProtecting ? t("protected_session.protecting-finished-successfully") : t("protected_session.unprotecting-finished-successfully"))
+        const toast = makeToast(message, title, text);
         toast.closeAfter = 3000;
 
         toastService.showPersistent(toast);

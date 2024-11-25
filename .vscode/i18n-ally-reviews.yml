@@ -5,3 +5,16 @@ reviews:
     description: >-
       Describes the shortcut which triggers a search within the current
       page/note only
+  add_label.to_value:
+    locales:
+      fr:
+        comments:
+          - user:
+              name: Potjoe-97
+              email: giann@LAPTOPT490-GF
+            id: QXec0JUoxfGmMlpch-B1S
+            comment: ''
+            suggestion: vers la valeur
+            type: request_change
+            time: '2024-10-15T16:57:06.188Z'
+            resolved: true
