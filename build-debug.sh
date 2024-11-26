@@ -1,7 +1,8 @@
 #!/bin/bash
-# Set environment variables for certificate handling
+# Set environment variables for corporate certificate handling
 export NODE_TLS_REJECT_UNAUTHORIZED=0
 export NPM_CONFIG_STRICT_SSL=false
+export REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
 
 # Show debug info
 echo "=== Environment ==="
@@ -11,9 +12,11 @@ echo "Current directory: $(pwd)"
 
 # Build the image with debug output
 podman build --tls-verify=false \
+  --security-opt label=disable \
   --build-arg NODE_TLS_REJECT_UNAUTHORIZED=0 \
   --build-arg NPM_CONFIG_STRICT_SSL=false \
-  -f Dockerfile.alpine \
+  --build-arg REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+  -f Dockerfile \
   -t trilium-debug . 2>&1 | tee build.log
 
 # If build fails, highlight the error

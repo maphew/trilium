@@ -4,7 +4,7 @@ app = 'trilium-rmi9xw'
 primary_region = 'sea'
 
 [build]
-  dockerfile = 'Dockerfile.alpine'
+  dockerfile = 'Dockerfile'
 
 [http_service]
   internal_port = 8080

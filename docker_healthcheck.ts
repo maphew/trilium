@@ -1,7 +1,7 @@
-import http from "http";
-import ini from "ini";
-import fs from "fs";
-import dataDir from './src/services/data_dir.js';
+import * as http from "http";
+import * as ini from "ini";
+import * as fs from "fs";
+import { default as dataDir } from './build/src/services/data_dir.js';
 const config = ini.parse(fs.readFileSync(dataDir.CONFIG_INI_PATH, 'utf-8'));
 
 if (config.Network.https) {
@@ -10,8 +10,8 @@ if (config.Network.https) {
     process.exit(0);
 }
 
-import port from './src/services/port.js';
-import host from './src/services/host.js';
+import { default as port } from './build/src/services/port.js';
+import { default as host } from './build/src/services/host.js';
 
 const options: http.RequestOptions = { timeout: 2000 };
 

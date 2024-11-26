@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "declaration": false,
     "sourceMap": true,
-    "outDir": "./build",
+    "outDir": ".",
     "strict": true,
     "noImplicitAny": true,
     "resolveJsonModule": true,
@@ -14,19 +15,6 @@
     "allowJs": true
   },
   "include": [
-    "./src/**/*.js",
-    "./src/**/*.ts",
     "./docker_healthcheck.ts"
-  ],
-  "exclude": [
-    "./node_modules/**/*",
-    "**/*.spec.ts",
-    "**/*.test.ts",
-    "./spec/**/*",
-    "./spec-es6/**/*",
-    "electron*.ts"
-  ],
-  "files": [
-    "src/types.d.ts"
   ]
 }
