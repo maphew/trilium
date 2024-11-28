@@ -42,6 +42,43 @@ If you encounter any Windows-specific issues or have improvements:
 2. Document any new requirements or steps in this README
 3. Submit a PR with your changes
 
+## Current Status (WIP)
+
+Currently debugging container startup issues. Latest error:
+```
+Error: Cannot find module '/usr/src/app/src/main'
+```
+
+### Troubleshooting Commands
+
+```powershell
+# Check container status
+podman ps -a
+
+# Get container logs
+podman logs <container-id>
+
+# Remove old containers
+podman rm <container-id>
+
+# Remove old images
+podman rmi <image-id>
+
+# Build with debug output
+podman build -t trilium-build-stage1:latest -f windows/Dockerfile.build-1 .. --log-level=debug
+```
+
+### Next Steps
+1. Debug the missing main module issue
+2. Verify the source files are being copied correctly in both build stages
+3. Check if we need to modify the node command to use the correct file extension (e.g., .ts or .js)
+
+### Notes
+- Both build stages complete successfully
+- Container starts but exits immediately
+- Current focus is on the second stage where we need to ensure all necessary files are present
+- May need to investigate the webpack build output location
+
 ## Additional Windows-Specific Information
 
 This section will grow to include other Windows-specific instructions and configurations as needed, such as:
