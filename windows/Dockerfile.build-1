@@ -15,24 +15,32 @@ RUN apk add --no-cache python3 make g++
 
 # Copy package files and TypeScript configs
 COPY package*.json ./
-COPY tsconfig.json ./
 COPY webpack.config.ts ./
 COPY loader-register.js ./
+COPY tsconfig.json ./
+COPY windows/tsconfig.server.json ./
+
+# Generate server-package.json by removing electron-related entries and use it
+RUN cat package.json | grep -v electron > server-package.json && \
+    mv server-package.json package.json
 
 # Strip Electron dependencies and install remaining ones
-RUN npm install --ignore-scripts && \
-    # Remove Electron-related dependencies
+RUN npm install && \
     npm uninstall electron electron-builder @electron/remote electron-context-menu && \
     npm prune
 
 # Copy source files
-COPY src ./src
-COPY electron.ts ./
-COPY electron-main.ts ./
+COPY src ./src/
 
-# Compile TypeScript using the webpack configuration
+# Verify TypeScript files are present
+RUN ls -la src/ && \
+    echo "TypeScript files verified"
+
+# Compile TypeScript and prepare build output
 RUN npm run webpack && \
+    mkdir -p dist && \
+    npx tsc --project tsconfig.server.json && \
     mkdir -p /build-output/src && \
     cp -r src/public/app-dist/* /build-output/ && \
-    cp package.json /build-output/ && \
-    cp -r src /build-output/
+    cp -r dist/* /build-output/ && \
+    cp package.json /build-output/

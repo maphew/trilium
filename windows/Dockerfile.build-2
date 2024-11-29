@@ -25,11 +25,9 @@ WORKDIR /usr/src/app
 
 # Copy only necessary files for build
 COPY . .
-COPY server-package.json package.json
 
 # Build and cleanup in a single layer
 RUN npm install && \
-    npm run webpack && \
     npm prune --omit=dev && \
     npm cache clean --force && \
     cp src/public/app/share.js src/public/app-dist/. && \
@@ -44,6 +42,7 @@ WORKDIR /usr/src/app
 
 # Copy only necessary files from builder
 COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
 COPY --from=builder /usr/src/app/src ./src
 COPY --from=builder /usr/src/app/db ./db
 COPY --from=builder /usr/src/app/docker_healthcheck.ts .
@@ -64,6 +63,11 @@ RUN chown -R node:node /usr/src/app
 USER node
 
 # Configure container
+ENV NODE_ENV=production
+
 EXPOSE 8080
-CMD [ "node", "./src/main" ]
+
+# Use the compiled JavaScript file
+CMD ["node", "./dist/src/main.js"]
+
 HEALTHCHECK --start-period=10s CMD node docker_healthcheck.ts
