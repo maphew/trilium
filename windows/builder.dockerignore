@@ -1,0 +1,9 @@
+# Version control
+.git
+.gitignore
+
+# Existing builds and temp files
+dist
+tmp
+
+# We need all source files for building, so don't ignore node_modules or .ts files
