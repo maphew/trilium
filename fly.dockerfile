@@ -26,6 +26,7 @@ RUN npm run webpack && \
 ENV NODE_ENV=production
 ENV NODE_NO_WARNINGS=1
 ENV TRILIUM_DATA_DIR=/data
+ENV TRILIUM_PORT=8080
 
 # Create data directory
 RUN mkdir -p /data && chown -R node:node /data
