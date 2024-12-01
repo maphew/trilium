@@ -10,8 +10,11 @@ if (config.Network.https) {
     process.exit(0);
 }
 
-import port from './src/services/port.js';
+import portModule from './src/services/port.js';
 import host from './src/services/host.js';
+
+// Explicitly type the port
+const port: number = portModule as number;
 
 const options: http.RequestOptions = { timeout: 2000 };
 
