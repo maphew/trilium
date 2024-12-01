@@ -25,7 +25,13 @@ RUN npm run webpack && \
 # Set production environment
 ENV NODE_ENV=production
 ENV NODE_NO_WARNINGS=1
-ENV TRILIUM_DATA_DIR=/usr/src/app/data
+ENV TRILIUM_DATA_DIR=/data
+
+# Create data directory
+RUN mkdir -p /data && chown -R node:node /data
+
+# Switch to non-root user
+USER node
 
 # Run the compiled JavaScript
 CMD ["node", "src/main.js"]

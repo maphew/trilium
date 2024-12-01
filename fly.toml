@@ -21,3 +21,7 @@ primary_region = 'sea'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[[mounts]]
+  source = "trilium_data"
+  destination = "/data"
