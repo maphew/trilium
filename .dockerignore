@@ -1,6 +1,7 @@
 .git
 .idea
 /bin
+!/bin/copy-dist.ts
 /dist
 /docs
 /npm-debug.log
