@@ -24,7 +24,9 @@ const TPL = `
             </label>
         </div>
     </div>
+</div>
 
+<div class="options-section">    
     <h4>${t("theme.title")}</h4>
     
     <div class="form-group row">
@@ -66,8 +68,9 @@ export default class ThemeOptions extends OptionsWidget {
 
     async optionsLoaded(options) {
         const themes = [
+            { val: 'next', title: t("theme.triliumnext") },
             { val: 'light', title: t('theme.light_theme') },
-            { val: 'dark', title: t('theme.dark_theme') }
+            { val: 'dark', title: t('theme.dark_theme') }            
         ].concat(await server.get('options/user-themes'));
 
         this.$themeSelect.empty();

@@ -340,9 +340,9 @@ function findFirstNoteWithQuery(query: string, searchContext: SearchContext): BN
     return searchResults.length > 0 ? becca.notes[searchResults[0].noteId] : null;
 }
 
-function searchNotesForAutocomplete(query: string) {
+function searchNotesForAutocomplete(query: string, fastSearch: boolean = true) {
     const searchContext = new SearchContext({
-        fastSearch: true,
+        fastSearch: fastSearch,
         includeArchivedNotes: false,
         includeHiddenNotes: true,
         fuzzyAttributeSearch: true,

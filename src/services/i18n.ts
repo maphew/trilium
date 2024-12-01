@@ -4,6 +4,7 @@ import options from "./options.js";
 import sql_init from "./sql_init.js";
 import { join } from "path";
 import { getResourceDir } from "./utils.js";
+import hidden_subtree from "./hidden_subtree.js";
 
 export async function initializeTranslations() {
   const resourceDir = getResourceDir();
@@ -33,6 +34,7 @@ function getCurrentLanguage() {
   return language;
 }
 
-export function changeLanguage(locale: string) {
-  return i18next.changeLanguage(locale);
+export async function changeLanguage(locale: string) {
+  await i18next.changeLanguage(locale);
+  hidden_subtree.checkHiddenSubtree(true, { restoreNames: true });
 }

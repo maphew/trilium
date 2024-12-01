@@ -27,43 +27,52 @@ class SearchResult {
         this.score = 0;
 
         const note = becca.notes[this.noteId];
+        const normalizedQuery = fulltextQuery.toLowerCase();
+        const normalizedTitle = note.title.toLowerCase();
 
+        // Note ID exact match, much higher score
         if (note.noteId.toLowerCase() === fulltextQuery) {
-            this.score += 100;
+            this.score += 1000;
         }
 
-        if (note.title.toLowerCase() === fulltextQuery) {
-            this.score += 100; // high reward for exact match #3470
+        // Title matching scores, make sure to always win
+        if (normalizedTitle === normalizedQuery) {
+            this.score += 2000; // Increased from 1000 to ensure exact matches always win
+        }
+        else if (normalizedTitle.startsWith(normalizedQuery)) {
+            this.score += 500;  // Increased to give more weight to prefix matches
+        }
+        else if (normalizedTitle.includes(` ${normalizedQuery} `) || 
+                normalizedTitle.startsWith(`${normalizedQuery} `) || 
+                normalizedTitle.endsWith(` ${normalizedQuery}`)) {
+            this.score += 300;  // Increased to better distinguish word matches
         }
 
-        // notes with matches on its own note title as opposed to ancestors or descendants
-        this.addScoreForStrings(tokens, note.title, 1.5);
-
-        // matches in attributes don't get extra points and thus are implicitly valued less than note path matches
-
-        this.addScoreForStrings(tokens, this.notePathTitle, 1);
+        // Add scores for partial matches with adjusted weights
+        this.addScoreForStrings(tokens, note.title, 2.0);  // Increased to give more weight to title matches
+        this.addScoreForStrings(tokens, this.notePathTitle, 0.3); // Reduced to further de-emphasize path matches
 
         if (note.isInHiddenSubtree()) {
-            this.score = this.score / 2;
+            this.score = this.score / 3; // Increased penalty for hidden notes
         }
     }
 
     addScoreForStrings(tokens: string[], str: string, factor: number) {
         const chunks = str.toLowerCase().split(" ");
 
-        this.score = 0;
-
+        let tokenScore = 0;
         for (const chunk of chunks) {
             for (const token of tokens) {
                 if (chunk === token) {
-                    this.score += 4 * token.length * factor;
+                    tokenScore += 4 * token.length * factor;
                 } else if (chunk.startsWith(token)) {
-                    this.score += 2 * token.length * factor;
+                    tokenScore += 2 * token.length * factor;
                 } else if (chunk.includes(token)) {
-                    this.score += token.length * factor;
+                    tokenScore += token.length * factor;
                 }
             }
         }
+        this.score += tokenScore;
     }
 }
 

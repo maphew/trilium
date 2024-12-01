@@ -14,6 +14,8 @@ function getAutocomplete(req: Request) {
         throw new ValidationError("Invalid query data type.");
     }
     const query = (req.query.query || "").trim();
+    const fastSearch = String(req.query.fastSearch).toLowerCase() === "false" ? false : true;
+    
     const activeNoteId = req.query.activeNoteId || 'none';
 
     let results;
@@ -24,7 +26,7 @@ function getAutocomplete(req: Request) {
         results = getRecentNotes(activeNoteId);
     }
     else {
-        results = searchService.searchNotesForAutocomplete(query);
+        results = searchService.searchNotesForAutocomplete(query, fastSearch);
     }
 
     const msTaken = Date.now() - timestampStarted;

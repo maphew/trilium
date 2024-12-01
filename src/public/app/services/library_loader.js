@@ -58,7 +58,19 @@ const FORCE_GRAPH = {
 };
 
 const MERMAID = {
-    js: [ "node_modules/mermaid/dist/mermaid.min.js" ]
+    js: [
+        "node_modules/mermaid/dist/mermaid.min.js"        
+    ]
+}
+
+/**
+ * The ELK extension of Mermaid.js, which supports more advanced layouts.
+ * See https://www.npmjs.com/package/@mermaid-js/layout-elk for more information.
+ */
+const MERMAID_ELK = {
+    js: [
+        "libraries/mermaid-elk/elk.min.js"
+    ]
 }
 
 const EXCALIDRAW = {
@@ -197,6 +209,7 @@ export default {
     WHEEL_ZOOM,
     FORCE_GRAPH,
     MERMAID,
+    MERMAID_ELK,
     EXCALIDRAW,
     MARKJS,
     I18NEXT,

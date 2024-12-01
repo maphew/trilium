@@ -101,7 +101,7 @@ export default class LauncherWidget extends BasicWidget {
         
                 return new SpacerWidget(baseSize, growthFactor);
             case "bookmarks":
-                return new BookmarkButtons();
+                return new BookmarkButtons(this.isHorizontalLayout);
             case "protectedSession":
                 return new ProtectedSessionStatusWidget();
             case "syncStatus":

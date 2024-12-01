@@ -4,8 +4,8 @@ import BookmarkFolderWidget from "./buttons/bookmark_folder.js";
 import froca from "../services/froca.js";
 
 export default class BookmarkButtons extends FlexContainer {
-    constructor() {
-        super("column");
+    constructor(isHorizontalLayout) {
+        super(isHorizontalLayout ? "row" : "column");
 
         this.contentSized();
     }

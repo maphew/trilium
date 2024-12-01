@@ -31,7 +31,14 @@ export default class DocTypeWidget extends TypeWidget {
         const docName = note.getLabelValue('docName');
 
         if (docName) {
-            this.$content.load(`${window.glob.appPath}/doc_notes/${docName}.html`);
+            // find doc based on language
+            const lng = i18next.language;
+            this.$content.load(`${window.glob.appPath}/doc_notes/${lng}/${docName}.html`, (response, status) => {
+                // fallback to english doc if no translation available
+                if (status === 'error') {
+                    this.$content.load(`${window.glob.appPath}/doc_notes/en/${docName}.html`);
+                }
+            });
         } else {
             this.$content.empty();
         }

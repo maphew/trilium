@@ -3,6 +3,7 @@ import libraryLoader from "../services/library_loader.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
 import server from "../services/server.js";
 import utils from "../services/utils.js";
+import { loadElkIfNeeded } from "../services/mermaid.js";
 
 const TPL = `<div class="mermaid-widget">
     <style>
@@ -57,10 +58,10 @@ export default class MermaidWidget extends NoteContextAwareWidget {
         this.$errorContainer.hide();
 
         await libraryLoader.requireLibrary(libraryLoader.MERMAID);
-
+        
         const documentStyle = window.getComputedStyle(document.documentElement);
-        const mermaidTheme = documentStyle.getPropertyValue('--mermaid-theme');
-
+        const mermaidTheme = documentStyle.getPropertyValue('--mermaid-theme');        
+        
         mermaid.mermaidAPI.initialize({
             startOnLoad: false,
             theme: mermaidTheme.trim(),
@@ -111,6 +112,7 @@ export default class MermaidWidget extends NoteContextAwareWidget {
                 zoomOnClick: false
             });
         } catch (e) {
+            console.warn(e);
             this.$errorMessage.text(e.message);
             this.$errorContainer.show();
         }
@@ -122,6 +124,7 @@ export default class MermaidWidget extends NoteContextAwareWidget {
         const blob = await this.note.getBlob();
         const content = blob.content || "";
 
+        await loadElkIfNeeded(content);
         const {svg} = await mermaid.mermaidAPI.render(`mermaid-graph-${idCounter}`, content);
         return svg;
     }

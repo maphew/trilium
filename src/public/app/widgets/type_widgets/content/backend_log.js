@@ -1,45 +1,53 @@
-import NoteContextAwareWidget from "../../note_context_aware_widget.js";
 import server from "../../../services/server.js";
 import { t } from "../../../services/i18n.js";
+import AbstractCodeTypeWidget from "../abstract_code_type_widget.js";
 
 const TPL = `<div style="height: 100%; display: flex; flex-direction: column;">
     <style>
-        .backend-log-textarea {
+        .backend-log-editor {
             flex-grow: 1; 
             width: 100%;
             border: none;
+            resize: none;
         }   
     </style>
 
-    <textarea class="backend-log-textarea" readonly="readonly"></textarea>
+    <pre class="backend-log-editor"></pre>
     
     <div style="display: flex; justify-content: space-around; margin-top: 10px;">
         <button class="refresh-backend-log-button btn btn-primary">${t("backend_log.refresh")}</button>
     </div>
 </div>`;
 
-export default class BackendLogWidget extends NoteContextAwareWidget {
+export default class BackendLogWidget extends AbstractCodeTypeWidget {
     doRender() {
+        super.doRender();
         this.$widget = $(TPL);
-        this.$backendLogTextArea = this.$widget.find(".backend-log-textarea");
+        this.$editor = this.$widget.find(".backend-log-editor");
+
         this.$refreshBackendLog = this.$widget.find(".refresh-backend-log-button");
-
         this.$refreshBackendLog.on('click', () => this.load());
-    }
-
-    scrollToBottom() {
-        this.$backendLogTextArea.scrollTop(this.$backendLogTextArea[0].scrollHeight);
     }
 
     async refresh() {
         await this.load();
     }
 
+    getExtraOpts() {
+        return {
+            lineWrapping: false,
+            readOnly: true
+        };
+    }
+
     async load() {
-        const backendLog = await server.get('backend-log');
+        const content = await server.get('backend-log');
+        await this.initialized;
 
-        this.$backendLogTextArea.text(backendLog);
-
-        this.scrollToBottom();
+        this._update({
+            mime: "text/plain"            
+        }, content);
+        this.show();
+        this.scrollToEnd();
     }
 }

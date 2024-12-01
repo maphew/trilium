@@ -30,10 +30,22 @@ async function autocompleteSourceForCKEditor(queryText) {
 }
 
 async function autocompleteSource(term, cb, options = {}) {
+    const fastSearch = options.fastSearch === false ? false : true;
+    if (fastSearch === false) {
+        if (term.trim().length === 0){
+            return;
+        }
+        cb(
+            [{
+                noteTitle: term,
+                highlightedNotePathTitle: `Searching...`
+            }]
+        );
+    }
+    
     const activeNoteId = appContext.tabManager.getActiveContextNoteId();
 
-    let results = await server.get(`autocomplete?query=${encodeURIComponent(term)}&activeNoteId=${activeNoteId}`);
-
+    let results = await server.get(`autocomplete?query=${encodeURIComponent(term)}&activeNoteId=${activeNoteId}&fastSearch=${fastSearch}`);
     if (term.trim().length >= 1 && options.allowCreatingNotes) {
         results = [
             {
@@ -45,7 +57,7 @@ async function autocompleteSource(term, cb, options = {}) {
         ].concat(results);
     }
 
-    if (term.trim().length >= 1 && options.allowSearchNotes) {
+    if (term.trim().length >= 1 && options.allowJumpToSearchNotes) {
         results = results.concat([
             {
                 action: 'search-notes',
@@ -95,12 +107,22 @@ function showRecentNotes($el) {
 
     $el.setSelectedNotePath("");
     $el.autocomplete("val", "");
+    $el.autocomplete('open');
     $el.trigger('focus');
+}
 
-    // simulate pressing down arrow to trigger autocomplete
-    const e = $.Event('keydown');
-    e.which = 40; // arrow down
-    $el.trigger(e);
+function fullTextSearch($el, options){
+    const searchString = $el.autocomplete('val');
+    if (options.fastSearch === false || searchString.trim().length === 0) {
+        return;
+    }    
+    $el.trigger('focus');
+    options.fastSearch = false;
+    $el.autocomplete('val', '');
+    $el.setSelectedNotePath("");
+    $el.autocomplete('val', searchString);
+    // Set a delay to avoid resetting to true before full text search (await server.get) is called.
+    setTimeout(() => { options.fastSearch = true; }, 100);
 }
 
 function initNoteAutocomplete($el, options) {
@@ -123,10 +145,14 @@ function initNoteAutocomplete($el, options) {
         .addClass("input-group-text show-recent-notes-button bx bx-time")
         .prop("title", "Show recent notes");
 
+    const $fullTextSearchButton = $("<button>")
+        .addClass("input-group-text full-text-search-button bx bx-search")
+        .prop("title", "Full text search (Shift+Enter)");    
+
     const $goToSelectedNoteButton = $("<button>")
         .addClass("input-group-text go-to-selected-note-button bx bx-arrow-to-right");
 
-    $el.after($clearTextButton).after($showRecentNotesButton);
+    $el.after($clearTextButton).after($showRecentNotesButton).after($fullTextSearchButton);
 
     if (!options.hideGoToSelectedNoteButton) {
         $el.after($goToSelectedNoteButton);
@@ -142,13 +168,18 @@ function initNoteAutocomplete($el, options) {
         return false;
     });
 
+    $fullTextSearchButton.on('click', e => {
+        fullTextSearch($el, options);
+        return false;
+    });
+
     let autocompleteOptions = {};
     if (options.container) {
         autocompleteOptions.dropdownMenuContainer = options.container;
         autocompleteOptions.debug = true;   // don't close on blur
     }
 
-    if (options.allowSearchNotes) {
+    if (options.allowJumpToSearchNotes) {
         $el.on('keydown', (event) => {
             if (event.ctrlKey && event.key === 'Enter') {
                 // Prevent Ctrl + Enter from triggering autoComplete.
@@ -158,7 +189,15 @@ function initNoteAutocomplete($el, options) {
             }
         });
     }
-
+    $el.on('keydown', async (event) => {
+        if (event.shiftKey && event.key === 'Enter') {
+            // Prevent Enter from triggering autoComplete.
+            event.stopImmediatePropagation();
+            event.preventDefault();
+            fullTextSearch($el,options)
+        }
+    });
+    
     $el.autocomplete({
         ...autocompleteOptions,
         appendTo: document.querySelector('body'),

@@ -175,7 +175,16 @@
     "codeImportedAsCode": "Import recognized code files (e.g. <code>.json</code>) as code notes if it's unclear from metadata",
     "replaceUnderscoresWithSpaces": "Replace underscores with spaces in imported note names",
     "import": "Import",
-    "failed": "Import failed: {{message}}."
+    "failed": "Import failed: {{message}}.",
+    "html_import_tags": {
+      "title": "HTML Import Tags",
+      "description": "Configure which HTML tags should be preserved when importing notes. Tags not in this list will be removed during import. Some tags (like 'script') are always removed for security.",
+      "placeholder": "Enter HTML tags, one per line",
+      "reset_button": "Reset to Default List"
+    },
+    "import-status": "Import status",
+    "in-progress": "Import in progress: {{progress}}",
+    "successful": "Import finished successfully."
   },
   "include_note": {
     "dialog_title": "Include note",
@@ -315,6 +324,7 @@
     "boolean": "Boolean",
     "date": "Date",
     "date_time": "Date & Time",
+    "time": "Time",
     "url": "URL",
     "precision_title": "What number of digits after floating point should be available in the value setting interface.",
     "precision": "Precision",
@@ -1062,6 +1072,7 @@
     "override_theme_fonts_label": "Override theme fonts",
     "light_theme": "Light",
     "dark_theme": "Dark",
+    "triliumnext": "TriliumNext (beta)",
     "layout": "Layout",
     "layout-vertical-title": "Vertical",
     "layout-horizontal-title": "Horizontal",
@@ -1553,6 +1564,15 @@
     "paste": "Paste",
     "paste-as-plain-text": "Paste as plain text",
     "search_online": "Search for \"{{term}}\" with {{searchEngine}}"
+  },
+  "image_context_menu": {
+    "copy_reference_to_clipboard": "Copy reference to clipboard",
+    "copy_image_to_clipboard": "Copy image to clipboard"
+  },
+  "link_context_menu": {
+    "open_note_in_new_tab": "Open note in a new tab",
+    "open_note_in_new_split": "Open note in a new split",
+    "open_note_in_new_window": "Open note in a new window"
   },
   "share_page": {
     "parent": "Parent:",

@@ -19,6 +19,8 @@ const TPL = `
     
     <p>${t("images.download_images_description")}</p>
     
+    <hr />
+
     <label>
         <input class="image-compresion-enabled" type="checkbox" name="image-compression-enabled">
         ${t("images.enable_image_compression")}

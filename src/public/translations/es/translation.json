@@ -51,7 +51,11 @@
     "chosen_actions": "Acciones elegidas",
     "execute_bulk_actions": "Ejecutar acciones en bloque",
     "bulk_actions_executed": "Las acciones en bloque se han ejecutado con éxito.",
-    "none_yet": "Ninguna todavía... agrega una acción haciendo clic en una de las disponibles arriba."
+    "none_yet": "Ninguna todavía... agregue una acción haciendo clic en una de las disponibles arriba.",
+    "labels": "Etiquetas",
+    "relations": "Relaciones",
+    "notes": "Notas",
+    "other": "Otro"
   },
   "clone_to": {
     "clone_notes_to": "Clonar notas a...",
@@ -171,7 +175,16 @@
     "codeImportedAsCode": "Importar archivos de código reconocidos (por ejemplo, <code>.json</code>) como notas de código si no están claros en los metadatos",
     "replaceUnderscoresWithSpaces": "Reemplazar guiones bajos con espacios en nombres de notas importadas",
     "import": "Importar",
-    "failed": "La importación falló: {{message}}."
+    "failed": "La importación falló: {{message}}.",
+    "html_import_tags": {
+      "title": "HTML Importar Etiquetas",
+      "description": "Configurar que etiquetas HTML deben ser preservadas al importar notas. Las etiquetas que no estén en esta lista serán eliminadas durante la importación. Algunas etiquetas (como 'script') siempre son eliminadas por seguridad.",
+      "placeholder": "Ingrese las etiquetas HTML, una por línea",
+      "reset_button": "Restablecer a lista por defectp"
+    },
+    "import-status": "Estado de importación",
+    "in-progress": "Importación en progreso: {{progress}}",
+    "successful": "Importación finalizada exitosamente."
   },
   "include_note": {
     "dialog_title": "Incluir nota",
@@ -311,6 +324,7 @@
     "boolean": "Booleano",
     "date": "Fecha",
     "date_time": "Fecha y hora",
+    "time": "Hora",
     "url": "URL",
     "precision_title": "Cantidad de dígitos después del punto flotante que deben estar disponibles en la interfaz de configuración del valor.",
     "precision": "Precisión",
@@ -1057,7 +1071,12 @@
     "theme_label": "Tema",
     "override_theme_fonts_label": "Sobreescribir fuentes de tema",
     "light_theme": "Claro",
-    "dark_theme": "Oscuro"
+    "dark_theme": "Oscuro",
+    "layout": "Disposición",
+    "layout-vertical-title": "Vertical",
+    "layout-horizontal-title": "Horizontal",
+    "layout-vertical-description": "la barra del lanzador está en la izquierda (por defecto)",
+    "layout-horizontal-description": "la barra de lanzamiento está debajo de la barra de pestañas, la barra de pestañas ahora tiene ancho completo."
   },
   "zoom_factor": {
     "title": "Factor de zoom (solo versión de escritorio)",
@@ -1183,6 +1202,8 @@
     "backup_now": "Realizar copia de seguridad ahora",
     "backup_database_now": "Realizar copia de seguridad de la base de datos ahora",
     "existing_backups": "Copias de seguridad existentes",
+    "date-and-time": "Fecha y hora",
+    "path": "Ruta",
     "database_backed_up_to": "Se ha realizado una copia de seguridad de la base de datos en",
     "no_backup_yet": "no hay copia de seguridad todavía"
   },
@@ -1439,7 +1460,9 @@
     "close_other_tabs": "Cerrar otras pestañas",
     "close_right_tabs": "Cerrar pestañas a la derecha",
     "close_all_tabs": "Cerras todas las pestañas",
+    "reopen_last_tab": "Reabrir última pestaña cerrada",
     "move_tab_to_new_window": "Mover esta pestaña a una nueva ventana",
+    "copy_tab_to_new_window": "Copiar esta pestaña a una ventana nueva",
     "new_tab": "Nueva pestaña"
   },
   "toc": {
@@ -1531,5 +1554,23 @@
         "description": "las herramientas de edición aparecen en la pestaña de la cinta \"Formato\")."
       }
     }
+  },
+  "electron_context_menu": {
+    "add-term-to-dictionary": "Agregar \"{{term}}\" al diccionario",
+    "cut": "Cortar",
+    "copy": "Copiar",
+    "copy-link": "Copiar enlace",
+    "paste": "Pegar",
+    "paste-as-plain-text": "Pegar como texto plano",
+    "search_online": "Buscar \"{{term}}\" con {{searchEngine}}"
+  },
+  "image_context_menu": {
+    "copy_reference_to_clipboard": "Copiar referencia al portapapeles",
+    "copy_image_to_clipboard": "Copiar imagen al portapapeles"
+  },
+  "link_context_menu": {
+    "open_note_in_new_tab": "Abrir nota en una pestaña nueva",
+    "open_note_in_new_split": "Abrir nota en una nueva división",
+    "open_note_in_new_window": "Abrir nota en una nueva ventana"
   }
 }

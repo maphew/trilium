@@ -13,6 +13,8 @@ const TPL = `
     
     <button type="button" class="create-etapi-token btn btn-sm">${t("etapi.create_token")}</button>
 
+    <hr />
+
     <h5>${t("etapi.existing_tokens")}</h5>
     
     <div class="no-tokens-yet">${t("etapi.no_tokens_yet")}</div>

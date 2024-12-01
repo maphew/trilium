@@ -127,6 +127,7 @@
     "custom_resource_provider": "a se vedea <a href=\"javascript:\" data-help-page=\"custom-request-handler.html\">Custom request handler</a>",
     "date": "Dată",
     "date_time": "Dată și timp",
+    "time": "Timp",
     "delete": "Șterge",
     "digits": "număr de zecimale",
     "disable_inclusion": "script-urile cu această etichetă nu vor fi incluse în execuția scriptului părinte.",
@@ -368,7 +369,7 @@
   "consistency_checks": {
     "find_and_fix_button": "Caută și repară probleme de consistență",
     "finding_and_fixing_message": "Se caută și se repară problemele de consistență...",
-    "issues_fixed_message": "Problemele de consistență ar trebuie să fie acum rezolvate.",
+    "issues_fixed_message": "Problemele de consistență ar trebui să fie acum rezolvate.",
     "title": "Verificări de consistență"
   },
   "copy_image_reference_button": {
@@ -691,7 +692,16 @@
     "shrinkImages": "Micșorare imagini",
     "shrinkImagesTooltip": "<p>Dacă bifați această opțiune, Trilium va încerca să micșoreze imaginea importată prin scalarea și importarea ei, aspect ce poate afecta calitatea aparentă a imaginii. Dacă nu este bifat, imaginile vor fi importate fără nicio modificare.</p><p>Acest lucru nu se aplică la importuri de tip <code>.zip</code> cu metainformații deoarece se asumă că aceste fișiere sunt deja optimizate.</p>",
     "textImportedAsText": "Importă HTML, Markdown și TXT ca notițe de tip text dacă este neclar din metainformații",
-    "failed": "Eroare la importare: {{message}}."
+    "failed": "Eroare la importare: {{message}}.",
+    "import-status": "Starea importului",
+    "in-progress": "Import în curs: {{progress}}",
+    "successful": "Import finalizat cu succes.",
+    "html_import_tags": {
+      "description": "Configurați ce etichete HTML să fie păstrate atunci când se importă notițe. Etichetele ce nu se află în această listă vor fi înlăturate la importul de date. Unele etichete (precum „script”) sunt înlăturate indiferent din motive de securitate.",
+      "placeholder": "Introduceți etichetele HTML, câte unul pe linie",
+      "reset_button": "Resetează la lista implicită",
+      "title": "Etichete HTML la importare"
+    }
   },
   "include_archived_notes": {
     "include_archived_notes": "Include notițele arhivate"
@@ -1187,7 +1197,13 @@
     "light_theme": "Temă luminoasă",
     "override_theme_fonts_label": "Suprascrie fonturile temei",
     "theme_label": "Temă",
-    "title": "Tema aplicației"
+    "title": "Tema aplicației",
+    "layout": "Aspect",
+    "layout-horizontal-description": "bara de lansare se află sub bara de taburi, bara de taburi este pe toată lungimea.",
+    "layout-horizontal-title": "Orizontal",
+    "layout-vertical-title": "Vertical",
+    "layout-vertical-description": "bara de lansare se află pe stânga (implicit)",
+    "triliumnext": "TriliumNext (experimentală)"
   },
   "toast": {
     "critical-error": {
@@ -1548,5 +1564,14 @@
     "paste": "Lipește",
     "paste-as-plain-text": "Lipește doar textul",
     "search_online": "Caută „{{term}}” cu {{searchEngine}}"
+  },
+  "image_context_menu": {
+    "copy_image_to_clipboard": "Copiază imaginea în clipboard",
+    "copy_reference_to_clipboard": "Copiază referința în clipboard"
+  },
+  "link_context_menu": {
+    "open_note_in_new_split": "Deschide notița într-un panou nou",
+    "open_note_in_new_tab": "Deschide notița într-un tab nou",
+    "open_note_in_new_window": "Deschide notița într-o fereastră nouă"
   }
 }

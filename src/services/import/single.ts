@@ -149,15 +149,20 @@ function importMarkdown(taskContext: TaskContext, file: File, parentNote: BNote)
 }
 
 function importHtml(taskContext: TaskContext, file: File, parentNote: BNote) {
-    const title = utils.getNoteTitle(file.originalname, !!taskContext.data?.replaceUnderscoresWithSpaces);
     let content = file.buffer.toString("utf-8");
 
-    if (taskContext?.data?.safeImport) {
-        content = htmlSanitizer.sanitize(content);
-    }
+    // Try to get title from HTML first, fall back to filename
+    // We do this before sanitization since that turns all <h1>s into <h2>
+    const htmlTitle = importUtils.extractHtmlTitle(content);
+    const title = htmlTitle || utils.getNoteTitle(file.originalname, !!taskContext.data?.replaceUnderscoresWithSpaces);
 
     content = importUtils.handleH1(content, title);
 
+    if (taskContext?.data?.safeImport) {
+        content = htmlSanitizer.sanitize(content);
+    }    
+
+    
     const {note} = noteService.createNewNote({
         parentNoteId: parentNote.noteId,
         title,
@@ -166,9 +171,9 @@ function importHtml(taskContext: TaskContext, file: File, parentNote: BNote) {
         mime: 'text/html',
         isProtected: parentNote.isProtected && protectedSessionService.isProtectedSessionAvailable(),
     });
-
+    
     taskContext.increaseProgressCount();
-
+    
     return note;
 }
 

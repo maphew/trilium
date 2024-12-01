@@ -176,7 +176,15 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         });
 
         this.watchdog.setCreator(async (elementOrData, editorConfig) => {
-            const editor = await editorClass.create(elementOrData, editorConfig);
+            const editor = await editorClass.create(elementOrData, {
+                ...editorConfig,
+                htmlSupport: {
+                    allow: JSON.parse(options.get("allowedHtmlTags")),
+                    styles: true,
+                    classes: true,
+                    attributes: true
+                }
+            });
 
             await initSyntaxHighlighting(editor);
 

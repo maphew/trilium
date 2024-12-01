@@ -311,6 +311,7 @@
     "boolean": "Booléen",
     "date": "Date",
     "date_time": "Date et heure",
+    "time": "Heure",
     "url": "URL",
     "precision_title": "Nombre de chiffres après la virgule devant être disponible dans l'interface définissant la valeur.",
     "precision": "Précision",

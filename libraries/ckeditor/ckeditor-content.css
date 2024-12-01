@@ -4,6 +4,15 @@
     display: none;
 }
 
+.page-break {
+    page-break-after: always;
+}
+
+.printed-content .page-break:after,
+.printed-content .page-break > * {
+    display: none !important;
+}
+
 .ck-content li p {
     margin: 0 !important;
 }

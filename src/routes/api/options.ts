@@ -68,6 +68,7 @@ export const ALLOWED_OPTIONS = new Set([
     'firstDayOfWeek',
     'textNoteEditorType',
     'layoutOrientation',
+    'allowedHtmlTags', // Allow configuring HTML import tags
     'redirectBareDomain',
     'showLoginInShareTheme'
 ]);
@@ -171,6 +172,10 @@ function getSupportedLocales() {
         {
             "id": "cn",
             "name": "简体中文"
+        },
+        {
+            "id": "tw",
+            "name": "繁體中文"
         },
         {
             "id": "ro",

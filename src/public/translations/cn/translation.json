@@ -15,7 +15,13 @@
       "message": "发生了严重错误，导致客户端应用程序无法启动：\n\n{{message}}\n\n这很可能是由于脚本以意外的方式失败引起的。请尝试以安全模式启动应用程序并解决问题。"
     },
     "widget-error": {
-      "title": "小部件初始化失败"
+      "title": "小部件初始化失败",
+      "message-custom": "来自 ID 为 \"{{id}}\"、标题为 \"{{title}}\" 的笔记的自定义小部件因以下原因无法初始化：\n\n{{message}}",
+      "message-unknown": "未知小部件因以下原因无法初始化：\n\n{{message}}"
+    },
+    "bundle-error": {
+      "title": "加载自定义脚本失败",
+      "message": "来自 ID 为 \"{{id}}\"、标题为 \"{{title}}\" 的笔记的脚本因以下原因无法执行：\n\n{{message}}"
     }
   },
   "add_link": {
@@ -45,7 +51,11 @@
     "chosen_actions": "选择的操作",
     "execute_bulk_actions": "执行批量操作",
     "bulk_actions_executed": "批量操作已成功执行。",
-    "none_yet": "暂无操作 ... 通过点击上方的可用操作添加一个操作。"
+    "none_yet": "暂无操作 ... 通过点击上方的可用操作添加一个操作。",
+    "labels": "标签",
+    "relations": "关联关系",
+    "notes": "笔记",
+    "other": "其它"
   },
   "clone_to": {
     "clone_notes_to": "克隆笔记到...",
@@ -164,7 +174,8 @@
     "textImportedAsText": "如果元数据不明确，将HTML、Markdown和TXT导入为文本笔记",
     "codeImportedAsCode": "如果元数据不明确，将识别的代码文件（例如<code>.json</code>）导入为代码笔记",
     "replaceUnderscoresWithSpaces": "在导入的笔记名称中将下划线替换为空格",
-    "import": "导入"
+    "import": "导入",
+    "failed": "导入失败: {{message}}."
   },
   "include_note": {
     "dialog_title": "包含笔记",
@@ -304,6 +315,7 @@
     "boolean": "布尔值",
     "date": "日期",
     "date_time": "日期和时间",
+    "time": "时间",
     "url": "网址",
     "precision_title": "值设置界面中浮点数后的位数。",
     "precision": "精度",
@@ -630,7 +642,10 @@
     "export_note": "导出笔记",
     "delete_note": "删除笔记",
     "print_note": "打印笔记",
-    "save_revision": "保存笔记历史"
+    "save_revision": "保存笔记历史",
+    "convert_into_attachment_failed": "笔记 '{{title}}' 转换失败。",
+    "convert_into_attachment_successful": "笔记 '{{title}}' 已成功转换为附件。",
+    "convert_into_attachment_prompt": "确定要将笔记 '{{title}}' 转换为父笔记的附件吗？"
   },
   "onclick_button": {
     "no_click_handler": "按钮组件'{{componentId}}'没有定义点击处理程序"
@@ -885,7 +900,8 @@
     "label_rock_or_pop": "只需一个标签存在即可",
     "label_year_comparison": "数字比较（也包括>，>=，<）。",
     "label_date_created": "上个月创建的笔记",
-    "error": "搜索错误：{{error}}"
+    "error": "搜索错误：{{error}}",
+    "search_prefix": "搜索:"
   },
   "attachment_detail": {
     "open_help_page": "打开附件帮助页面",
@@ -919,7 +935,15 @@
   },
   "protected_session": {
     "enter_password_instruction": "显示受保护的笔记需要输入您的密码：",
-    "start_session_button": "开始受保护的会话"
+    "start_session_button": "开始受保护的会话",
+    "started": "受保护的会话已启动。",
+    "wrong_password": "密码错误。",
+    "protecting-finished-successfully": "保护操作已成功完成。",
+    "unprotecting-finished-successfully": "解除保护操作已成功完成。",
+    "protecting-in-progress": "保护进行中：{{count}}",
+    "unprotecting-in-progress-count": "解除保护进行中：{{count}}",
+    "protecting-title": "保护状态",
+    "unprotecting-title": "解除保护状态"
   },
   "relation_map": {
     "open_in_new_tab": "在新标签页中打开",
@@ -990,7 +1014,9 @@
     "fill_entity_changes_button": "填充实体变更记录",
     "full_sync_triggered": "全量同步已触发",
     "filling_entity_changes": "正在填充实体变更行...",
-    "sync_rows_filled_successfully": "同步行填充成功"
+    "sync_rows_filled_successfully": "同步行填充成功",
+    "finished-successfully": "同步已完成。",
+    "failed": "同步失败：{{message}}"
   },
   "vacuum_database": {
     "title": "数据库清理",
@@ -1036,8 +1062,13 @@
     "theme_label": "主题",
     "override_theme_fonts_label": "覆盖主题字体",
     "light_theme": "浅色",
-    "dark_theme": "深色"
-  },
+    "dark_theme": "深色",
+    "layout": "布局",
+    "layout-vertical-title": "垂直",
+    "layout-horizontal-title": "水平",
+    "layout-vertical-description": "启动栏位于左侧（默认）",
+    "layout-horizontal-description": "启动栏位于标签栏下方，标签栏现在是全宽的。"
+ },
   "zoom_factor": {
     "title": "缩放系数（仅桌面客户端有效）",
     "description": "缩放也可以通过 CTRL+- 和 CTRL+= 快捷键进行控制。"
@@ -1162,6 +1193,8 @@
     "backup_now": "立即备份",
     "backup_database_now": "立即备份数据库",
     "existing_backups": "现有备份",
+    "date-and-time": "日期和时间",
+    "path": "路径",
     "database_backed_up_to": "数据库已备份到",
     "no_backup_yet": "尚无备份"
   },
@@ -1309,7 +1342,9 @@
     "duplicate-subtree": "复制子树",
     "export": "导出",
     "import-into-note": "导入到笔记",
-    "apply-bulk-actions": "应用批量操作"
+    "apply-bulk-actions": "应用批量操作",
+    "converted-to-attachments": "{{count}} 个笔记已被转换为附件。",
+    "convert-to-attachment-confirm": "确定要将选中的笔记转换为其父笔记的附件吗？"
   },
   "shared_info": {
     "shared_publicly": "此笔记已公开分享在",
@@ -1332,7 +1367,8 @@
     "image": "图片",
     "launcher": "启动器",
     "doc": "文档",
-    "widget": "小部件"
+    "widget": "小部件",
+    "confirm-change": "当笔记内容不为空时，不建议更改笔记类型。您仍然要继续吗？"
   },
   "protect_note": {
     "toggle-on": "保护笔记",
@@ -1355,7 +1391,11 @@
   "open-help-page": "打开帮助页面",
   "find": {
     "case_sensitive": "区分大小写",
-    "match_words": "匹配单词"
+    "match_words": "匹配单词",
+    "find_placeholder": "在文本中查找...",
+    "replace_placeholder": "替换为...",
+    "replace": "替换",
+    "replace_all": "全部替换"
   },
   "highlights_list_2": {
     "title": "高亮列表",
@@ -1378,7 +1418,9 @@
     "hide-archived-notes": "隐藏已归档笔记",
     "automatically-collapse-notes": "自动折叠笔记",
     "automatically-collapse-notes-title": "笔记在一段时间内未使用将被折叠，以减少树形结构的杂乱。",
-    "save-changes": "保存并应用更改"
+    "save-changes": "保存并应用更改",
+    "auto-collapsing-notes-after-inactivity": "在不活动后自动折叠笔记...",
+    "saved-search-note-refreshed": "已保存的搜索笔记已刷新。"
   },
   "title_bar_buttons": {
     "window-on-top": "保持此窗口置顶"
@@ -1407,8 +1449,11 @@
     "add_new_tab": "添加新标签页",
     "close": "关闭",
     "close_other_tabs": "关闭其他标签页",
+    "close_right_tabs": "关闭右侧标签页",
     "close_all_tabs": "关闭所有标签页",
+    "reopen_last_tab": "重新打开最后一个关闭的标签页",
     "move_tab_to_new_window": "将此标签页移动到新窗口",
+    "copy_tab_to_new_window": "将此标签页复制到新窗口",
     "new_tab": "新标签页"
   },
   "toc": {
@@ -1422,5 +1467,101 @@
   },
   "app_context": {
     "please_wait_for_save": "请等待几秒钟以完成保存，然后您可以尝试再操作一次。"
+  },
+  "note_create": {
+    "duplicated": "笔记 \"{{title}}\" 已被复制。"
+  },
+  "image": {
+    "copied-to-clipboard": "图片的引用已复制到剪贴板，可以粘贴到任何文本笔记中。",
+    "cannot-copy": "无法将图片引用复制到剪贴板。"
+  },
+  "clipboard": {
+    "cut": "笔记已剪切到剪贴板。",
+    "copied": "笔记已复制到剪贴板。"
+  },
+  "entrypoints": {
+    "note-revision-created": "笔记修订已创建。",
+    "note-executed": "笔记已执行。",
+    "sql-error": "执行 SQL 查询时发生错误：{{message}}"
+  },
+  "branches": {
+    "cannot-move-notes-here": "无法将笔记移动到这里。",
+    "delete-status": "删除状态",
+    "delete-notes-in-progress": "正在删除笔记：{{count}}",
+    "delete-finished-successfully": "删除成功完成。",
+    "undeleting-notes-in-progress": "正在恢复删除的笔记：{{count}}",
+    "undeleting-notes-finished-successfully": "恢复删除的笔记已成功完成。"
+  },
+  "frontend_script_api": {
+    "async_warning": "您正在将一个异步函数传递给 `api.runOnBackend()`，这可能无法按预期工作。\\n要么使该函数同步（通过移除 `async` 关键字），要么使用 `api.runAsyncOnBackendWithManualTransactionHandling()`。",
+    "sync_warning": "您正在将一个同步函数传递给 `api.runAsyncOnBackendWithManualTransactionHandling()`，\\n而您可能应该使用 `api.runOnBackend()`。"
+  },
+  "ws": {
+    "sync-check-failed": "同步检查失败！",
+    "consistency-checks-failed": "一致性检查失败！请查看日志了解详细信息。",
+    "encountered-error": "遇到错误 \"{{message}}\"，请查看控制台。"
+  },
+  "hoisted_note": {
+    "confirm_unhoisting": "请求的笔记 '{{requestedNote}}' 位于提升的笔记 '{{hoistedNote}}' 的子树之外，您必须取消提升才能访问该笔记。是否继续取消提升？"
+  },
+  "launcher_context_menu": {
+    "reset_launcher_confirm": "您确定要重置 \"{{title}}\" 吗？此笔记（及其子项）中的所有数据/设置将丢失，且启动器将恢复到其原始位置。",
+    "add-note-launcher": "添加笔记启动器",
+    "add-script-launcher": "添加脚本启动器",
+    "add-custom-widget": "添加自定义小部件",
+    "add-spacer": "添加间隔",
+    "delete": "删除",
+    "reset": "重置",
+    "move-to-visible-launchers": "移动到可见启动器",
+    "move-to-available-launchers": "移动到可用启动器",
+    "duplicate-launcher": "复制启动器"
+  },
+  "editable-text": {
+    "auto-detect-language": "自动检测"
+  },
+  "highlighting": {
+    "title": "文本笔记的代码语法高亮",
+    "description": "控制文本笔记中代码块的语法高亮，代码笔记不会受到影响。",
+    "color-scheme": "颜色方案"
+  },
+  "code_block": {
+    "word_wrapping": "自动换行"
+  },
+  "classic_editor_toolbar": {
+    "title": "格式化"
+  },
+  "editor": {
+    "title": "编辑器"
+  },
+  "editing": {
+    "editor_type": {
+      "label": "格式化工具栏",
+      "floating": {
+        "title": "浮动",
+        "description": "编辑工具出现在光标附近;"
+      },
+      "fixed": {
+        "title": "固定",
+        "description": "编辑工具出现在 \"格式化\" 功能区标签中。"
+      }
+    }
+  },
+  "electron_context_menu": {
+    "add-term-to-dictionary": "将 \"{{term}}\" 添加到字典",
+    "cut": "剪切",
+    "copy": "复制",
+    "copy-link": "复制链接",
+    "paste": "粘贴",
+    "paste-as-plain-text": "以纯文本粘贴",
+    "search_online": "用 {{searchEngine}} 搜索 \"{{term}}\""
+  },
+  "image_context_menu": {
+    "copy_reference_to_clipboard": "复制引用到剪贴板",
+    "copy_image_to_clipboard": "复制图片到剪贴板"
+  },
+  "link_context_menu": {
+    "open_note_in_new_tab": "在新标签页中打开笔记",
+    "open_note_in_new_split": "在新分屏中打开笔记",
+    "open_note_in_new_window": "在新窗口中打开笔记"
   }
 }

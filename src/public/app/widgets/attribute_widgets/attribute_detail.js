@@ -125,6 +125,7 @@ const TPL = `
                   <option value="boolean">${t('attribute_detail.boolean')}</option>
                   <option value="date">${t('attribute_detail.date')}</option>
                   <option value="datetime">${t('attribute_detail.date_time')}</option>
+                  <option value="time">${t('attribute_detail.time')}</option>
                   <option value="url">${t('attribute_detail.url')}</option>
                 </select>
             </td>

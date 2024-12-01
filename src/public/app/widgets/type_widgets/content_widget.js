@@ -25,9 +25,9 @@ import NoteErasureTimeoutOptions from "./options/other/note_erasure_timeout.js";
 import RevisionsSnapshotIntervalOptions from "./options/other/revisions_snapshot_interval.js";
 import RevisionSnapshotsLimitOptions from "./options/other/revision_snapshots_limit.js";
 import NetworkConnectionsOptions from "./options/other/network_connections.js";
+import HtmlImportTagsOptions from "./options/other/html_import_tags.js";
 import AdvancedSyncOptions from "./options/advanced/sync.js";
 import DatabaseIntegrityCheckOptions from "./options/advanced/database_integrity_check.js";
-import ConsistencyChecksOptions from "./options/advanced/consistency_checks.js";
 import VacuumDatabaseOptions from "./options/advanced/vacuum_database.js";
 import DatabaseAnonymizationOptions from "./options/advanced/database_anonymization.js";
 import BackendLogWidget from "./content/backend_log.js";
@@ -96,11 +96,11 @@ const CONTENT_WIDGETS = {
         RevisionsSnapshotIntervalOptions,
         RevisionSnapshotsLimitOptions,
         NetworkConnectionsOptions,
+        HtmlImportTagsOptions,
         ShareSettingsOptions
     ],
     _optionsAdvanced: [
         DatabaseIntegrityCheckOptions,
-        ConsistencyChecksOptions,
         DatabaseAnonymizationOptions,
         AdvancedSyncOptions,
         VacuumDatabaseOptions
@@ -123,6 +123,7 @@ export default class ContentWidgetTypeWidget extends TypeWidget {
         this.children = [];
 
         const contentWidgets = CONTENT_WIDGETS[note.noteId];
+        this.$content.toggleClass("options", note.noteId.startsWith("_options"));
 
         if (contentWidgets) {
             for (const clazz of contentWidgets) {

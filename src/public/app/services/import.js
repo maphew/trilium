@@ -3,6 +3,7 @@ import server from "./server.js";
 import ws from "./ws.js";
 import utils from "./utils.js";
 import appContext from "../components/app_context.js";
+import { t } from "./i18n.js";
 
 export async function uploadFiles(entityType, parentNoteId, files, options) {
     if (!['notes', 'attachments'].includes(entityType)) {
@@ -47,7 +48,7 @@ export async function uploadFiles(entityType, parentNoteId, files, options) {
 function makeToast(id, message) {
     return {
         id: id,
-        title: "Import status",
+        title: t("import.import-status"),
         message: message,
         icon: "plus"
     };
@@ -62,9 +63,9 @@ ws.subscribeToMessages(async message => {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message.taskId, `Import in progress: ${message.progressCount}`));
+        toastService.showPersistent(makeToast(message.taskId, t("import.in-progress", { progress: message.progressCount })));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message.taskId, "Import finished successfully.");
+        const toast = makeToast(message.taskId, t("import.successful"));
         toast.closeAfter = 5000;
 
         toastService.showPersistent(toast);
@@ -84,9 +85,9 @@ ws.subscribeToMessages(async message => {
         toastService.closePersistent(message.taskId);
         toastService.showError(message.message);
     } else if (message.type === 'taskProgressCount') {
-        toastService.showPersistent(makeToast(message.taskId, `Import in progress: ${message.progressCount}`));
+        toastService.showPersistent(makeToast(message.taskId, t("import.in-progress", { progress: message.progressCount })));
     } else if (message.type === 'taskSucceeded') {
-        const toast = makeToast(message.taskId, "Import finished successfully.");
+        const toast = makeToast(message.taskId, t("import.successful"));
         toast.closeAfter = 5000;
 
         toastService.showPersistent(toast);

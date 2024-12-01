@@ -1,3 +1,4 @@
+import { t } from '../services/i18n.js';
 import utils from "../services/utils.js";
 import contextMenu from "./context_menu.js";
 import imageService from "../services/image.js";
@@ -18,14 +19,14 @@ function setupContextMenu($image) {
             y: e.pageY,
             items: [
                 {
-                    title: "Copy reference to clipboard",
+                    title: t("image_context_menu.copy_reference_to_clipboard"),
                     command: "copyImageReferenceToClipboard",
                     uiIcon: "bx bx-directions"
                 },
-                { 
-                    title: "Copy image to clipboard",
+                {
+                    title: t("image_context_menu.copy_image_to_clipboard"),
                     command: "copyImageToClipboard",
-                    uiIcon: "bx bx-copy" 
+                    uiIcon: "bx bx-copy"
                 },
             ],
             selectMenuItemHandler: async ({ command }) => {

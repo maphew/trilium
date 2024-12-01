@@ -3,6 +3,12 @@ description: Report a bug
 title: "(Bug report) "
 labels: "Type: Bug"
 body:
+- type: textarea
+  attributes:
+    label: Description
+    description: A clear and concise description of the bug and any additional information.
+  validations:
+    required: true
 - type: input
   attributes:
     label: TriliumNext Version
@@ -36,12 +42,6 @@ body:
     label: Operating System Version
     description: What operating system version are you using? On Windows, click Start button > Settings > System > About. On macOS, click the Apple Menu > About This Mac. On Linux, use lsb_release or uname -a.
     placeholder: "e.g. Windows 10 version 1909, macOS Catalina 10.15.7, or Ubuntu 20.04"
-  validations:
-    required: true
-- type: textarea
-  attributes:
-    label: Description
-    description: A clear and concise description of the bug and any additional information.
   validations:
     required: true
 - type: textarea

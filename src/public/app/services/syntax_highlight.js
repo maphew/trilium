@@ -32,7 +32,7 @@ export async function applySyntaxHighlight($container) {
             continue;
         }
         
-        applySingleBlockSyntaxHighlight($(codeBlock, normalizedMimeType));
+        applySingleBlockSyntaxHighlight($(codeBlock), normalizedMimeType);
     }
 }
 
@@ -86,7 +86,7 @@ function extractLanguageFromClassList(el) {
     const prefix = "language-";
     for (const className of el.classList) {
         if (className.startsWith(prefix)) {
-            return className.substr(prefix.length);
+            return className.substring(prefix.length);
         }
     }
 

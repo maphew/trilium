@@ -7,11 +7,15 @@ export default class LeftPaneToggleWidget extends CommandButtonWidget {
     constructor(isHorizontalLayout) {
         super();
 
-        this.class("launcher-button");
+        this.class(isHorizontalLayout ? "toggle-button" : "launcher-button");
 
-        this.settings.icon = () => options.is('leftPaneVisible')
-            ? "bx-chevrons-left"
-            : "bx-chevrons-right";
+        this.settings.icon = () => {
+            if (options.get("layoutOrientation") === "horizontal") {
+                return "bx-sidebar";
+            }
+
+            return (options.is('leftPaneVisible') ? "bx-chevrons-left" : "bx-chevrons-right");
+        };
 
         this.settings.title = () => options.is('leftPaneVisible')
             ? t("left_pane_toggle.hide_panel")

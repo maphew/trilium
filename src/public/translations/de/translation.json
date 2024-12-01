@@ -310,6 +310,7 @@
     "boolean": "Boolescher Wert",
     "date": "Datum",
     "date_time": "Datum und Uhrzeit",
+    "time": "Uhrzeit",
     "url": "URL",
     "precision_title": "Wie viele Nachkommastellen im Wert-Einstellungs-Interface verfügbar sein sollen.",
     "precision": "Präzision",

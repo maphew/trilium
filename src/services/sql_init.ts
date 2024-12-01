@@ -57,7 +57,6 @@ async function createInitialDatabase() {
 
     const schema = fs.readFileSync(`${resourceDir.DB_INIT_DIR}/schema.sql`, "utf-8");
     const demoFile = fs.readFileSync(`${resourceDir.DB_INIT_DIR}/demo.zip`);
-    const defaultTheme = await getDefaultTheme();
 
     let rootNote!: BNote;
 
@@ -90,7 +89,7 @@ async function createInitialDatabase() {
         }).save();
         
         optionsInitService.initDocumentOptions();
-        optionsInitService.initNotSyncedOptions(true, defaultTheme, {});
+        optionsInitService.initNotSyncedOptions(true, {});
         optionsInitService.initStartupOptions();
         password.resetPassword();
     });
@@ -128,7 +127,6 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', 
         throw new Error("DB is already initialized");
     }
 
-    const defaultTheme = await getDefaultTheme();
     const schema = fs.readFileSync(`${resourceDir.DB_INIT_DIR}/schema.sql`, "utf8");
 
     // We have to import async since options init requires keyboard actions which require translations.
@@ -137,7 +135,7 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', 
     sql.transactional(() => {
         sql.executeScript(schema);
 
-        optionsInitService.initNotSyncedOptions(false, defaultTheme, { syncServerHost, syncProxy });
+        optionsInitService.initNotSyncedOptions(false, { syncServerHost, syncProxy });
 
         // document options required for sync to kick off
         for (const opt of options) {
@@ -146,16 +144,6 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', 
     });
 
     log.info("Schema and not synced options generated.");
-}
-
-async function getDefaultTheme() {
-    if (utils.isElectron()) {
-        const {nativeTheme} = await import("electron");
-        return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
-    } else {
-        // default based on the poll in https://github.com/zadam/trilium/issues/2516
-        return "dark";
-    }
 }
 
 function setDbAsInitialized() {

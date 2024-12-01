@@ -117,6 +117,7 @@ export default class MobileLayout {
 
         return new RootContainer(launcherPaneIsHorizontal)
             .setParent(appContext)
+            .class((launcherPaneIsHorizontal ? "horizontal" : "vertical") + "-layout")
             .cssBlock(MOBILE_CSS)
             .child(this.#buildLauncherPane(launcherPaneIsHorizontal))
             .child(new FlexContainer("row")

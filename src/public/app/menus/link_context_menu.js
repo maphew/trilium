@@ -1,3 +1,4 @@
+import { t } from "../services/i18n.js";
 import contextMenu from "./context_menu.js";
 import appContext from "../components/app_context.js";
 
@@ -6,9 +7,9 @@ function openContextMenu(notePath, e, viewScope = {}, hoistedNoteId = null) {
         x: e.pageX,
         y: e.pageY,
         items: [
-            {title: "Open note in a new tab", command: "openNoteInNewTab", uiIcon: "bx bx-link-external"},
-            {title: "Open note in a new split", command: "openNoteInNewSplit", uiIcon: "bx bx-dock-right"},
-            {title: "Open note in a new window", command: "openNoteInNewWindow", uiIcon: "bx bx-window-open"}
+            {title: t("link_context_menu.open_note_in_new_tab"), command: "openNoteInNewTab", uiIcon: "bx bx-link-external"},
+            {title: t("link_context_menu.open_note_in_new_split"), command: "openNoteInNewSplit", uiIcon: "bx bx-dock-right"},
+            {title: t("link_context_menu.open_note_in_new_window"), command: "openNoteInNewWindow", uiIcon: "bx bx-window-open"}
         ],
         selectMenuItemHandler: ({command}) => {
             if (!hoistedNoteId) {

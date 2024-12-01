@@ -98,7 +98,10 @@ export default class DesktopLayout {
 
         return new RootContainer(launcherPaneIsHorizontal)
             .setParent(appContext)
-            .optChild(launcherPaneIsHorizontal, new FlexContainer('row')               
+            .class((launcherPaneIsHorizontal ? "horizontal" : "vertical") + "-layout")
+            .optChild(launcherPaneIsHorizontal, new FlexContainer('row')
+                .class("tab-row-container")
+                .child(new LeftPaneToggleWidget(true))
                 .child(new TabRowWidget().class("full-width"))
                 .child(new TitleBarButtonsWidget())
                 .css('height', '40px')
@@ -149,8 +152,7 @@ export default class DesktopLayout {
                                                 // the order of the widgets matter. Some of these want to "activate" themselves
                                                 // when visible. When this happens to multiple of them, the first one "wins".
                                                 // promoted attributes should always win.
-                                                .ribbon(new ClassicEditorToolbar())
-                                                .ribbon(new PromotedAttributesWidget())
+                                                .ribbon(new ClassicEditorToolbar())                                                
                                                 .ribbon(new ScriptExecutorWidget())
                                                 .ribbon(new SearchDefinitionWidget())
                                                 .ribbon(new EditedNotesWidget())
@@ -185,6 +187,7 @@ export default class DesktopLayout {
                                         .child(
                                             new ScrollingContainer()
                                                 .filling()
+                                                .child(new PromotedAttributesWidget())
                                                 .child(new SqlTableSchemasWidget())
                                                 .child(new NoteDetailWidget())
                                                 .child(new NoteListWidget())
@@ -242,7 +245,6 @@ export default class DesktopLayout {
             launcherPane = new FlexContainer("row")
                 .css("height", "53px")
                 .class("horizontal")
-                .child(new LeftPaneToggleWidget(true))
                 .child(new LauncherContainer(true))
                 .child(new GlobalMenuWidget(true))
         } else {

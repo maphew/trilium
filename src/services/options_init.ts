@@ -38,10 +38,9 @@ interface DefaultOption {
  * Initializes the default options for new databases only.
  * 
  * @param initialized `true` if the database has been fully initialized (i.e. a new database was created), or `false` if the database is created for sync.
- * @param theme the theme to set as default, based on a user's system preference.
  * @param opts additional options to be initialized, for example the sync configuration.
  */
-async function initNotSyncedOptions(initialized: boolean, theme: string, opts: NotSyncedOpts = {}) {
+async function initNotSyncedOptions(initialized: boolean, opts: NotSyncedOpts = {}) {
     optionService.createOption('openNoteContexts', JSON.stringify([
         {
             notePath: 'root',
@@ -59,7 +58,7 @@ async function initNotSyncedOptions(initialized: boolean, theme: string, opts: N
     optionService.createOption('lastSyncedPull', '0', false);
     optionService.createOption('lastSyncedPush', '0', false);    
 
-    optionService.createOption('theme', theme, false);
+    optionService.createOption('theme', 'next', false);
     
     optionService.createOption('syncServerHost', opts.syncServerHost || '', false);
     optionService.createOption('syncServerTimeout', '120000', false);
@@ -136,6 +135,20 @@ const defaultOptions: DefaultOption[] = [
     // Text note configuration
     { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
 
+    // HTML import configuration
+    { name: "layoutOrientation", value: "vertical", isSynced: false },
+    { name: "allowedHtmlTags", value: JSON.stringify([
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol',
+        'li', 'b', 'i', 'strong', 'em', 'strike', 's', 'del', 'abbr', 'code', 'hr', 'br', 'div',
+        'table', 'thead', 'caption', 'tbody', 'tfoot', 'tr', 'th', 'td', 'pre', 'section', 'img',
+        'figure', 'figcaption', 'span', 'label', 'input', 'details', 'summary', 'address', 'aside', 'footer',
+        'header', 'hgroup', 'main', 'nav', 'dl', 'dt', 'menu', 'bdi', 'bdo', 'dfn', 'kbd', 'mark', 'q', 'time',
+        'var', 'wbr', 'area', 'map', 'track', 'video', 'audio', 'picture', 'del', 'ins',
+        'en-media',
+        'acronym', 'article', 'big', 'button', 'cite', 'col', 'colgroup', 'data', 'dd',
+        'fieldset', 'form', 'legend', 'meter', 'noscript', 'option', 'progress', 'rp',
+        'samp', 'small', 'sub', 'sup', 'template', 'textarea', 'tt'
+    ]), isSynced: true },
     { name: "layoutOrientation", value: "vertical", isSynced: false },
 
     // Share settings

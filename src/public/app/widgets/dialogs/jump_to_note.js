@@ -58,7 +58,7 @@ export default class JumpToNoteDialog extends BasicWidget {
         noteAutocompleteService.initNoteAutocomplete(this.$autoComplete, {
             allowCreatingNotes: true,
             hideGoToSelectedNoteButton: true,
-            allowSearchNotes: true,
+            allowJumpToSearchNotes: true,
             container: this.$results
         })
             // clear any event listener added in previous invocation of this function

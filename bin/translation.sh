@@ -17,17 +17,45 @@
 #
 # --------------------------------------------------------------------------------------------------
 
+number_of_keys() {
+	[ -f "$1" ] && jq 'path(..) | select(length == 2) | .[1]' "$1" | wc -l || echo "0"
+}
+
 stats() {
 	# Print the number of existing strings on the JSON files for each locale
-	s=$(jq 'path(..) | select(length == 2) | .[1]' "${paths[0]}/en/server.json" | wc -l)
-	c=$(jq 'path(..) | select(length == 2) | .[1]' "${paths[1]}/en/translation.json" | wc -l)
-	echo "|locale |server strings |client strings |"
-	echo "|-------|---------------|---------------|"
-	echo "|  en   |      ${s}      |     ${c}      |"
+	s=$(number_of_keys "${paths[0]}/en/server.json")
+	c=$(number_of_keys "${paths[1]}/en/translation.json")
+	echo "| locale |server strings |client strings |"
+	echo "|--------|---------------|---------------|"
+	echo "|   en   |      ${s}      |     ${c}      |"
 	for locale in "${locales[@]}"; do
-		s=$(jq 'path(..) | select(length == 2) | .[1]' "${paths[0]}/${locale}/server.json" | wc -l)
-		c=$(jq 'path(..) | select(length == 2) | .[1]' "${paths[1]}/${locale}/translation.json" | wc -l)
-		echo "|  ${locale}   |      ${s}      |     ${c}      |"
+		s=$(number_of_keys "${paths[0]}/${locale}/server.json")
+		c=$(number_of_keys "${paths[1]}/${locale}/translation.json")
+		n1=$(((8 - ${#locale}) / 2))
+		n2=$((n1 == 1 ? n1 + 1 : n1))
+		echo "|$(printf "%${n1}s")${locale}$(printf "%${n2}s")|      ${s}      |     ${c}      |"
+	done
+}
+
+update_1() {
+	# Update PO files from English and localized JSON files as source
+	# NOTE: if you want a new language you need to first create the JSON files
+	# on their corresponding place with `{}` as content to avoid error on `json2po`
+	local locales=("$@")
+	for path in "${paths[@]}"; do
+		for locale in "${locales[@]}"; do
+			json2po -t "${path}/en" "${path}/${locale}" "${path}/po-${locale}"
+		done
+	done
+}
+
+update_2() {
+	# Recover translation from PO files to localized JSON files
+	local locales=("$@")
+	for path in "${paths[@]}"; do
+		for locale in "${locales[@]}"; do
+			po2json -t "${path}/en" "${path}/po-${locale}" "${path}/${locale}"
+		done
 	done
 }
 
@@ -35,11 +63,11 @@ help() {
 	echo -e "\nDescription:"
 	echo -e "\tCreate PO files to make easier the labor of translation"
 	echo -e "\nUsage:"
-	echo -e "\t./translation.sh [--stats] [--update <OPT_LOCALE>] [--update2 <OPT_LOCALE>]"
+	echo -e "\t./translation.sh [--stats] [--update1 <OPT_LOCALE>] [--update2 <OPT_LOCALE>]"
 	echo -e "\nFlags:"
 	echo -e "  --clear\n\tClear all po-* directories"
 	echo -e "  --stats\n\tPrint the number of existing strings on the JSON files for each locale"
-	echo -e "  --update <LOCALE>\n\tUpdate PO files from English and localized JSON files as source"
+	echo -e "  --update1 <LOCALE>\n\tUpdate PO files from English and localized JSON files as source"
 	echo -e "  --update2 <LOCALE>\n\tRecover translation from PO files to localized JSON files"
 }
 
@@ -51,7 +79,7 @@ file_path="$(
 	pwd -P
 )"
 paths=("${file_path}/../translations/" "${file_path}/../src/public/translations/")
-locales=(cn es fr ro)
+locales=(cn de es fr pt_br ro tw)
 
 if [ $# -eq 1 ]; then
 	if [ "$1" == "--clear" ]; then
@@ -62,34 +90,18 @@ if [ $# -eq 1 ]; then
 		done
 	elif [ "$1" == "--stats" ]; then
 		stats
-	elif [ "$1" == "--update" ]; then
-		# Update PO files from English and localized JSON files as source
-		for path in "${paths[@]}"; do
-			for locale in "${locales[@]}"; do
-				json2po -t "${path}/en" "${path}/${locale}" "${path}/po-${locale}"
-			done
-		done
+	elif [ "$1" == "--update1" ]; then
+		update_1 "${locales[@]}"
 	elif [ "$1" == "--update2" ]; then
-		# Recover translation from PO files to localized JSON files
-		for path in "${paths[@]}"; do
-			for locale in "${locales[@]}"; do
-				po2json -t "${path}/en" "${path}/po-${locale}" "${path}/${locale}"
-			done
-		done
+		update_2 "${locales[@]}"
 	else
 		help
 	fi
 elif [ $# -eq 2 ]; then
-	if [ "$1" == "--update" ]; then
-		locale="$2"
-		for path in "${paths[@]}"; do
-			json2po -t "${path}/en" "${path}/${locale}" "${path}/po-${locale}"
-		done
+	if [ "$1" == "--update1" ]; then
+		update_1 "$2"
 	elif [ "$1" == "--update2" ]; then
-		locale="$2"
-		for path in "${paths[@]}"; do
-			po2json -t "${path}/en" "${path}/po-${locale}" "${path}/${locale}"
-		done
+		update_2 "$2"
 	else
 		help
 	fi

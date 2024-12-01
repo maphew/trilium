@@ -12,6 +12,7 @@ import FAttachment from "../entities/fattachment.js";
 import imageContextMenuService from "../menus/image_context_menu.js";
 import { applySingleBlockSyntaxHighlight, applySyntaxHighlight } from "./syntax_highlight.js";
 import mime_types from "./mime_types.js";
+import { loadElkIfNeeded } from "./mermaid.js";
 
 let idCounter = 1;
 
@@ -237,6 +238,7 @@ async function renderMermaid(note, $renderedContent) {
     mermaid.mermaidAPI.initialize({startOnLoad: false, theme: mermaidTheme.trim(), securityLevel: 'antiscript'});
 
     try {
+        await loadElkIfNeeded(content);
         const {svg} = await mermaid.mermaidAPI.render("in-mermaid-graph-" + idCounter++, content);
 
         $renderedContent.append($(svg));
