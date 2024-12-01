@@ -8,3 +8,4 @@ node_modules
 
 src/**/*.ts
 !src/services/asset_path.ts
+!src/types.d.ts

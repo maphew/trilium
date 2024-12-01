@@ -3,7 +3,8 @@ FROM triliumnext/notes
 WORKDIR /usr/src/app
 
 # Install TypeScript and build dependencies
-RUN npm install -g typescript
+# Only typescript, no ts-node needed
+RUN npm install -g --no-cache typescript
 
 # Copy package files and install dependencies
 COPY package*.json tsconfig.json ./
@@ -12,11 +13,12 @@ RUN npm install
 # Copy source files
 COPY . .
 
-# Build TypeScript files and clean up
+# Build TypeScript files. 
+# Pruning removes dev dependencies, and del .cache to reduce image size
 RUN npm run webpack && \
-    tsc && \
-    cp -R build/src/* src/. && \
-    rm -rf build && \
+    npm run prepare-dist && \
+    cp -R dist/* src/. && \
+    rm -rf dist && \
     npm prune --production && \
     rm -rf node_modules/.cache
 
