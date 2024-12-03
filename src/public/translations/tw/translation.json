@@ -93,7 +93,7 @@
     "export_note_title": "匯出筆記",
     "close": "關閉",
     "export_type_subtree": "此筆記及其所有子筆記",
-    "format_html": "HTML ZIP 歸檔 - 建議使用此選項，因為它保留了所有格式。",
+    "format_html_zip": "HTML ZIP 歸檔 - 建議使用此選項，因為它保留了所有格式。",
     "format_markdown": "Markdown - 保留大部分格式。",
     "format_opml": "OPML - 大綱交換格式，僅限文字。不包括格式、圖片和文件。",
     "opml_version_1": "OPML v1.0 - 僅限純文字",

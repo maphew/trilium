@@ -89,7 +89,7 @@
     "export_note_title": "Exporter la note",
     "close": "Fermer",
     "export_type_subtree": "cette note et tous ses descendants",
-    "format_html": "HTML dans l'archive ZIP - recommandé car cela préserve tout le formatage.",
+    "format_html_zip": "HTML dans l'archive ZIP - recommandé car cela préserve tout le formatage.",
     "format_markdown": "Markdown - préserve la majeure partie du formatage.",
     "format_opml": "OPML - format d'échange pour les outlineurs, uniquement pour le texte. Les mises en forme, images et fichiers ne sont pas inclus.",
     "opml_version_1": "OPML v1.0 - texte brut uniquement",

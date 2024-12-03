@@ -146,7 +146,7 @@ export default class PromotedAttributesWidget extends NoteContextAwareWidget {
 
     async createPromotedAttributeCell(definitionAttr, valueAttr, valueName) {
         const definition = definitionAttr.getDefinition();
-        const id = `value-${this.noteId}-${definitionAttr.position}`;
+        const id = `value-${valueAttr.attributeId}`;
 
         const $input = $("<input>")
             .prop("tabindex", 200 + definitionAttr.position)

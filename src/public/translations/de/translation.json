@@ -88,7 +88,7 @@
     "export_note_title": "Notiz exportieren",
     "close": "Schließen",
     "export_type_subtree": "diese Notiz und alle ihre Unternotizen",
-    "format_html": "HTML im ZIP-Archiv – dies wird empfohlen, da dadurch die gesamte Formatierung erhalten bleibt.",
+    "format_html_zip": "HTML im ZIP-Archiv – dies wird empfohlen, da dadurch die gesamte Formatierung erhalten bleibt.",
     "format_markdown": "Markdown – dadurch bleiben die meisten Formatierungen erhalten.",
     "format_opml": "OPML – Outliner-Austauschformat nur für Text. Formatierungen, Bilder und Dateien sind nicht enthalten.",
     "opml_version_1": "OPML v1.0 – nur Klartext",

@@ -54,7 +54,7 @@ enum Command {
  * duplicate subtrees. This way, all instances will generate the same structure with the same IDs.
  */
 
-let HIDDEN_SUBTREE_DEFINITION = buildHiddenSubtreeDefinition();
+let hiddenSubtreeDefinition: Item;
 
 function buildHiddenSubtreeDefinition(): Item {
     return {
@@ -288,11 +288,11 @@ function checkHiddenSubtree(force = false, extraOpts: CheckHiddenExtraOpts = {})
         return;
     }
 
-    if (force) {
-        HIDDEN_SUBTREE_DEFINITION = buildHiddenSubtreeDefinition();
+    if (!hiddenSubtreeDefinition || force) {
+        hiddenSubtreeDefinition = buildHiddenSubtreeDefinition();
     }
 
-    checkHiddenSubtreeRecursively('root', HIDDEN_SUBTREE_DEFINITION, extraOpts);
+    checkHiddenSubtreeRecursively('root', hiddenSubtreeDefinition, extraOpts);
 }
 
 function checkHiddenSubtreeRecursively(parentNoteId: string, item: Item, extraOpts: CheckHiddenExtraOpts = {}) {

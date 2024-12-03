@@ -138,7 +138,7 @@ span.fancytree-node.protected > span.fancytree-custom-icon {
 span.fancytree-node.multiple-parents.shared .fancytree-title::after {
     font-family: 'boxicons' !important;
     font-size: smaller;
-    content: " \eb3d  \ec03";
+    content: " \eb3d \ec03";
 }
 
 span.fancytree-node.multiple-parents .fancytree-title::after {

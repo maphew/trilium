@@ -49,7 +49,7 @@ const TPL = `
                         <div class="form-check">
                             <label class="form-check-label">
                                 <input class="form-check-input" type="radio" name="export-subtree-format" value="html">
-                                ${t('export.format_html')}
+                                ${t('export.format_html_zip')}
                             </label>
                         </div>
 

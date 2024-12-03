@@ -509,7 +509,7 @@
     "export_status": "Starea exportului",
     "export_type_single": "doar această notiță fără descendenții ei",
     "export_type_subtree": "această notiță și toți descendenții ei",
-    "format_html": "HTML în arhivă ZIP - recomandat deoarece păstrează toată formatarea",
+    "format_html_zip": "HTML în arhivă ZIP - recomandat deoarece păstrează toată formatarea",
     "format_markdown": "Markdown - păstrează majoritatea formatării",
     "format_opml": "OPML - format de interschimbare pentru editoare cu structură ierarhică (outline). Formatarea, imaginile și fișierele nu vor fi incluse.",
     "opml_version_1": "OPML v1.0 - text simplu",

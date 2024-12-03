@@ -52,7 +52,8 @@ function sanitize(dirtyHtml: string) {
     return sanitizeHtml(dirtyHtml, {
         allowedTags,
         allowedAttributes: {
-            '*': [ 'class', 'style', 'title', 'src', 'href', 'hash', 'disabled', 'align', 'alt', 'center', 'data-*' ]
+            "*": [ 'class', 'style', 'title', 'src', 'href', 'hash', 'disabled', 'align', 'alt', 'center', 'data-*' ],
+            "input": [ "type", "checked" ]
         },
         allowedSchemes: [
             'http', 'https', 'ftp', 'ftps', 'mailto', 'data', 'evernote', 'file', 'facetime', 'irc', 'gemini', 'git',

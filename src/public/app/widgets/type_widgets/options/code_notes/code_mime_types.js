@@ -62,14 +62,14 @@ export default class CodeMimeTypesOptions extends OptionsWidget {
         const groupedMimeTypes = groupMimeTypesAlphabetically(ungroupedMimeTypes);
 
         // Plain text is displayed at the top intentionally.
-        this.$mimeTypes.append(buildSelectionForMimeType(plainTextMimeType));
+        this.$mimeTypes.append(buildSelectionForMimeType.call(this, plainTextMimeType));
         
         for (const [ initial, mimeTypes ] of Object.entries(groupedMimeTypes)) {
             const $section = $("<section>");
             $section.append($("<h5>").text(initial));            
 
             for (const mimeType of mimeTypes) {
-                $section.append(buildSelectionForMimeType(mimeType));
+                $section.append(buildSelectionForMimeType.call(this, mimeType));
             }
 
             this.$mimeTypes.append($section);
