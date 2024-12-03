@@ -2,20 +2,21 @@ FROM triliumnext/notes
 
 WORKDIR /usr/src/app
 
-# Install TypeScript and build dependencies
-# Only typescript, no ts-node needed
-RUN npm install -g --no-cache typescript
+# Install git and TypeScript
+RUN apk update && apk add --no-cache git && \
+    npm install -g --no-cache typescript
 
-# Copy package files and install dependencies
-COPY package*.json tsconfig.json ./
-RUN npm install
+# we were doing this before, it might still be needed
+# # Copy package files and install dependencies
+# COPY package*.json tsconfig.json ./
 
-# Copy source files
-COPY . .
-
-# Build TypeScript files. 
-# Pruning removes dev dependencies, and del .cache to reduce image size
-RUN npm run webpack && \
+# Clone the repository to a temp directory and copy files
+RUN git clone --depth 1 --branch feature/bare2share-container https://github.com/maphew/trilium /tmp/trilium && \
+    rm -rf /tmp/trilium/.git && \
+    cp -r /tmp/trilium/. . && \
+    rm -rf /tmp/trilium && \
+    npm install && \
+    npm run webpack && \
     npm run prepare-dist && \
     cp -R dist/* src/. && \
     rm -rf dist && \
@@ -25,7 +26,7 @@ RUN npm run webpack && \
 # Set production environment
 ENV NODE_ENV=production
 ENV NODE_NO_WARNINGS=1
-ENV TRILIUM_DATA_DIR=/data
+ENV TRILIUM_DATA_DIR=/data/test-2024-12-02
 ENV TRILIUM_PORT=8080
 
 # Create data directory
@@ -34,5 +35,5 @@ RUN mkdir -p /data && chown -R node:node /data
 # Switch to non-root user
 USER node
 
-# Run the compiled JavaScript
+EXPOSE 8080
 CMD ["node", "src/main.js"]
