@@ -1407,7 +1407,7 @@
     "saved-search-note-refreshed": "Gespeicherte Such-Notiz wurde aktualisiert."
   },
   "title_bar_buttons": {
-    "window-on-top": "Dieses Fenster immer oben halten."
+    "window-on-top": "Dieses Fenster immer oben halten"
   },
   "note_detail": {
     "could_not_find_typewidget": "Konnte typeWidget für Typ ‚{{type}}‘ nicht finden"

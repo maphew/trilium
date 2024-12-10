@@ -6,7 +6,7 @@
     <link rel="manifest" crossorigin="use-credentials" href="manifest.webmanifest">
     <title>TriliumNext Notes</title>
 </head>
-<body class="desktop heading-style-<%= headingStyle %>">
+<body class="desktop heading-style-<%= headingStyle %> layout-<%= layoutOrientation %> platform-<%= platform %> <%= isElectron ? 'electron' : '' %> <%= hasNativeTitleBar ? 'native-titlebar' : '' %> <%= hasBackgroundEffects ? 'background-effects' : '' %>">
 <noscript><%= t("javascript-required") %></noscript>
 
 <script>
@@ -36,6 +36,8 @@
         triliumVersion: "<%= triliumVersion %>",
         assetPath: "<%= assetPath %>",
         appPath: "<%= appPath %>",
+        platform: "<%= platform %>",
+        hasNativeTitleBar: <%= hasNativeTitleBar %>,
         TRILIUM_SAFE_MODE: <%= !!process.env.TRILIUM_SAFE_MODE %>
     };
 </script>
@@ -84,5 +86,5 @@
 
 <link rel="stylesheet" type="text/css" href="<%= assetPath %>/node_modules/boxicons/css/boxicons.min.css">
 
-</body>
+</>
 </html>

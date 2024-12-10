@@ -93,6 +93,7 @@
     "export_note_title": "Exportar nota",
     "close": "Cerrar",
     "export_type_subtree": "esta nota y todos sus descendientes",
+    "format_html": "HTML - ya que preserva todo el formato",
     "format_html_zip": "HTML en un archivo ZIP: se recomienda ya que conserva todo el formato.",
     "format_markdown": "Markdown: esto conserva la mayor parte del formato.",
     "format_opml": "OPML: formato de intercambio de esquemas solo para texto. El formato, las imágenes y los archivos no están incluidos.",
@@ -1072,6 +1073,7 @@
     "override_theme_fonts_label": "Sobreescribir fuentes de tema",
     "light_theme": "Claro",
     "dark_theme": "Oscuro",
+    "triliumnext": "TriliumNext (beta)",
     "layout": "Disposición",
     "layout-vertical-title": "Vertical",
     "layout-horizontal-title": "Horizontal",
@@ -1432,7 +1434,7 @@
     "saved-search-note-refreshed": "La nota de búsqueda guardada fue recargada."
   },
   "title_bar_buttons": {
-    "window-on-top": "Mantener esta ventana en la parte superior."
+    "window-on-top": "Mantener esta ventana en la parte superior"
   },
   "note_detail": {
     "could_not_find_typewidget": "No se pudo encontrar typeWidget para el tipo '{{type}}'"

@@ -83,7 +83,7 @@ function getExpression(tokens: TokenData[], searchContext: SearchContext, level 
         return `"${startIndex !== 0 ? "..." : ""}${searchContext.originalQuery.substr(startIndex, endIndex - startIndex)}${endIndex !== searchContext.originalQuery.length ? "..." : ""}"`;
     }
 
-    function resolveConstantOperand() {
+    const resolveConstantOperand = () => {
         const operand = tokens[i];
 
         if (!operand.inQuotes
@@ -136,7 +136,7 @@ function getExpression(tokens: TokenData[], searchContext: SearchContext, level 
         return date.format(format);
     }
 
-    function parseNoteProperty(): Expression | undefined | null {
+    const parseNoteProperty: () => Expression | undefined | null = () => {
         if (tokens[i].token !== '.') {
             searchContext.addError('Expected "." to separate field path');
             return;

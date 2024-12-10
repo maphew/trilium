@@ -20,7 +20,7 @@
 
 :root {
     /* --main-font-family: "Noto Sans", sans-serif; */
-    --main-font-family: "Ubuntu Sans", sans-serif;
+    --main-font-family: "Segoe UI", sans-serif;
     /* --main-font-family: "Ubuntu", sans-serif; */
     /* --main-font-family: "Nunito", sans-serif; */
     /* --main-font-family: "Inter", sans-serif; */
@@ -54,7 +54,13 @@
     --menu-padding-size: 8px;
     --menu-item-icon-vert-offset: 0;    
 
-    --more-accented-background-color: var(--card-background-hover-color);    
+    --more-accented-background-color: var(--card-background-hover-color);
+
+    --timeline-left-gap: 20px;
+    --timeline-right-gap: 20px;
+    --timeline-bullet-size: 10px;
+    --timeline-bullet-vertical-pos: .75em;
+    --timeline-connector-size: 4px;
 
     /* Theme capabilities */
     --tab-note-icons: true;
@@ -144,6 +150,9 @@
    --launcher-pane-button-hover-background: white;
    --launcher-pane-button-hover-shadow: 4px 4px 4px rgba(0, 0, 0, .075);
 
+   --protected-session-active-icon-color: #16b516;
+   --sync-status-error-pulse-color: #ff5528;
+
    --root-background: var(--left-pane-background-color);
 
    --gutter-color: transparent;
@@ -192,9 +201,14 @@
    --calendar-day-hover-background: var(--active-item-background-color);
    --calendar-day-highlight-background: #80808024;
 
-   --tooltip-border-color: transparent;
-   --tooltip-background-color: rgba(0, 0, 0, 0.8);
-   --tooltip-foreground-color: #fff;
+   --timeline-bullet-color: #a5a5a5;
+   --timeline-bullet-hover-color: black;
+   --timeline-connector-color: #f1f1f1;
+   --timeline-connector-active-color: #ddd;
+
+   --tooltip-background-color: rgba(255, 255, 255, 0.85);
+   --tooltip-foreground-color: #000000ba;
+   --tooltip-shadow-color: rgba(0, 0, 0, .15);
 }
 
 /* 
@@ -287,6 +301,9 @@
         --launcher-pane-button-hover-background: #ffffff1c;
         --launcher-pane-button-hover-shadow: 4px 4px 4px rgba(0, 0, 0, .2);
 
+        --protected-session-active-icon-color: #8edd8e;
+        --sync-status-error-pulse-color: #f47871;
+
         --root-background: var(--left-pane-background-color);
 
         --gutter-color: transparent;
@@ -328,8 +345,14 @@
         --calendar-day-hover-background: var(--active-item-background-color);
         --calendar-day-highlight-background: #8080805a;
 
-        --tooltip-background: rgba(0, 0, 0, 0.9);
-        --tooltip-foreground: #fff;
+        --timeline-bullet-color: gray;
+        --timeline-bullet-hover-color: white;
+        --timeline-connector-color: #464646;
+        --timeline-connector-active-color: #545454;
+
+        --tooltip-background-color: rgba(67, 67, 67, 0.86);
+        --tooltip-foreground-color: #ffffffeb;
+        --tooltip-shadow-color: rgba(0, 0, 0, 0.4);
     }
     
     body ::-webkit-calendar-picker-indicator {
@@ -369,13 +392,62 @@
     background-color: var(--root-background);
 }
 
-#root-widget.horizontal-layout {
+body {
+    --native-titlebar-darwin-x-offset: 10;
+    --native-titlebar-darwin-y-offset: 17 !important;
+}
+
+body.layout-vertical {
+    --native-titlebar-background: var(--root-background);
+}
+
+body.layout-horizontal {
     --launcher-pane-background-color: var(--launcher-pane-horizontal-background-color);
     --launcher-pane-size: var(--launcher-pane-horizontal-size);
     --active-tab-background-color: var(--launcher-pane-background-color);
     --active-tab-hover-background-color: var(--active-tab-background-color);
     --new-tab-button-background: transparent;
+    --tab-bar-height: 44px;
+    --native-titlebar-darwin-x-offset: 12;
+    --native-titlebar-darwin-y-offset: 14 !important;
 }
+
+/* #region Mica */
+body.background-effects.platform-win32 {
+    --launcher-pane-horizontal-border-color: rgba(0, 0, 0, 0.15);
+    --launcher-pane-background-color: rgba(255, 255, 255, 0.7);
+    --tab-background-color: transparent;
+    --new-tab-button-background: transparent;
+    --active-tab-background-color: var(--launcher-pane-background-color);
+    --native-titlebar-background: #00000000;
+    --background-material: tabbed;    
+}
+
+@media (prefers-color-scheme: dark) {
+    body.background-effects.platform-win32 {
+        --launcher-pane-horizontal-border-color: rgba(0, 0, 0, 0.5);
+        --launcher-pane-background-color: rgba(255, 255, 255, 0.09);
+    }
+}
+
+body.background-effects.platform-win32.layout-vertical {
+    --left-pane-background-color: transparent;
+    --launcher-pane-background-color: rgba(255, 255, 255, 0.055);
+    --left-pane-item-hover-background: rgba(127, 127, 127, 0.05);
+    --background-material: mica;
+}
+
+body.background-effects.platform-win32,
+body.background-effects.platform-win32 #root-widget,
+body.background-effects.platform-win32 #launcher-pane .launcher-button {
+    background: transparent !important;   
+}
+
+body.background-effects.platform-win32.layout-horizontal #horizontal-main-container,
+body.background-effects.platform-win32.layout-vertical #vertical-main-container {
+    background-color: var(--root-background);
+}
+/* #endregion */
 
 /* Matches when the left pane is collapsed */
 :has(#left-pane.hidden-int) {
@@ -388,10 +460,22 @@
 }
 
 /*
+ * Global menu
+ */
+
+.global-menu div.zoom-buttons a {
+    border: unset;
+}
+
+.global-menu div.zoom-buttons a.bx {
+    color: var(--menu-text-color) !important;
+}
+
+/*
  *  Launcher pane
  */
 #launcher-container,
-#root-widget.horizontal-layout > .horizontal {
+body.layout-horizontal > .horizontal {
     align-items: center;
 }
 
@@ -441,6 +525,43 @@
                 box-shadow 100ms ease-in;
 }
 
+#launcher-pane div.launcher-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Protected session enabled button */
+
+#launcher-pane button.bx-check-shield,
+#launcher-pane button.bx-check-shield:hover {
+    color: var(--protected-session-active-icon-color);
+    transition: color 500ms ease-in-out;
+}
+
+/* Sync status button */
+
+#launcher-pane .sync-status .sync-status-icon {
+    top: 3px;
+}
+
+#launcher-pane .sync-status-icon:not(.sync-status-in-progress):hover {
+    background: unset;
+}
+
+@keyframes sync-status-pulse {
+    from {
+        color: currentColor
+    } to {
+        color: var(--pulse-color);
+    }
+}
+
+#launcher-pane .sync-status-disconnected-with-changes {
+    --pulse-color: var(--sync-status-error-pulse-color);
+    animation: sync-status-pulse 1s ease-in-out alternate-reverse infinite;
+}
+
 #launcher-pane.horizontal .launcher-button {
     font-size: var(--launcher-pane-horizontal-icon-size);
 }
@@ -453,13 +574,14 @@
     display: none;
 }
 
-.tooltip-inner {
-    padding: 5px 10px !important;
-    border-radius: 8px;
-    border: 1px solid var(--tooltip-border-color) !important;
+.tooltip .tooltip-inner {
+    padding: 6px 10px !important;
+    box-shadow: -1px -1px 2px var(--tooltip-shadow-color),
+                2px 2px 8px var(--tooltip-shadow-color) !important;
+    border: unset !important;
+    border-radius: 6px;
+    backdrop-filter: blur(5px);
     color: var(--tooltip-foreground-color) !important;
-    line-height: 1.25;
-    box-shadow: none !important;
 }
 
  /* 
@@ -552,6 +674,47 @@ div.quick-search .search-button.show  {
     background: var(--left-pane-item-action-button-hover-background) !important;
     color: var(--left-pane-item-action-button-color) !important;
     transition: background-color 100ms ease-out !important;
+}
+
+/*
+ * Quick search results
+ */
+
+/* Item */
+.quick-search .dropdown-menu *.dropdown-item {
+    padding: 8px 12px !important;
+}
+
+
+/* Note icon */
+.quick-search .dropdown-menu .dropdown-item > .bx {
+    position: relative;
+    top: 1px;
+}
+
+/* Note title */
+.quick-search .dropdown-menu .dropdown-item > a {
+    color: var(--menu-text-color);
+}
+
+.quick-search .dropdown-menu .dropdown-item > a:hover {
+    --hover-item-background-color: transparent;
+    text-decoration: underline;
+}
+
+
+/* Note path */
+.quick-search .dropdown-menu small {
+    display: block;
+    opacity: .5;
+    font-size: .75em;
+    overflow: hidden;
+}
+
+/* The "Show in full search" button */
+.quick-search .dropdown-menu button {
+    padding: 0;
+    color: var(--menu-text-color) !important;
 }
 
 /*
@@ -723,14 +886,39 @@ div.quick-search .search-button.show  {
     position: relative;
 }
 
-#root-widget.horizontal-layout .tab-row-container:after {
+/* #region Apply a border to the tab bar that avoids the current tab but also allows a transparent active tab. */
+body.layout-horizontal .tab-row-widget,
+body.layout-horizontal .tab-row-widget-container,
+body.layout-horizontal .tab-row-container .note-tab[active] {
+    overflow: visible !important;
+}
+
+body.layout-horizontal .tab-row-container .note-tab[active]:before {    
     content: "";
     position: absolute;
     bottom: 0;
-    left: 0;
-    right: 0;
+    left: -100vw;
+    top: var(--tab-height);
+    right: calc(100% - 1px);
     height: 1px;
     border-bottom: 1px solid var(--launcher-pane-horizontal-border-color);
+}
+
+body.layout-horizontal .tab-row-container .note-tab[active]:after {    
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 100%;
+    top: var(--tab-height);
+    right: 0;
+    width: 100vw;
+    height: 1px;
+    border-bottom: 1px solid var(--launcher-pane-horizontal-border-color);
+}
+/* #endregion */
+
+body.layout-vertical.electron.platform-darwin .tab-row-container {
+    border-bottom: 1px solid var(--subtle-border-color);
 }
 
 .tab-row-widget-container {
@@ -738,11 +926,11 @@ div.quick-search .search-button.show  {
     height: var(--tab-height) !important;    
 }
 
-#root-widget.horizontal-layout .tab-row-container {
+body.layout-horizontal .tab-row-container {
     padding-top: calc((var(--tab-bar-height) - var(--tab-height)));    
 }
 
-#root-widget.horizontal-layout .tab-row-widget-container {
+body.layout-horizontal .tab-row-widget-container {
     margin-top: 0;
     position: relative;
     overflow: hidden;
@@ -769,7 +957,11 @@ div.quick-search .search-button.show  {
     transition: none;
 }
 
-#root-widget.horizontal-layout .tab-row-widget .note-tab .note-tab-wrapper {
+.tab-row-container .title-bar-buttons {
+    margin-top: calc((var(--tab-bar-height) - var(--tab-height)) * -1);
+}
+
+body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;   
 }
@@ -790,6 +982,10 @@ div.quick-search .search-button.show  {
 
 .tab-row-widget .note-tab:nth-child(1) {
     transform: translate3d(var(--tab-first-item-horiz-offset), 0, 0);
+}
+
+.tab-row-widget .note-tab .note-tab-title {
+    text-overflow: ellipsis;
 }
 
 .tab-row-widget-is-sorting .note-tab[active] .note-tab-wrapper {
@@ -1100,6 +1296,158 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 /*
+ * Note tooltip
+ */
+
+.tooltip .tooltip-inner:has(.note-tooltip-content) {
+    border-radius: 8px;
+}
+
+.note-tooltip-content {
+    padding: 8px;
+ }
+
+.note-tooltip-content .note-title-with-path {
+    display: flex;
+    flex-direction: column-reverse;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 6px;
+
+}
+
+.note-tooltip-content .note-title-with-path .path-bracket {
+    /* Hide the leading and trailing bracket from the path */
+    display: none;
+}
+
+.note-tooltip-content .note-title-with-path .path-delimiter {
+    /* Hide the path delimiters (slashes) */
+    display: none;
+}
+
+.note-tooltip-content .note-title-with-path .path-delimiter + span::before {
+    /* Replace the path delimiters with arrows */
+    display: inline-block;
+    content: "\ebe6";
+    padding: 0 4px;
+    line-height: 1;
+    vertical-align: bottom;
+    font-family: boxicons;
+    opacity: .75;
+}
+
+.note-tooltip-content .note-path {
+    display: block;
+    color: var(--muted-text-color);
+    font-size: .75em;
+}
+
+.note-tooltip-content .note-tooltip-attributes {
+    margin-top: -4px;
+    font-size: .75em;
+}
+
+.note-tooltip-content .rendered-content {
+    padding-top: 12px;
+}
+
+/*
+ * Recent changes list
+ */
+
+.recent-changes-dialog .modal-body {
+    padding: 0;
+}
+
+.recent-changes-content {
+    margin: var(--bs-modal-padding);
+}
+
+.recent-changes-content small {
+    color: var(--muted-text-color);
+}
+
+.recent-changes-content > div {
+    padding-left: var(--timeline-left-gap);
+}
+
+/* Date headings */
+.recent-changes-content > div > b {
+    position: sticky;
+    display: block;
+    top: 0;
+    background: var(--modal-background-color);
+    padding: 10px 0;
+    font-size: 1.25em;
+    font-weight: 300;
+    z-index: 10;
+}
+
+.recent-changes-content ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Timeline items */
+.recent-changes-content ul li,
+.recent-changes-content > div > b {
+    margin: 0;
+    padding-left: var(--timeline-right-gap);
+}
+
+.recent-changes-content ul li {
+    position: relative;
+}
+
+/* Timeline connector */
+.recent-changes-content ul li::before,
+.recent-changes-content > div > b::before {
+    position: absolute;
+    content: "";
+    top: var(--connector-top, 0);
+    left: calc((var(--timeline-bullet-size) - var(--timeline-connector-size)) / 2);
+    bottom: var(--connector-bottom, 0);
+    width: var(--timeline-connector-size);
+    border-radius: var(--connector-radius, 0) var(--connector-radius, 0) 0 0;
+    background: var(--timeline-connector-color);
+    transition: background-color 400ms ease-in-out;
+}
+
+.recent-changes-content > div:hover {
+    --timeline-connector-color: var(--timeline-connector-active-color);
+}
+
+/* The first item of the timeline */
+.recent-changes-content > div:first-child > *:first-child {
+    --connector-top: 50%;
+    --connector-radius: calc(var(--timeline-connector-size) / 2);
+}
+
+/* The last item of the timeline */
+.recent-changes-content > div:last-child  li:last-child {
+    --connector-bottom: 50%;
+}
+
+/* Timeline bullet */
+.recent-changes-content ul li::after {
+    position: absolute;
+    content: "";
+    top: var(--timeline-bullet-vertical-pos);
+    left: 0;
+    width: var(--timeline-bullet-size);
+    height: var(--timeline-bullet-size);
+    border-radius: 50%;
+    background: var(--timeline-bullet-color);
+    transform: translateY(-50%);
+}
+
+/* Hovered timeline bullet */
+.recent-changes-content ul li:hover::after {
+    background: var(--timeline-bullet-hover-color);
+}
+
+/*
  * TEXT NOTES
  */
 
@@ -1386,3 +1734,4 @@ html .note-detail-editable-text :not(figure, .include-note, hr):first-child {
 .note-list.grid-view .ck-content figure.image {
     width: 25%;
 }
+

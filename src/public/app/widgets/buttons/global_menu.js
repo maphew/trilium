@@ -143,6 +143,11 @@ const TPL = `
             </div>
         </span>
 
+        <li class="dropdown-item toggle-pin">
+            <span class="bx bx-pin"></span>
+            ${t('title_bar_buttons.window-on-top')}
+        </li>
+
         <div class="dropdown-divider zoom-container-separator"></div>
 
         <li class="dropdown-item switch-to-mobile-version-button" data-trigger-command="switchToMobileVersion">
@@ -293,6 +298,23 @@ export default class GlobalMenuWidget extends BasicWidget {
         this.$widget.find(".show-about-dialog-button").on('click', () => this.triggerCommand("openAboutDialog"));
 
         const isElectron = utils.isElectron();
+
+        this.$widget.find(".toggle-pin").toggle(isElectron);
+        if (isElectron) {
+            this.$widget.on("click", ".toggle-pin", (e) => {
+                const $el = $(e.target);
+                const remote = utils.dynamicRequire('@electron/remote');
+                const focusedWindow = remote.BrowserWindow.getFocusedWindow();
+                const isAlwaysOnTop = focusedWindow.isAlwaysOnTop()
+                if (isAlwaysOnTop) {
+                    focusedWindow.setAlwaysOnTop(false)
+                    $el.removeClass('active');
+                } else {
+                    focusedWindow.setAlwaysOnTop(true);
+                    $el.addClass('active');
+                }
+            });
+        }
 
         this.$widget.find(".logout-button").toggle(!isElectron);
         this.$widget.find(".logout-button-separator").toggle(!isElectron);

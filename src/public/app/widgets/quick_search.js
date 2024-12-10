@@ -120,7 +120,7 @@ export default class QuickSearchWidget extends BasicWidget {
         }
 
         for (const note of await froca.getNotes(displayedNoteIds)) {
-            const $link = await linkService.createLink(note.noteId, { showNotePath: true });
+            const $link = await linkService.createLink(note.noteId, { showNotePath: true, showNoteIcon: true });
             $link.addClass('dropdown-item');
             $link.attr("tabIndex", "0");
             $link.on('click', e => {
@@ -148,6 +148,7 @@ export default class QuickSearchWidget extends BasicWidget {
         const $showInFullButton = $('<a class="dropdown-item" tabindex="0">')
             .append($(`<button class="btn btn-sm">${t("quick-search.show-in-full-search")}</button>`));
 
+        this.$dropdownMenu.append($(`<div class="dropdown-divider">`));
         this.$dropdownMenu.append($showInFullButton);
 
         $showInFullButton.on('click', () => this.showInFullSearch());

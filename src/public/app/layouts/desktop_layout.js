@@ -84,6 +84,7 @@ import CopyImageReferenceButton from "../widgets/floating_buttons/copy_image_ref
 import ScrollPaddingWidget from "../widgets/scroll_padding.js";
 import ClassicEditorToolbar from "../widgets/ribbon_widgets/classic_editor_toolbar.js";
 import options from "../services/options.js";
+import utils from "../services/utils.js";
 
 export default class DesktopLayout {
     constructor(customWidgets) {
@@ -95,15 +96,27 @@ export default class DesktopLayout {
 
         const launcherPaneIsHorizontal = (options.get("layoutOrientation") === "horizontal");
         const launcherPane = this.#buildLauncherPane(launcherPaneIsHorizontal);
+        const isElectron = (utils.isElectron());
+        const isMac = (window.glob.platform === "darwin");
+        const isWindows = (window.glob.platform === "win32");
+        const hasNativeTitleBar = (window.glob.hasNativeTitleBar);
 
-        return new RootContainer(launcherPaneIsHorizontal)
+        /**
+         * If true, the tab bar is displayed above the launcher pane with full width; if false (default), the tab bar is displayed in the rest pane.
+         * On macOS we need to force the full-width tab bar on Electron in order to allow the semaphore (window controls) enough space.
+         */
+        const fullWidthTabBar = (launcherPaneIsHorizontal || (isElectron && !hasNativeTitleBar && isMac));
+        const customTitleBarButtons = (!hasNativeTitleBar && !isMac && !isWindows);
+
+        return new RootContainer(true)
             .setParent(appContext)
             .class((launcherPaneIsHorizontal ? "horizontal" : "vertical") + "-layout")
-            .optChild(launcherPaneIsHorizontal, new FlexContainer('row')
+            .optChild(fullWidthTabBar, new FlexContainer('row')
                 .class("tab-row-container")
-                .child(new LeftPaneToggleWidget(true))
+                .child(new FlexContainer( "row").id("tab-row-left-spacer"))
+                .optChild(launcherPaneIsHorizontal, new LeftPaneToggleWidget(true))
                 .child(new TabRowWidget().class("full-width"))
-                .child(new TitleBarButtonsWidget())
+                .optChild(customTitleBarButtons, new TitleBarButtonsWidget())
                 .css('height', '40px')
                 .css('background-color', 'var(--launcher-pane-background-color)')
                 .setParent(appContext)
@@ -111,6 +124,7 @@ export default class DesktopLayout {
             .optChild(launcherPaneIsHorizontal, launcherPane)
             .child(new FlexContainer('row')
                 .css("flex-grow", "1")
+                .id("horizontal-main-container")
                 .optChild(!launcherPaneIsHorizontal, launcherPane)
                 .child(new LeftPaneContainer()
                     .optChild(!launcherPaneIsHorizontal, new QuickSearchWidget())
@@ -120,14 +134,15 @@ export default class DesktopLayout {
                 .child(new FlexContainer('column')
                     .id('rest-pane')
                     .css("flex-grow", "1")
-                    .optChild(!launcherPaneIsHorizontal, new FlexContainer('row')
+                    .optChild(!fullWidthTabBar, new FlexContainer('row')
                         .child(new TabRowWidget())
-                        .child(new TitleBarButtonsWidget())
+                        .optChild(customTitleBarButtons, new TitleBarButtonsWidget())
                         .css('height', '40px')
                     )
                     .child(new FlexContainer('row')
                         .filling()
                         .collapsible()
+                        .id("vertical-main-container")
                         .child(new FlexContainer('column')
                             .filling()
                             .collapsible()

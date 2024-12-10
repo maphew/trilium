@@ -1408,7 +1408,7 @@
     "saved-search-note-refreshed": "Note de recherche enregistrée actualisée."
   },
   "title_bar_buttons": {
-    "window-on-top": "Épingler cette fenêtre au premier plan."
+    "window-on-top": "Épingler cette fenêtre au premier plan"
   },
   "note_detail": {
     "could_not_find_typewidget": "Impossible de trouver typeWidget pour le type '{{type}}'"

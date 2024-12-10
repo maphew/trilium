@@ -64,7 +64,8 @@ const copy = async () => {
     "node_modules/katex/dist/katex.min.js",
     "node_modules/katex/dist/contrib/mhchem.min.js",
     "node_modules/katex/dist/contrib/auto-render.min.js",
-    "node_modules/@highlightjs/cdn-assets/highlight.min.js"
+    "node_modules/@highlightjs/cdn-assets/highlight.min.js",
+    "node_modules/@mind-elixir/node-menu/dist/node-menu.umd.cjs",
   ];
 
   for (const file of nodeModulesFile) {

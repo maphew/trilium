@@ -8,7 +8,7 @@ import sqlInit from "./sql_init.js";
 import cls from "./cls.js";
 import keyboardActionsService from "./keyboard_actions.js";
 import remoteMain from "@electron/remote/main/index.js";
-import { App, BrowserWindow, WebContents, ipcMain } from 'electron';
+import { App, BrowserWindow, BrowserWindowConstructorOptions, WebContents, ipcMain } from 'electron';
 
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -31,7 +31,7 @@ async function createExtraWindow(extraWindowHash: string) {
             contextIsolation: false,
             spellcheck: spellcheckEnabled
         },
-        frame: optionService.getOptionBool('nativeTitleBarVisible'),
+        ...getWindowExtraOpts(),
         icon: getIcon()
     });
 
@@ -71,6 +71,8 @@ async function createMainWindow(app: App) {
 
     const { BrowserWindow } = (await import('electron')); // should not be statically imported
 
+    
+
     mainWindow = new BrowserWindow({
         x: mainWindowState.x,
         y: mainWindowState.y,
@@ -82,9 +84,9 @@ async function createMainWindow(app: App) {
             contextIsolation: false,
             spellcheck: spellcheckEnabled,
             webviewTag: true
-        },
-        frame: optionService.getOptionBool('nativeTitleBarVisible'),
-        icon: getIcon()
+        },        
+        icon: getIcon(),
+        ...getWindowExtraOpts()
     });
 
     mainWindowState.manage(mainWindow);
@@ -108,6 +110,33 @@ async function createMainWindow(app: App) {
             mainWindow.focus();
         }
     });
+}
+
+function getWindowExtraOpts() {
+    const extraOpts: Partial<BrowserWindowConstructorOptions> = {};
+
+    const isMac = (process.platform === "darwin");
+    const isWindows = (process.platform === "win32");
+
+    if (!optionService.getOptionBool('nativeTitleBarVisible')) {
+        if (isMac) {
+            extraOpts.titleBarStyle = "hiddenInset";
+            extraOpts.titleBarOverlay = true;
+        } else if (isWindows) {
+            extraOpts.titleBarStyle = "hidden";
+            extraOpts.titleBarOverlay = true;
+        } else {
+            // Linux or other platforms.
+            extraOpts.frame = false;
+        }
+    }
+
+    // Window effects (Mica)
+    if (optionService.getOptionBool('backgroundEffects') && isWindows) {
+        extraOpts.backgroundMaterial = "auto";
+    }
+
+    return extraOpts;
 }
 
 function configureWebContents(webContents: WebContents, spellcheckEnabled: boolean) {

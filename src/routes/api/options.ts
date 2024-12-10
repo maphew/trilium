@@ -9,7 +9,7 @@ import { changeLanguage } from "../../services/i18n.js";
 import { listSyntaxHighlightingThemes } from "../../services/code_block_theme.js";
 
 // options allowed to be updated directly in the Options dialog
-export const ALLOWED_OPTIONS = new Set([
+const ALLOWED_OPTIONS = new Set([
     'eraseEntitiesAfterTimeInSeconds',
     'protectedSessionTimeout',
     'revisionSnapshotTimeInterval',
@@ -68,6 +68,7 @@ export const ALLOWED_OPTIONS = new Set([
     'firstDayOfWeek',
     'textNoteEditorType',
     'layoutOrientation',
+    'backgroundEffects',
     'allowedHtmlTags', // Allow configuring HTML import tags
     'redirectBareDomain',
     'showLoginInShareTheme'

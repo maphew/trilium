@@ -75,7 +75,7 @@ jobs:
           overwrite: true
 
       - name: Deploy release
-        uses: WebFreak001/deploy-nightly@v3.1.0
+        uses: WebFreak001/deploy-nightly@v3.2.0
         with:
           upload_url: ${{ env.GITHUB_UPLOAD_URL }}
           release_id: ${{ env.GITHUB_RELEASE_ID }}
@@ -83,7 +83,7 @@ jobs:
           asset_name: TriliumNextNotes-${{ matrix.os.name }}-${{ matrix.arch }}-nightly.zip # name to upload the release as, use $$ to insert date (YYYYMMDD) and 6 letter commit hash
           asset_content_type: application/zip # required by GitHub API
       - name: Deploy installer release
-        uses: WebFreak001/deploy-nightly@v3.1.0
+        uses: WebFreak001/deploy-nightly@v3.2.0
         with:
           upload_url: ${{ env.GITHUB_UPLOAD_URL }}
           release_id: ${{ env.GITHUB_RELEASE_ID }}
@@ -120,7 +120,7 @@ jobs:
           overwrite: true
 
       - name: Deploy release
-        uses: WebFreak001/deploy-nightly@v3.1.0
+        uses: WebFreak001/deploy-nightly@v3.2.0
         with:
           upload_url: ${{ env.GITHUB_UPLOAD_URL }}
           release_id: ${{ env.GITHUB_RELEASE_ID }}

@@ -28,11 +28,64 @@ const TPL = `<div class="note-map-widget" style="position: relative;">
             font-size: 130%;
             padding: 1px 10px 1px 10px;
         }
+
+        /* Style Ui Element to Drag Nodes */
+        .fixnodes-type-switcher {
+            position: absolute; 
+            top: 10px; 
+            left: 45%;
+            z-index: 10; /* should be below dropdown (note actions) */
+            border-radius:0.2rem;
+        }
+
+        /* Start of styling the slider */
+            input[type="range"] {
+  
+            /* removing default appearance */
+            -webkit-appearance: none;
+            appearance: none; 
+            margin-left: 15px;
+            width:50%
+            
+        }
+
+
+
+        /* Changing slider tracker */
+        input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px;
+        background: #ccc;
+        border-radius: 16px;
+        }
+
+
+        /* Changing Slider Thumb*/
+        input[type="range"]::-webkit-slider-thumb {
+        /* removing default appearance */
+        -webkit-appearance: none;
+        appearance: none; 
+        /* creating a custom design */
+        height: 15px;
+        width: 15px;
+        margin-top:-4px;
+        background-color: #661822;
+        border-radius: 50%;
+
+        /* End of styling the slider */
+
     </style>
     
     <div class="btn-group btn-group-sm map-type-switcher" role="group">
       <button type="button" class="btn bx bx-network-chart" title="${t("note-map.button-link-map")}" data-type="link"></button>
       <button type="button" class="btn bx bx-sitemap" title="${t("note-map.button-tree-map")}" data-type="tree"></button>
+    </div>
+
+    <! UI for dragging Notes and link force >
+
+     <div class=" btn-group-sm fixnodes-type-switcher" role="group">
+      <button type="button" class="btn bx bx-expand" title="Fixation" data-type="moveable"></button>
+      <input type="range" class=" slider" min="1" title="Link distance" max="100" value="40" >
+      
     </div>
 
     <div class="style-resolver"></div>
@@ -43,7 +96,7 @@ const TPL = `<div class="note-map-widget" style="position: relative;">
 export default class NoteMapWidget extends NoteContextAwareWidget {
     constructor(widgetMode) {
         super();
-
+        this.fixNodes = false; // needed to save the status of the UI element. Is set later in the code
         this.widgetMode = widgetMode; // 'type' or 'ribbon'
     }
 
@@ -62,6 +115,13 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             const type = $(e.target).closest("button").attr("data-type");
 
             await attributeService.setLabel(this.noteId, 'mapType', type);
+        });
+
+        // Reading the status of the Drag nodes Ui element. Changing it´s color when activated. Reading Force value of the link distance.
+
+        this.$widget.find('.fixnodes-type-switcher').on('click', async event => {
+            this.fixNodes = !this.fixNodes;
+            event.target.style.backgroundColor = this.fixNodes ? '#661822' : 'transparent';
         });
 
         super.doRender();
@@ -92,13 +152,61 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         await libraryLoader.requireLibrary(libraryLoader.FORCE_GRAPH);
 
+        //variables for the hover effekt. We have to save the neighbours of a hovered node in a set. Also we need to save the links as well as the hovered node itself
+
+        let hoverNode = null;
+        const highlightLinks = new Set();
+        const neighbours = new Set();
+
         this.graph = ForceGraph()(this.$container[0])
             .width(this.$container.width())
             .height(this.$container.height())
             .onZoom(zoom => this.setZoomLevel(zoom.k))
             .d3AlphaDecay(0.01)
             .d3VelocityDecay(0.08)
-            .nodeCanvasObject((node, ctx) => this.paintNode(node, this.getColorForNode(node), ctx))
+
+            //Code to fixate nodes when dragged
+            .onNodeDragEnd(node => {
+                if (this.fixNodes) {
+                    node.fx = node.x;
+                    node.fy = node.y;
+                } else {
+                    node.fx = null;
+                    node.fy = null;
+                }
+            })
+            //check if hovered and set the hovernode variable, saving the hovered node object into it. Clear links variable everytime you hover. Without clearing links will stay highlighted
+            .onNodeHover(node => {
+                hoverNode = node || null;
+                highlightLinks.clear();
+            })
+            
+            // set link width to immitate a highlight effekt. Checking the condition if any links are saved in the previous defined set highlightlinks
+            .linkWidth(link => (highlightLinks.has(link) ? 3 : 0.4))
+            .linkColor(link => (highlightLinks.has(link) ? 'white' : this.css.mutedTextColor))
+            .linkDirectionalArrowLength(4)
+            .linkDirectionalArrowRelPos(0.95)
+
+            // main code for highlighting hovered nodes and neighbours. here we "style" the nodes. the nodes are rendered several hundred times per second.
+            .nodeCanvasObject((node, ctx) => {
+                if (hoverNode == node) { //paint only hovered node
+                    this.paintNode(node, '#661822', ctx);
+                    neighbours.clear(); //clearing neighbours or the effect would be maintained after hovering is over
+                    for (const link of data.links) { //check if node is part of a link in the canvas, if so add it´s neighbours and related links to the previous defined variables to paint the nodes
+                        if (link.source.id == node.id || link.target.id == node.id) {
+                            neighbours.add(link.source);
+                            neighbours.add(link.target);
+                            highlightLinks.add(link);
+                            neighbours.delete(node);
+                        }
+                    }
+                } else if (neighbours.has(node) && hoverNode != null) { //paint neighbours
+                    this.paintNode(node, '#9d6363', ctx);
+                } else {
+                    this.paintNode(node, this.getColorForNode(node), ctx); //paint rest of nodes in canvas
+                }
+            })
+
             .nodePointerAreaPaint((node, ctx) => this.paintNode(node, this.getColorForNode(node), ctx))
             .nodePointerAreaPaint((node, color, ctx) => {
                 ctx.fillStyle = color;
@@ -109,10 +217,6 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
             .nodeLabel(node => esc(node.name))
             .maxZoom(7)
             .warmupTicks(30)
-            .linkDirectionalArrowLength(5)
-            .linkDirectionalArrowRelPos(1)
-            .linkWidth(1)
-            .linkColor(() => this.css.mutedTextColor)
             .onNodeClick(node => appContext.tabManager.getActiveContext().setNote(node.id))
             .onNodeRightClick((node, e) => linkContextMenuService.openContextMenu(node.id, e));
 
@@ -130,8 +234,15 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
         const magnifiedRatio = Math.pow(nodeLinkRatio, 1.5);
         const charge = -20 / magnifiedRatio;
         const boundedCharge = Math.min(-3, charge);
+        let distancevalue = 40; // default value for the link force of the nodes
 
-        this.graph.d3Force('link').distance(40);
+        this.$widget.find('.fixnodes-type-switcher input').on('change', async e => {
+            distancevalue = e.target.closest('input').value;
+            this.graph.d3Force('link').distance(distancevalue);
+
+            this.renderData(data);
+        });
+
         this.graph.d3Force('center').strength(0.2);
         this.graph.d3Force('charge').strength(boundedCharge);
         this.graph.d3Force('charge').distanceMax(1000);
@@ -201,7 +312,7 @@ export default class NoteMapWidget extends NoteContextAwareWidget {
 
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.arc(x, y, size, 0, 2 * Math.PI, false);
+        ctx.arc(x, y, size*0.8, 0, 2 * Math.PI, false);
         ctx.fill();
 
         const toRender = this.zoomLevel > 2

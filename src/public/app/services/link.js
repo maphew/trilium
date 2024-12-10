@@ -258,9 +258,14 @@ function goToLinkExt(evt, hrefLink, $link) {
             } else {
                 // Enable protocols supported by CKEditor 5 to be clickable. 
                 // Refer to `allowedProtocols` in https://github.com/TriliumNext/trilium-ckeditor5/blob/main/packages/ckeditor5-build-balloon-block/src/ckeditor.ts.
-                // Adding `:` to these links might be safer.
-                const otherAllowedProtocols = ['mailto:', 'tel:', 'sms:', 'sftp:', 'smb:', 'slack:', 'zotero:'];
-                if (otherAllowedProtocols.some(protocol => hrefLink.toLowerCase().startsWith(protocol))){
+                // And be consistent with `allowedSchemes` in `src\services\html_sanitizer.ts`
+                const allowedSchemes = [
+                    'http', 'https', 'ftp', 'ftps', 'mailto', 'data', 'evernote', 'file', 'facetime', 'gemini', 'git',
+                    'gopher', 'imap', 'irc', 'irc6', 'jabber', 'jar', 'lastfm', 'ldap', 'ldaps', 'magnet', 'message',
+                    'mumble', 'nfs', 'onenote', 'pop', 'rmi', 's3', 'sftp', 'skype', 'sms', 'spotify', 'steam', 'svn', 'udp',
+                    'view-source', 'vlc', 'vnc', 'ws', 'wss', 'xmpp', 'jdbc', 'slack', 'tel', 'smb', 'zotero'
+                ];
+                if (allowedSchemes.some(protocol => hrefLink.toLowerCase().startsWith(protocol+':'))){
                     window.open(hrefLink, '_blank');
                 }
             }

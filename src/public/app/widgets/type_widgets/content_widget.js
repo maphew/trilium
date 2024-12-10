@@ -1,6 +1,5 @@
 import TypeWidget from "./type_widget.js";
-import ZoomFactorOptions from "./options/appearance/zoom_factor.js";
-import NativeTitleBarOptions from "./options/appearance/native_title_bar.js";
+import ElectronIntegrationOptions from "./options/appearance/electron_integration.js";
 import ThemeOptions from "./options/appearance/theme.js";
 import FontsOptions from "./options/appearance/fonts.js";
 import MaxContentWidthOptions from "./options/appearance/max_content_width.js";
@@ -63,8 +62,7 @@ const CONTENT_WIDGETS = {
         ThemeOptions,
         FontsOptions,
         CodeBlockOptions,
-        ZoomFactorOptions,
-        NativeTitleBarOptions,
+        ElectronIntegrationOptions,
         MaxContentWidthOptions,
         RibbonOptions
     ],

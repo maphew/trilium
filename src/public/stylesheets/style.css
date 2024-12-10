@@ -20,7 +20,7 @@
 }
 
 :root {
-    --submenu-opening-delay: 300ms;
+    --submenu-opening-delay: 300ms;    
 }
 
 html {
@@ -38,6 +38,15 @@ body {
     color: var(--main-text-color);
     font-family: var(--main-font-family);
     font-size: var(--main-font-size);
+
+    --native-titlebar-background: var(--main-background-color);
+    --native-titlebar-foreground: var(--main-text-color);
+    --native-titlebar-darwin-x-offset: 10;
+    --native-titlebar-darwin-y-offset: 12;
+}
+
+body.layout-horizontal {
+    --native-titlebar-background: var(--left-pane-background-color);
 }
 
 body.mobile .desktop-only {
@@ -500,7 +509,11 @@ table.promoted-attributes-in-tooltip td, table.promoted-attributes-in-tooltip th
 
 .tooltip {
     font-size: var(--main-font-size) !important;
-    z-index: calc(var(--ck-z-panel) - 1) !important;
+    /*
+        TODO: Investigate the purpose of this
+        z-index: calc(var(--ck-z-panel) - 1) !important;
+    */
+    z-index: 3000;
 }
 
 .tooltip-trigger {
@@ -1267,6 +1280,19 @@ textarea {
 .empty-table-placeholder {
     text-align: center;
     color: var(--muted-text-color);
+}
+
+body.electron.platform-darwin:not(.native-titlebar) .tab-row-container {
+    padding-left: 1em;
+}
+
+#tab-row-left-spacer {
+    width: env(titlebar-area-x);
+    -webkit-app-region: drag;
+}
+
+.tab-row-widget {
+    padding-right: calc(100vw - env(titlebar-area-width, 100vw));
 }
 
 .tab-row-container .toggle-button {

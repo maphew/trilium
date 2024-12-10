@@ -55,11 +55,12 @@ function sanitize(dirtyHtml: string) {
             "*": [ 'class', 'style', 'title', 'src', 'href', 'hash', 'disabled', 'align', 'alt', 'center', 'data-*' ],
             "input": [ "type", "checked" ]
         },
+        // Be consistent with `allowedSchemes` in `src\public\app\services\link.js`
         allowedSchemes: [
-            'http', 'https', 'ftp', 'ftps', 'mailto', 'data', 'evernote', 'file', 'facetime', 'irc', 'gemini', 'git',
+            'http', 'https', 'ftp', 'ftps', 'mailto', 'data', 'evernote', 'file', 'facetime', 'gemini', 'git',
             'gopher', 'imap', 'irc', 'irc6', 'jabber', 'jar', 'lastfm', 'ldap', 'ldaps', 'magnet', 'message',
             'mumble', 'nfs', 'onenote', 'pop', 'rmi', 's3', 'sftp', 'skype', 'sms', 'spotify', 'steam', 'svn', 'udp',
-            'view-source', 'vnc', 'ws', 'wss', 'xmpp', 'jdbc', 'slack'
+            'view-source', 'vlc', 'vnc', 'ws', 'wss', 'xmpp', 'jdbc', 'slack', 'tel', 'smb', 'zotero'
         ],
         nonTextTags: [
             'head'

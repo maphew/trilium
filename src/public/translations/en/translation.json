@@ -93,7 +93,7 @@
     "export_note_title": "Export note",
     "close": "Close",
     "export_type_subtree": "this note and all of its descendants",
-    "format_html": "HTML - recomandat deoarece păstrează toată formatarea",
+    "format_html": "HTML - recommended as it keeps all format",
     "format_html_zip": "HTML in ZIP archive - this is recommended since this preserves all the formatting.",
     "format_markdown": "Markdown - this preserves most of the formatting.",
     "format_opml": "OPML - outliner interchange format for text only. Formatting, images and files are not included.",
@@ -1574,19 +1574,5 @@
     "open_note_in_new_tab": "Open note in a new tab",
     "open_note_in_new_split": "Open note in a new split",
     "open_note_in_new_window": "Open note in a new window"
-  },
-  "share_page": {
-    "parent": "Parent:",
-    "login": "Login",
-    "child-notes": "Child notes:",
-    "no-content": "This note has no content.",
-    "clipped-from": "Clipped from: %s"
-  },
-  "share": {
-    "settings_title": "Share Settings",
-    "redirect_bare_domain": "Redirect bare domain to share",
-    "redirect_bare_domain_description": "When enabled, accessing the root URL (/) will redirect to the share page (/share). Relies on having one more more notes shared, and one having `#shareRoot` attribute defined. (default: false)",
-    "show_login_in_share": "Show login in share theme",
-    "show_login_in_share_description": "When enabled, shows a login button in the share theme (default: false). Probably best to leave it disabled and visit '{{hostname}}/login' manually to login."
   }
 }
