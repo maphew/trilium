@@ -49,8 +49,11 @@ app.use(express.text({ limit: '500mb' }));
 app.use(express.json({ limit: '500mb' }));
 app.use(express.raw({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: false }));
+
+// Serve static files from the data directory's public folder
+app.use(express.static(path.join(process.env.TRILIUM_DATA_DIR || '', 'public')));
+
 app.use(cookieParser());
-app.use(express.static(path.join(scriptDir, 'public/root')));
 app.use(`/manifest.webmanifest`, express.static(path.join(scriptDir, 'public/manifest.webmanifest')));
 app.use(`/robots.txt`, express.static(path.join(scriptDir, 'public/robots.txt')));
 app.use(`/icon.png`, express.static(path.join(scriptDir, 'public/icon.png')));
