@@ -1,0 +1,41 @@
+FROM triliumnext/notes
+
+WORKDIR /usr/src/app
+
+# Install TypeScript and build dependencies
+RUN npm install -g --no-cache typescript
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source files first (needed for TypeScript compilation)
+COPY src ./src
+COPY bin ./bin
+COPY *.ts ./
+COPY *.js ./
+
+# Copy TypeScript configs
+COPY tsconfig.json ./
+COPY flyio/tsconfig.prod.json ./tsconfig.prod.json
+
+# Build TypeScript files
+RUN npm run webpack && \
+    npm run prepare-dist && \
+    cp -R dist/* src/. && \
+    rm -rf dist && \
+    npm prune --production && \
+    rm -rf node_modules/.cache
+
+# Set production environment
+ENV NODE_ENV=production
+ENV NODE_NO_WARNINGS=1
+ENV TRILIUM_DATA_DIR=/data
+ENV TRILIUM_PORT=8080
+
+# Create data directory
+RUN mkdir -p /data
+
+EXPOSE 8080
+
+CMD ["node", "src/www"]
