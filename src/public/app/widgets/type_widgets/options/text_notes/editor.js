@@ -24,7 +24,7 @@ const TPL = `
         <div>
             <label>
                 <input type="checkbox" name="multiline-toolbar" />
-                Display the toolbar on multiple lines if it doesn't fit.
+                ${t("editing.editor_type.multiline-toolbar")}
             </label>
         </div>
     </div>
