@@ -96,7 +96,6 @@ export default class SyncStatusWidget extends BasicWidget {
             return;
         }
 
-        console.log("Align ", this.settings.titlePlacement);
         bootstrap.Tooltip.getOrCreateInstance(this.$widget.find(`.sync-status-${className}`), {
             html: true,
             placement: this.settings.titlePlacement,
