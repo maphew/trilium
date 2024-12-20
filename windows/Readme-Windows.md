@@ -129,3 +129,11 @@ The Docker build process is being updated to handle TypeScript compilation corre
 ### Known Issues
 - NPM reports 21 vulnerabilities (3 low, 12 moderate, 4 high, 2 critical) that need attention
 - Several deprecated packages need updating (uuid@3.3.3, request@2.88.2, phin@2.9.3, har-validator@5.1.3)
+
+# notes
+
+## Build Directory Structure
+/usr/src/app/          # WORKDIR
+├── tsconfig.json      # Base config
+├── src/              # Source files
+└── dist/             # Compiled output

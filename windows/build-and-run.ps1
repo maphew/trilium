@@ -1,11 +1,31 @@
 param(
     [switch]$Run = $false,
-    [int]$Port = 8080
+    [int]$Port = 8080,
+    [switch]$Debug = $false
 )
 
 $ErrorActionPreference = "Stop"
 $BuildDir = $PSScriptRoot
 $ProjectRoot = (Get-Item $BuildDir).Parent.FullName
+
+function Write-DebugInfo {
+    Write-Host "`n=== Build Environment Debug Info ===" -ForegroundColor Cyan
+    Write-Host "Build Directory: $($BuildDir -replace '\\', '/')" -ForegroundColor Yellow
+    Write-Host "Project Root: $($ProjectRoot -replace '\\', '/')" -ForegroundColor Yellow
+    Write-Host "Current Location: $(Get-Location)" -ForegroundColor Yellow
+    
+    Write-Host "`n=== Directory Structure ===" -ForegroundColor Cyan
+    Get-ChildItem -Path "$BuildDir" -Recurse -File | 
+        Where-Object {$_.Extension -in '.ts','.js','.json'} |
+        ForEach-Object { Write-Host $_.FullName.Replace($BuildDir, '').TrimStart('\') -ForegroundColor Gray }
+    
+    Write-Host "`n=== TypeScript Configurations ===" -ForegroundColor Cyan
+    Get-ChildItem -Path "$BuildDir" -Filter "tsconfig*.json" | 
+        ForEach-Object {
+            Write-Host "`nFile: $($_.Name)" -ForegroundColor Yellow
+            Get-Content $_.FullName | Write-Host
+        }
+}
 
 Write-Host "Building Trilium Notes (Windows) from $BuildDir" -ForegroundColor Cyan
 Write-Host "Project root: $ProjectRoot" -ForegroundColor Cyan
@@ -13,9 +33,16 @@ Write-Host "Project root: $ProjectRoot" -ForegroundColor Cyan
 # Ensure we're in the windows directory
 Set-Location $BuildDir
 
+if ($Debug) {
+    Write-DebugInfo
+}
+
 try {
     # Stage 1: Build the base image with TypeScript compilation
     Write-Host "`nStage 1: Building base image..." -ForegroundColor Green
+    $env:DEBUG = "*"  # Enable debug output for npm
+    $env:NODE_DEBUG = "module"  # Enable module resolution debugging
+    $env:TS_NODE_DEBUG = "true"  # Enable TypeScript debugging
     podman build -t trilium-build-stage1:latest -f Dockerfile.build-1 ..
     if ($LASTEXITCODE -ne 0) {
         throw "Stage 1 build failed"

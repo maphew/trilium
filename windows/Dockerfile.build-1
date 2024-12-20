@@ -8,17 +8,31 @@ LABEL maintainer="Windows Build Support"
 LABEL stage="build-stage1"
 LABEL description="First stage build for Trilium Notes (Windows-specific build process)"
 
-WORKDIR /usr/src/app
+ARG APP_ROOT=/usr/src/app
+WORKDIR ${APP_ROOT}
+# Use APP_ROOT consistently in paths
 
 # Install build dependencies
 RUN apk add --no-cache python3 make g++
+
+# Install TypeScript globally for debugging commands
+RUN npm install -g typescript@4.9.5
 
 # Copy package files and TypeScript configs
 COPY package*.json ./
 COPY webpack.config.ts ./
 COPY loader-register.js ./
-COPY tsconfig.json ./
-COPY windows/tsconfig.server.json ./
+COPY windows/tsconfig.webpack.json ./tsconfig.webpack.json
+COPY windows/tsconfig.server.json ./tsconfig.json
+
+# Debug: Show directory structure and config files
+RUN echo "=== Directory Structure ===" && \
+    ls -la ${APP_ROOT} && \
+    echo "\n=== TypeScript Configs ===" && \
+    find ${APP_ROOT} -name "tsconfig*.json" -type f -exec sh -c 'echo "\nFile: {}"; cat {}' \; && \
+    echo "\n=== Environment ===" && \
+    pwd && \
+    echo "APP_ROOT=${APP_ROOT}"
 
 # Generate server-package.json by removing electron-related entries and use it
 RUN cat package.json | grep -v electron > server-package.json && \
@@ -32,12 +46,20 @@ RUN npm install && \
 # Copy source files
 COPY src ./src/
 
-# Verify TypeScript files are present
-RUN ls -la src/ && \
-    echo "TypeScript files verified"
+# Debug information and TypeScript checks
+RUN echo "=== Directory Structure After Copy ===" && \
+    find . -type f -name "*.ts" -o -name "*.js" -o -name "*.json" | sort && \
+    echo "=== TypeScript Configuration ===" && \
+    tsc --showConfig && \
+    echo "=== Module Resolution Tracing ===" && \
+    tsc --traceResolution && \
+    echo "=== Node Environment ===" && \
+    node -e "console.log('Module Paths:', require.resolve.paths(''))" && \
+    node -e "console.log('Process CWD:', process.cwd())" && \
+    node -e "console.log('__dirname:', __dirname)"
 
-# Compile TypeScript and prepare build output
-RUN npm run webpack && \
+# First run webpack with ES modules config, then compile server with CommonJS
+RUN npm run webpack -- --config-name tsconfig.webpack.json && \
     mkdir -p dist && \
     npx tsc --project tsconfig.server.json && \
     mkdir -p /build-output/src && \

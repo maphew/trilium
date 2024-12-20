@@ -1,23 +1,11 @@
-# Build stage
-# compile TypeScript files and copy them to /build
-# exclude electron dependencies
-
+# Just compile TypeScript and exclude Electron
 FROM node:20.15.1-alpine
 
-WORKDIR /build
+WORKDIR /usr/src/app
+COPY . .
 
-# Copy package files first for better caching
-COPY --chown=node:node package*.json ./
-COPY --chown=node:node windows/webpack.types.d.ts ./
+RUN npm ci && \
+    npx tsc && \
+    cat package.json | grep -v electron > server-package.json
 
-# Copy rest of the source
-COPY --chown=node:node . .
-
-# Switch to non-root user for building
-USER node
-
-RUN npm ci
-RUN npx tsc
-RUN cat package.json | grep -v electron > server-package.json
-
-CMD ["cp", "-r", "/build", "/output"]
+CMD ["cp", "-r", "/usr/src/app", "/output"]

@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2020",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "outDir": "../dist",
+    "baseUrl": ".."
+  },
+  "include": [
+    "../webpack.config.ts"
+  ]
+}

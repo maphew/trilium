@@ -7,17 +7,20 @@ if (Test-Path build) {
 # Enable BuildKit
 $env:DOCKER_BUILDKIT=1
 
-# Create a temporary context directory using git
-$tempContext = "docker-temp-context"
+# Create a temporary context directory
+$tempContext = "tmp/docker-build-context"
 if (Test-Path $tempContext) {
     Remove-Item -Recurse -Force $tempContext
 }
 
 Write-Host "Creating clean build context using git..." -ForegroundColor Green
+New-Item -ItemType Directory -Path $tempContext -Force | Out-Null
+
 git archive --format=tar HEAD | tar x -C $tempContext
 
 Write-Host "Building stage in container (compile TypeScript, exclude Electron)..." -ForegroundColor Green
-Copy-Item .dockerignore "$tempContext/.dockerignore"
+# user builder-specific .dockerignore
+Copy-Item windows/builder.dockerignore "$tempContext/.dockerignore"
 
 # Build from temp context
 $originalLocation = Get-Location
@@ -27,7 +30,7 @@ $buildExitCode = $LASTEXITCODE
 Set-Location $originalLocation
 
 if ($buildExitCode -ne 0) {
-    Remove-Item -Recurse -Force $tempContext
+    # Remove-Item -Recurse -Force $tempContext
     exit 1
 }
 
@@ -44,6 +47,10 @@ Remove-Item -Recurse -Force $tempContext
 if ($args[0] -eq "build") {
     Write-Host "Building final Docker image..." -ForegroundColor Green
     docker build --progress=plain -f Dockerfile.alpine -t trilium-local .
+    
+    # # Clean up build directory after final image is built
+    # Write-Host "Cleaning up build directory..." -ForegroundColor Yellow
+    # Remove-Item -Recurse -Force build
     
     Write-Host "Build complete! Run the container with:" -ForegroundColor Green
     Write-Host "docker run -d --name trilium -p 8080:8080 trilium-local" -ForegroundColor Green
