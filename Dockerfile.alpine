@@ -2,7 +2,7 @@
 FROM node:22.12.0-alpine AS builder
 
 # Configure build dependencies
-RUN apk add --no-cache --virtual .build-dependencies \
+RUN apk add --no-cache --no-check-certificate --virtual .build-dependencies \
     autoconf \
     automake \
     g++ \
@@ -11,20 +11,30 @@ RUN apk add --no-cache --virtual .build-dependencies \
     make \
     nasm \
     libpng-dev \
-    python3
+    python3 \
+    jq
 
 WORKDIR /usr/src/app
+
+# Build and cleanup in a single layer
+RUN set -e \
+    && VERSION=$(jq -r ".version" package.json) \
+    && SERIES=${VERSION:0:4}-latest \
+    && cat package.json | grep -v electron > server-package.json \
+    && echo "Compiling typescript..." \
+    && npm install -g typescript \
+    && npx tsc \
+    && cp -R build/src/* src/.
 
 # Copy only necessary files for build
 COPY . .
 COPY server-package.json package.json
 
-# Build and cleanup in a single layer
-RUN cp -R build/src/* src/. && \
-    cp build/docker_healthcheck.js . && \
-    rm -r build && \
+RUN cp build/docker_healthcheck.js . && \
+    rm -r build && \    
     rm docker_healthcheck.ts && \
-    npm install && \
+    npm config set strict-ssl false &&\
+    NODE_TLS_REJECT_UNAUTHORIZED=0 npm install --legacy-peer-deps &&\
     npm run webpack && \
     npm prune --omit=dev && \
     npm cache clean --force && \
@@ -37,7 +47,7 @@ RUN cp -R build/src/* src/. && \
 FROM node:22.12.0-alpine
 
 # Install runtime dependencies
-RUN apk add --no-cache su-exec shadow
+RUN apk add --no-cache --no-check-certificate su-exec shadow
 
 WORKDIR /usr/src/app
 
