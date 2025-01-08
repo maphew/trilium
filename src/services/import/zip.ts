@@ -1,7 +1,7 @@
 "use strict";
 
 import BAttribute from "../../becca/entities/battribute.js";
-import utils from "../../services/utils.js";
+import { removeTextFileExtension, newEntityId, getNoteTitle } from "../../services/utils.js";
 import log from "../../services/log.js";
 import noteService from "../../services/notes.js";
 import attributeService from "../../services/attributes.js";
@@ -51,7 +51,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
         }
 
         if (!noteIdMap[origNoteId]) {
-            noteIdMap[origNoteId] = utils.newEntityId();
+            noteIdMap[origNoteId] = newEntityId();
         }
 
         return noteIdMap[origNoteId];
@@ -64,7 +64,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
         }
 
         if (!attachmentIdMap[origAttachmentId]) {
-            attachmentIdMap[origAttachmentId] = utils.newEntityId();
+            attachmentIdMap[origAttachmentId] = newEntityId();
         }
 
         return attachmentIdMap[origAttachmentId];
@@ -152,13 +152,13 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
 
         // in case we lack metadata, we treat e.g. "Programming.html" and "Programming" as the same note
         // (one data file, the other directory for children)
-        const filePathNoExt = utils.removeTextFileExtension(filePath);
+        const filePathNoExt = removeTextFileExtension(filePath);
 
         if (filePathNoExt in createdPaths) {
             return createdPaths[filePathNoExt];
         }
 
-        const noteId = utils.newEntityId();
+        const noteId = newEntityId();
 
         createdPaths[filePathNoExt] = noteId;
 
@@ -225,7 +225,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
             return;
         }
 
-        const noteTitle = utils.getNoteTitle(filePath, !!taskContext.data?.replaceUnderscoresWithSpaces, noteMeta);
+        const noteTitle = getNoteTitle(filePath, !!taskContext.data?.replaceUnderscoresWithSpaces, noteMeta);
         const parentNoteId = getParentNoteId(filePath, parentNoteMeta);
 
         if (!parentNoteId) {
@@ -466,7 +466,7 @@ async function importZip(taskContext: TaskContext, fileBuffer: Buffer, importRoo
             content = content.toString("utf-8");
         }
 
-        const noteTitle = utils.getNoteTitle(filePath, taskContext.data?.replaceUnderscoresWithSpaces || false, noteMeta);
+        const noteTitle = getNoteTitle(filePath, taskContext.data?.replaceUnderscoresWithSpaces || false, noteMeta);
 
         content = processNoteContent(noteMeta, type, mime, content, noteTitle || "", filePath);
 

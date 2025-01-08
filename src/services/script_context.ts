@@ -1,4 +1,4 @@
-import utils from "./utils.js";
+import { toObject } from "./utils.js";
 import BackendScriptApi from "./backend_script_api.js";
 import BNote from "../becca/entities/bnote.js";
 import { ApiParams } from './backend_script_api_interface.js';
@@ -12,12 +12,12 @@ class ScriptContext {
     notes: {};
     apis: {};
     allNotes: BNote[];
-    
+
     constructor(allNotes: BNote[], apiParams: ApiParams) {
         this.allNotes = allNotes;
         this.modules = {};
-        this.notes = utils.toObject(allNotes, note => [note.noteId, note]);
-        this.apis = utils.toObject(allNotes, note => [note.noteId, new BackendScriptApi(note, apiParams)]);
+        this.notes = toObject(allNotes, note => [note.noteId, note]);
+        this.apis = toObject(allNotes, note => [note.noteId, new BackendScriptApi(note, apiParams)]);
     }
 
     require(moduleNoteIds: string[]) {

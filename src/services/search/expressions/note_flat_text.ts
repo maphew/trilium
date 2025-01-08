@@ -6,7 +6,7 @@ import SearchContext from "../search_context.js";
 import Expression from "./expression.js";
 import NoteSet from "../note_set.js";
 import becca from "../../../becca/becca.js";
-import utils from "../../utils.js";
+import { normalize } from "../../utils.js";
 import beccaService from "../../../becca/becca_service.js";
 
 class NoteFlatTextExp extends Expression {
@@ -61,8 +61,8 @@ class NoteFlatTextExp extends Expression {
             }
 
             for (const attribute of note.getOwnedAttributes()) {
-                const normalizedName = utils.normalize(attribute.name);
-                const normalizedValue = utils.normalize(attribute.value);
+                const normalizedName = normalize(attribute.name);
+                const normalizedValue = normalize(attribute.value);
 
                 for (const token of remainingTokens) {
                     if (normalizedName.includes(token) || normalizedValue.includes(token)) {
@@ -72,7 +72,7 @@ class NoteFlatTextExp extends Expression {
             }
 
             for (const parentNote of note.parents) {
-                const title = utils.normalize(beccaService.getNoteTitle(note.noteId, parentNote.noteId));
+                const title = normalize(beccaService.getNoteTitle(note.noteId, parentNote.noteId));
                 const foundTokens = foundAttrTokens.slice();
 
                 for (const token of remainingTokens) {
@@ -109,8 +109,8 @@ class NoteFlatTextExp extends Expression {
                 }
 
                 for (const attribute of note.ownedAttributes) {
-                    if (utils.normalize(attribute.name).includes(token)
-                        || utils.normalize(attribute.value).includes(token)) {
+                    if (normalize(attribute.name).includes(token)
+                        || normalize(attribute.value).includes(token)) {
 
                         foundAttrTokens.push(token);
                     }
@@ -118,7 +118,7 @@ class NoteFlatTextExp extends Expression {
             }
 
             for (const parentNote of note.parents) {
-                const title = utils.normalize(beccaService.getNoteTitle(note.noteId, parentNote.noteId));
+                const title = normalize(beccaService.getNoteTitle(note.noteId, parentNote.noteId));
                 const foundTokens = foundAttrTokens.slice();
 
                 for (const token of this.tokens) {

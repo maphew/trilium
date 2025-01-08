@@ -10,7 +10,7 @@ greet(n); // Print "Hello World" for n times
 
 /**
  * Displays a "Hello World!" message for a given amount of times, on the standard console. The "Hello World!" text will be displayed once per line.
- * 
+ *
  * @param {number} times    The number of times to print the \`Hello World!\` message.
  */
 function greet(times) {
@@ -27,12 +27,12 @@ const TPL = `
     <p>${t("highlighting.description")}</p>
 
     <div class="form-group row">
-        <div class="col-6">
-            <label>${t("highlighting.color-scheme")}</label>
-            <select class="theme-select form-select"></select>
+        <div class="col-md-6">
+            <label for="highlighting-color-scheme-select">${t("highlighting.color-scheme")}</label>
+            <select id="highlighting-color-scheme-select" class="theme-select form-select"></select>
         </div>
 
-        <div class="col-6 side-checkbox">
+        <div class="col-md-6 side-checkbox">
             <label class="form-check">
                 <input type="checkbox" class="word-wrap form-check-input" />
                 ${t("code_block.word_wrapping")}
@@ -58,20 +58,20 @@ const TPL = `
  * Contains appearance settings for code blocks within text notes, such as the theme for the syntax highlighter.
  */
 export default class CodeBlockOptions extends OptionsWidget {
-    doRender() {        
-        this.$widget = $(TPL);        
+    doRender() {
+        this.$widget = $(TPL);
         this.$themeSelect = this.$widget.find(".theme-select");
         this.$themeSelect.on("change", async () => {
             const newTheme = this.$themeSelect.val();
             library_loader.loadHighlightingTheme(newTheme);
             await server.put(`options/codeBlockTheme/${newTheme}`);
         });
-        
+
         this.$wordWrap = this.$widget.find("input.word-wrap");
         this.$wordWrap.on("change", () => this.updateCheckboxOption("codeBlockWordWrap", this.$wordWrap));
 
         // Set up preview
-        this.$sampleEl = this.$widget.find(".code-sample");        
+        this.$sampleEl = this.$widget.find(".code-sample");
     }
 
     #setupPreview(shouldEnableSyntaxHighlight) {

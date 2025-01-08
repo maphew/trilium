@@ -3,7 +3,7 @@
 import log from "./log.js";
 import sql from "./sql.js";
 import optionService from "./options.js";
-import utils from "./utils.js";
+import { hmac, randomString, timeLimit } from "./utils.js";
 import instanceId from "./instance_id.js";
 import dateUtils from "./date_utils.js";
 import syncUpdateService from "./sync_update.js";
@@ -121,7 +121,7 @@ async function doLogin(): Promise<SyncContext> {
     const timestamp = dateUtils.utcNowDateTime();
 
     const documentSecret = optionService.getOption('documentSecret');
-    const hash = utils.hmac(documentSecret, timestamp);
+    const hash = hmac(documentSecret, timestamp);
 
     const syncContext: SyncContext = { cookieJar: {} };
     const resp = await syncRequest<SyncResponse>(syncContext, 'POST', '/api/login/sync', {
@@ -153,10 +153,10 @@ async function doLogin(): Promise<SyncContext> {
     return syncContext;
 }
 
-async function pullChanges(syncContext: SyncContext) {    
+async function pullChanges(syncContext: SyncContext) {
     while (true) {
         const lastSyncedPull = getLastSyncedPull();
-        const logMarkerId = utils.randomString(10); // to easily pair sync events between client and server logs
+        const logMarkerId = randomString(10); // to easily pair sync events between client and server logs
         const changesUri = `/api/sync/changed?instanceId=${instanceId}&lastEntityChangeId=${lastSyncedPull}&logMarkerId=${logMarkerId}`;
 
         const startDate = Date.now();
@@ -234,7 +234,7 @@ async function pushChanges(syncContext: SyncContext) {
         const entityChangesRecords = getEntityChangeRecords(filteredEntityChanges);
         const startDate = new Date();
 
-        const logMarkerId = utils.randomString(10); // to easily pair sync events between client and server logs
+        const logMarkerId = randomString(10); // to easily pair sync events between client and server logs
 
         await syncRequest(syncContext, 'PUT', `/api/sync/update?logMarkerId=${logMarkerId}`, {
             entities: entityChangesRecords,
@@ -310,7 +310,7 @@ async function syncRequest<T extends {}>(syncContext: SyncContext, method: strin
 
     let response;
 
-    const requestId = utils.randomString(10);
+    const requestId = randomString(10);
     const pageCount = Math.max(1, Math.ceil(body.length / PAGE_SIZE));
 
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
@@ -328,7 +328,7 @@ async function syncRequest<T extends {}>(syncContext: SyncContext, method: strin
             proxy: proxyToggle ? syncOptions.getSyncProxy() : null
         };
 
-        response = await utils.timeLimit(request.exec(opts), timeout) as T;
+        response = await timeLimit(request.exec(opts), timeout) as T;
     }
 
     return response;

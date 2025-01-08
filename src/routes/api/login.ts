@@ -13,9 +13,8 @@ import sql from "../../services/sql.js";
 import ws from "../../services/ws.js";
 import etapiTokenService from "../../services/etapi_tokens.js";
 import { Request } from 'express';
-import { AppRequest } from '../route-interface.js';
 
-function loginSync(req: AppRequest) {
+function loginSync(req: Request) {
     if (!sqlInit.schemaExists()) {
         return [500, { message: "DB schema does not exist, can't sync." }];
     }

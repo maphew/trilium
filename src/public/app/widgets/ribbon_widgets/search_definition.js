@@ -135,9 +135,7 @@ const TPL = `
                         <div style="display: flex; justify-content: space-evenly">
                             <button type="button" class="btn btn-sm search-button">
                                 <span class="bx bx-search"></span>
-                                ${t('search_definition.search')}
-                                
-                                <kbd>${t('search_definition.enter')}</kbd>
+                                ${t('search_definition.search_button')}
                             </button>
         
                             <button type="button" class="btn btn-sm search-and-execute-button">

@@ -1,7 +1,7 @@
 "use strict";
 
 import sql from "./sql.js";
-import utils from "./utils.js";
+import { hash } from "./utils.js";
 import log from "./log.js";
 import eraseService from "./erase.js";
 
@@ -18,12 +18,12 @@ function getEntityHashes() {
     const hashRows = sql.disableSlowQueryLogging(
         () => sql.getRawRows<HashRow>(`
             SELECT entityName,
-                   entityId,
-                   hash,
-                   isErased
+                    entityId,
+                    hash,
+                    isErased
             FROM entity_changes
             WHERE isSynced = 1
-              AND entityName != 'note_reordering'`)
+            AND entityName != 'note_reordering'`)
     );
 
     // sorting is faster in memory
@@ -43,7 +43,7 @@ function getEntityHashes() {
 
     for (const entityHashMap of Object.values(hashMap)) {
         for (const key in entityHashMap) {
-            entityHashMap[key] = utils.hash(entityHashMap[key]);
+            entityHashMap[key] = hash(entityHashMap[key]);
         }
     }
 

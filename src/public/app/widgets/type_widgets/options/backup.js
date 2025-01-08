@@ -1,7 +1,8 @@
+import { formatDateTime } from "../../../utils/formatters.js"
 import { t } from "../../../services/i18n.js";
+import OptionsWidget from "./options_widget.js";
 import server from "../../../services/server.js";
 import toastService from "../../../services/toast.js";
-import OptionsWidget from "./options_widget.js";
 
 const TPL = `
 <div class="options-section">
@@ -69,7 +70,7 @@ export default class BackupOptions extends OptionsWidget {
         this.$backupDatabaseButton.on('click', async () => {
             const {backupFile} = await server.post('database/backup-database');
 
-            toastService.showMessage(`${t('backup.database_backed_up_to')} ${backupFile}`, 10000);
+            toastService.showMessage(t('backup.database_backed_up_to', { backupFilePath: backupFile}), 10000);
 
             this.refresh();
         });
@@ -115,15 +116,10 @@ export default class BackupOptions extends OptionsWidget {
                 return 0;
             });
 
-            const dateTimeFormatter = new Intl.DateTimeFormat(navigator.language, {
-                dateStyle: "medium",
-                timeStyle: "medium"
-            });
-
             for (const {filePath, mtime} of backupFiles) {
                 this.$existingBackupList.append($(`
                     <tr>
-                        <td>${(mtime) ? dateTimeFormatter.format(new Date(mtime)) : "-"}</td>
+                        <td>${(mtime) ? formatDateTime(mtime) : "-"}</td>
                         <td>${filePath}</td>
                     </tr>
                 `));

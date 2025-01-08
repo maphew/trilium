@@ -100,6 +100,7 @@
        "button":"登入"
     },
     "set_password":{
+       "title":"設定密碼",
        "heading":"設定密碼",
        "description":"在您可以從Web開始使用Trilium之前，您需要先設定一個密碼。然後您將使用此密碼登錄。",
        "password":"密碼",

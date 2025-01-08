@@ -13,9 +13,8 @@ import TaskContext from "../../services/task_context.js";
 import ValidationError from "../../errors/validation_error.js";
 import { Request } from 'express';
 import BNote from "../../becca/entities/bnote.js";
-import { AppRequest } from '../route-interface.js';
 
-async function importNotesToBranch(req: AppRequest) {
+async function importNotesToBranch(req: Request) {
     const { parentNoteId } = req.params;
     const { taskId, last } = req.body;
 
@@ -97,7 +96,7 @@ async function importNotesToBranch(req: AppRequest) {
     return note.getPojo();
 }
 
-async function importAttachmentsToNote(req: AppRequest) {
+async function importAttachmentsToNote(req: Request) {
     const { parentNoteId } = req.params;
     const { taskId, last } = req.body;
 

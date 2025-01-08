@@ -5,7 +5,7 @@ import optionService from "./options.js";
 import syncOptions from "./sync_options.js";
 import request from "./request.js";
 import appInfo from "./app_info.js";
-import utils from "./utils.js";
+import { timeLimit } from "./utils.js";
 import becca from "../becca/becca.js";
 import { SetupStatusResponse, SetupSyncSeedResponse } from './api-interface.js';
 
@@ -47,7 +47,7 @@ async function sendSeedToSyncServer() {
 async function requestToSyncServer<T>(method: string, path: string, body?: string | {}): Promise<T> {
     const timeout = syncOptions.getSyncTimeout();
 
-    return await utils.timeLimit(request.exec({
+    return await timeLimit(request.exec({
         method,
         url: syncOptions.getSyncServerHost() + path,
         body,
@@ -88,7 +88,7 @@ async function setupSyncFromSyncServer(syncServerHost: string, syncProxy: string
         }
 
         await sqlInit.createDatabaseForSync(resp.options, syncServerHost, syncProxy);
-        
+
         triggerSync();
 
         return { result: 'success' };

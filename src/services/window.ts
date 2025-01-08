@@ -9,6 +9,7 @@ import cls from "./cls.js";
 import keyboardActionsService from "./keyboard_actions.js";
 import remoteMain from "@electron/remote/main/index.js";
 import { App, BrowserWindow, BrowserWindowConstructorOptions, WebContents, ipcMain } from 'electron';
+import { isMac, isWindows } from "./utils.js";
 
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -58,7 +59,7 @@ async function createMainWindow(app: App) {
             }
         ]);
     }
-    
+
     const windowStateKeeper = (await import('electron-window-state')).default; // should not be statically imported
 
     const mainWindowState = windowStateKeeper({
@@ -71,7 +72,7 @@ async function createMainWindow(app: App) {
 
     const { BrowserWindow } = (await import('electron')); // should not be statically imported
 
-    
+
 
     mainWindow = new BrowserWindow({
         x: mainWindowState.x,
@@ -84,7 +85,7 @@ async function createMainWindow(app: App) {
             contextIsolation: false,
             spellcheck: spellcheckEnabled,
             webviewTag: true
-        },        
+        },
         icon: getIcon(),
         ...getWindowExtraOpts()
     });
@@ -99,7 +100,7 @@ async function createMainWindow(app: App) {
 
     app.on('second-instance', (event, commandLine) => {
         if (commandLine.includes('--new-window')) {
-            createExtraWindow("");  
+            createExtraWindow("");
         } else if (mainWindow) {
             // Someone tried to run a second instance, we should focus our window.
             // see www.ts "requestSingleInstanceLock" for the rest of this logic with explanation
@@ -115,14 +116,11 @@ async function createMainWindow(app: App) {
 function getWindowExtraOpts() {
     const extraOpts: Partial<BrowserWindowConstructorOptions> = {};
 
-    const isMac = (process.platform === "darwin");
-    const isWindows = (process.platform === "win32");
-
     if (!optionService.getOptionBool('nativeTitleBarVisible')) {
-        if (isMac) {
+        if (isMac()) {
             extraOpts.titleBarStyle = "hiddenInset";
             extraOpts.titleBarOverlay = true;
-        } else if (isWindows) {
+        } else if (isWindows()) {
             extraOpts.titleBarStyle = "hidden";
             extraOpts.titleBarOverlay = true;
         } else {
@@ -132,7 +130,7 @@ function getWindowExtraOpts() {
     }
 
     // Window effects (Mica)
-    if (optionService.getOptionBool('backgroundEffects') && isWindows) {
+    if (optionService.getOptionBool('backgroundEffects') && isWindows()) {
         extraOpts.backgroundMaterial = "auto";
     }
 
@@ -146,7 +144,7 @@ function configureWebContents(webContents: WebContents, spellcheckEnabled: boole
         async function openExternal() {
             (await import('electron')).shell.openExternal(details.url);
         }
-        
+
         openExternal();
         return { action: 'deny' }
     });

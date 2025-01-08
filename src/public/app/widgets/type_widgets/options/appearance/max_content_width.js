@@ -7,16 +7,16 @@ const MIN_VALUE = 640;
 const TPL = `
 <div class="options-section">
     <h4>${t("max_content_width.title")}</h4>
-    
+
     <p>${t("max_content_width.default_description")}</p>
-    
+
     <div class="form-group row">
-        <div class="col-6">
-            <label>${t("max_content_width.max_width_label")}</label>
-            <input type="number" min="${MIN_VALUE}" step="10" class="max-content-width form-control options-number-input">
+        <div class="col-md-6">
+            <label for="max-content-width">${t("max_content_width.max_width_label")}</label>
+            <input id="max-content-width" type="number" min="${MIN_VALUE}" step="10" class="max-content-width form-control options-number-input">
         </div>
     </div>
-    
+
     <p>
         ${t("max_content_width.apply_changes_description")}
         <button class="btn btn-micro reload-frontend-button">${t("max_content_width.reload_button")}</button>

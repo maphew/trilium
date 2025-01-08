@@ -1,10 +1,10 @@
 import optionService from "../options.js";
 import myScryptService from "./my_scrypt.js";
-import utils from "../utils.js";
+import { toBase64 } from "../utils.js";
 import dataEncryptionService from "./data_encryption.js";
 
 function verifyPassword(password: string) {
-    const givenPasswordHash = utils.toBase64(myScryptService.getVerificationHash(password));
+    const givenPasswordHash = toBase64(myScryptService.getVerificationHash(password));
 
     const dbPasswordHash = optionService.getOptionOrNull('passwordVerificationHash');
 

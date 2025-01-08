@@ -17,7 +17,7 @@ import OrderByAndLimitExp from "../expressions/order_by_and_limit.js";
 import AncestorExp from "../expressions/ancestor.js";
 import buildComparator from "./build_comparator.js";
 import ValueExtractor from "../value_extractor.js";
-import utils from "../../utils.js";
+import { removeDiacritic } from "../../utils.js";
 import TrueExp from "../expressions/true.js";
 import IsHiddenExp from "../expressions/is_hidden.js";
 import SearchContext from "../search_context.js";
@@ -25,7 +25,7 @@ import { TokenData, TokenStructure } from "./types.js";
 import Expression from "../expressions/expression.js";
 
 function getFulltext(_tokens: TokenData[], searchContext: SearchContext) {
-    const tokens: string[] = _tokens.map(t => utils.removeDiacritic(t.token));
+    const tokens: string[] = _tokens.map(t => removeDiacritic(t.token));
 
     searchContext.highlightedTokens.push(...tokens);
 
@@ -44,7 +44,7 @@ function getFulltext(_tokens: TokenData[], searchContext: SearchContext) {
     }
 }
 
-const OPERATORS = [
+const OPERATORS = new Set([
     "=",
     "!=",
     "*=*",
@@ -55,14 +55,14 @@ const OPERATORS = [
     "<",
     "<=",
     "%="
-];
+]);
 
 function isOperator(token: TokenData) {
     if (Array.isArray(token)) {
         return false;
     }
 
-    return OPERATORS.includes(token.token);
+    return OPERATORS.has(token.token);
 }
 
 function getExpression(tokens: TokenData[], searchContext: SearchContext, level = 0) {

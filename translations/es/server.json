@@ -94,13 +94,14 @@
   },
   "login": {
     "title": "Iniciar sesión",
-    "heading": "Iniciar sesión en Trillium",
+    "heading": "Iniciar sesión en Trilium",
     "incorrect-password": "La contraseña es incorrecta. Por favor inténtalo de nuevo.",
     "password": "Contraseña",
     "remember-me": "Recordarme",
     "button": "Iniciar sesión"
   },
   "set_password": {
+    "title": "Establecer contraseña",
     "heading": "Establecer contraseña",
     "description": "Antes de poder comenzar a usar Trilium desde la web, primero debe establecer una contraseña. Luego utilizará esta contraseña para iniciar sesión.",
     "password": "Contraseña",
@@ -109,7 +110,7 @@
   },
   "javascript-required": "Trilium requiere que JavaScript esté habilitado.",
   "setup": {
-    "heading": "Configuración de TrilliumNext Notes",
+    "heading": "Configuración de TriliumNext Notes",
     "new-document": "Soy un usuario nuevo y quiero crear un nuevo documento de Trilium para mis notas",
     "sync-from-desktop": "Ya tengo una instancia de escritorio y quiero configurar la sincronización con ella",
     "sync-from-server": "Ya tengo una instancia de servidor y quiero configurar la sincronización con ella",
@@ -240,5 +241,8 @@
     "other": "Otros",
     "advanced-title": "Avanzado",
     "visible-launchers-title": "Lanzadores visibles"
+  },
+  "notes": {
+    "new-note": "Nueva nota"
   }
 }

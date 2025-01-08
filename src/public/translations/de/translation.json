@@ -32,7 +32,8 @@
     "search_note": "Suche nach einer Notiz anhand ihres Namens",
     "link_title_mirrors": "Der Linktitel spiegelt den aktuellen Titel der Notiz wider",
     "link_title_arbitrary": "Der Linktitel kann beliebig geändert werden",
-    "link_title": "Linktitel"
+    "link_title": "Linktitel",
+    "button_add_link": "Link hinzufügen <kbd>Eingabetaste</kbd>"
   },
   "branch_prefix": {
     "edit_branch_prefix": "Zweigpräfix bearbeiten",
@@ -87,13 +88,13 @@
   "export": {
     "export_note_title": "Notiz exportieren",
     "close": "Schließen",
-    "export_type_subtree": "diese Notiz und alle ihre Unternotizen",
+    "export_type_subtree": "Diese Notiz und alle ihre Unternotizen",
     "format_html_zip": "HTML im ZIP-Archiv – dies wird empfohlen, da dadurch die gesamte Formatierung erhalten bleibt.",
     "format_markdown": "Markdown – dadurch bleiben die meisten Formatierungen erhalten.",
     "format_opml": "OPML – Outliner-Austauschformat nur für Text. Formatierungen, Bilder und Dateien sind nicht enthalten.",
     "opml_version_1": "OPML v1.0 – nur Klartext",
     "opml_version_2": "OPML v2.0 – erlaubt auch HTML",
-    "export_type_single": "nur diese Notiz ohne ihre Unternotizen",
+    "export_type_single": "Nur diese Notiz ohne ihre Unternotizen",
     "export": "Export",
     "choose_export_type": "Bitte wähle zuerst den Exporttypen aus",
     "export_status": "Exportstatus",
@@ -104,17 +105,17 @@
     "fullDocumentation": "Hilfe (gesamte Dokumentation ist <a class=\"external\" href=\"https://triliumnext.github.io/Docs/\">online</a> verfügbar)",
     "close": "Schließen",
     "noteNavigation": "Notiz Navigation",
-    "goUpDown": "In der Liste der Notizen nach oben/unten gehen",
-    "collapseExpand": "Knoten reduzieren/erweitern",
+    "goUpDown": "<kbd>Pfeil Hoch</kbd>, <kbd>Pfeil Runter</kbd> - In der Liste der Notizen nach oben/unten gehen",
+    "collapseExpand": "<kbd>LEFT</kbd>, <kbd>RIGHT</kbd> - Knoten reduzieren/erweitern",
     "notSet": "nicht eingestellt",
     "goBackForwards": "in der Historie zurück/vorwärts gehen",
     "showJumpToNoteDialog": "zeige <a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/note-navigation.html#jump-to-note\">\"Springe zu\" dialog</a>",
     "scrollToActiveNote": "Scrolle zur aktiven Notiz",
-    "jumpToParentNote": "Zur übergeordneten Notiz springen",
+    "jumpToParentNote": "<kbd>Backspace</kbd> - Zur übergeordneten Notiz springen",
     "collapseWholeTree": "Reduziere den gesamten Notizbaum",
     "collapseSubTree": "Teilbaum einklappen",
     "tabShortcuts": "Tab-Tastenkürzel",
-    "newTabNoteLink": "(oder mittlerer Mausklick) auf den Notizlink öffnet die Notiz in einem neuen Tab",
+    "newTabNoteLink": "<kbd>Strg+Klick</kbd> - (oder mittlerer Mausklick) auf den Notizlink öffnet die Notiz in einem neuen Tab",
     "onlyInDesktop": "Nur im Desktop (Electron Build)",
     "openEmptyTab": "Leeren Tab öffnen",
     "closeActiveTab": "Aktiven Tab schließen",
@@ -129,25 +130,25 @@
     "moveNoteUpHierarchy": "Verschiebe die Notiz in der Hierarchie nach oben",
     "multiSelectNote": "Mehrfachauswahl von Notizen oben/unten",
     "selectAllNotes": "Wähle alle Notizen in der aktuellen Ebene aus",
-    "selectNote": "Notiz auswählen",
+    "selectNote": "<kbd>Umschalt+Klick</kbd> - Notiz auswählen",
     "copyNotes": "Kopiere aktive Notiz (oder aktuelle Auswahl) in den Zwischenspeicher (wird genutzt für <a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/cloning-notes.html#cloning-notes\">Klonen</a>)",
     "cutNotes": "Aktuelle Notiz (oder aktuelle Auswahl) in die Zwischenablage ausschneiden (wird zum Verschieben von Notizen verwendet)",
     "pasteNotes": "Notiz(en) als Unternotiz in die aktive Notiz einfügen (entweder verschieben oder klonen, je nachdem, ob sie kopiert oder in die Zwischenablag e ausgeschnitten wurde)",
     "deleteNotes": "Notiz / Unterbaum löschen",
     "editingNotes": "Notizen bearbeiten",
     "editNoteTitle": "Im Baumbereich wird vom Baumbereich zum Notiztitel gewechselt. Beim Druck auf Eingabe im Notiztitel, wechselt der Fokus zum Texteditor. <kbd>Strg+.</kbd> wechselt vom Editor zurück zum Baumbereich.",
-    "createEditLink": "Externen Link erstellen/bearbeiten",
+    "createEditLink": "<kbd>Strg+K</kbd> - Externen Link erstellen/bearbeiten",
     "createInternalLink": "Internen Link erstellen",
     "followLink": "Folge dem Link unter dem Cursor",
     "insertDateTime": "Gebe das aktuelle Datum und die aktuelle Uhrzeit an der Einfügemarke ein",
     "jumpToTreePane": "Springe zum Baumbereich und scrolle zur aktiven Notiz",
     "markdownAutoformat": "Markdown-ähnliche Autoformatierung",
-    "headings": "usw. gefolgt von Platz für Überschriften",
+    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd> usw. gefolgt von Platz für Überschriften",
     "bulletList": "<kbd>*</kbd> oder <kbd>-</kbd> gefolgt von Leerzeichen für Aufzählungsliste",
     "numberedList": "<kbd>1.</kbd> oder <kbd>1)</kbd> gefolgt von Leerzeichen für nummerierte Liste",
     "blockQuote": "Beginne eine Zeile mit <kbd>></kbd> gefolgt von einem Leerzeichen für Blockzitate",
     "troubleshooting": "Fehlerbehebung",
-    "reloadFrontend": "Trillium-Frontend neuladen",
+    "reloadFrontend": "Trilium-Frontend neuladen",
     "showDevTools": "Entwicklertools anzeigen",
     "showSQLConsole": "SQL-Konsole anzeigen",
     "other": "Andere",
@@ -180,7 +181,7 @@
     "box_size_small": "klein (~ 10 Zeilen)",
     "box_size_medium": "mittel (~ 30 Zeilen)",
     "box_size_full": "vollständig (Feld zeigt vollständigen Text)",
-    "button_include": "Notiz beifügen"
+    "button_include": "Notiz beifügen <kbd>Eingabetaste</kbd>"
   },
   "info": {
     "modalTitle": "Infonachricht",
@@ -275,7 +276,7 @@
     "sort_with_respect_to_different_character_sorting": "Sortierung im Hinblick auf unterschiedliche Sortier- und Sortierregeln für Zeichen in verschiedenen Sprachen oder Regionen.",
     "natural_sort_language": "Natürliche Sortiersprache",
     "the_language_code_for_natural_sort": "Der Sprachcode für die natürliche Sortierung, z. B. \"de-DE\" für Deutsch.",
-    "sort": "Sortieren"
+    "sort": "Sortieren <kbd>Eingabetaste</kbd>"
   },
   "upload_attachments": {
     "upload_attachments_to_note": "Lade Anhänge zur Notiz hoch",
@@ -660,7 +661,7 @@
   },
   "code_buttons": {
     "execute_button_title": "Skript ausführen",
-    "trilium_api_docs_button_title": "Öffne die Trillium-API-Dokumentation",
+    "trilium_api_docs_button_title": "Öffne die Trilium-API-Dokumentation",
     "save_to_note_button_title": "In die Notiz speichern",
     "opening_api_docs_message": "API-Dokumentation wird geöffnet...",
     "sql_console_saved_message": "SQL-Konsolennotiz wurde in {{note_path}} gespeichert"
@@ -811,8 +812,7 @@
     "debug": "debuggen",
     "debug_description": "Debug gibt zusätzliche Debuginformationen in die Konsole aus, um das Debuggen komplexer Abfragen zu erleichtern",
     "action": "Aktion",
-    "search": "Suchen",
-    "enter": "eingeben",
+    "search_button": "Suchen <kbd>Eingabetaste</kbd>",
     "search_execute": "Aktionen suchen und ausführen",
     "save_to_note": "Als Notiz speichern",
     "search_parameters": "Suchparameter",
@@ -930,7 +930,7 @@
   },
   "protected_session": {
     "enter_password_instruction": "Um die geschützte Notiz anzuzeigen, musst du dein Passwort eingeben:",
-    "start_session_button": "Starte eine geschützte Sitzung",
+    "start_session_button": "Starte eine geschützte Sitzung <kbd>Eingabetaste</kbd>",
     "started": "Geschützte Sitzung gestartet.",
     "wrong_password": "Passwort flasch.",
     "protecting-finished-successfully": "Geschützt erfolgreich beendet.",
@@ -1183,7 +1183,7 @@
     "backup_now": "Jetzt sichern",
     "backup_database_now": "Jetzt Datenbank sichern",
     "existing_backups": "Vorhandene Backups",
-    "database_backed_up_to": "Die Datenbank wurde gesichert",
+    "database_backed_up_to": "Die Datenbank wurde gesichert unter {{backupFilePath}}",
     "no_backup_yet": "noch kein Backup"
   },
   "etapi": {
@@ -1303,7 +1303,7 @@
     "button-tree-map": "Baumkarte"
   },
   "tree-context-menu": {
-    "open-in-a-new-tab": "In neuem Tab öffnen",
+    "open-in-a-new-tab": "In neuem Tab öffnen <kbd>Strg+Klick</kbd>",
     "open-in-a-new-split": "In neuem Split öffnen",
     "insert-note-after": "Notiz dahinter einfügen",
     "insert-child-note": "Unternotiz einfügen",
@@ -1492,11 +1492,11 @@
     "add-script-launcher": "Launcher für Skript hinzufügen",
     "add-custom-widget": "Benutzerdefiniertes Widget hinzufügen",
     "add-spacer": "Spacer hinzufügen",
-    "delete": "Löschen",
+    "delete": "Löschen <kbd data-command=\"deleteNotes\"></kbd>",
     "reset": "Zurücksetzen",
     "move-to-visible-launchers": "Zu sichtbaren Launchern verschieben",
     "move-to-available-launchers": "Zu verfügbaren Launchern verschieben",
-    "duplicate-launcher": "Launcher duplizieren"
+    "duplicate-launcher": "Launcher duplizieren <kbd data-command=\"duplicateSubtree\">"
   },
   "editable-text": {
     "auto-detect-language": "Automatisch erkannt"

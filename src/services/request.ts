@@ -1,6 +1,6 @@
 "use strict";
 
-import utils from "./utils.js";
+import { isElectron } from "./utils.js";
 import log from "./log.js";
 import url from "url";
 import syncOptions from "./sync_options.js";
@@ -29,13 +29,13 @@ interface Request {
     end(payload?: string): void;
 }
 
-interface Client {    
+interface Client {
     request(opts: ClientOpts): Request;
 }
 
 async function exec<T>(opts: ExecOpts): Promise<T> {
     const client = getClient(opts);
-    
+
     // hack for cases where electron.net does not work, but we don't want to set proxy
     if (opts.proxy === 'noproxy') {
         opts.proxy = null;
@@ -210,7 +210,7 @@ async function getProxyAgent(opts: ClientOpts) {
 async function getClient(opts: ClientOpts): Promise<Client> {
     // it's not clear how to explicitly configure proxy (as opposed to system proxy),
     // so in that case, we always use node's modules
-    if (utils.isElectron() && !opts.proxy) {
+    if (isElectron() && !opts.proxy) {
         return (await import('electron')).net as Client;
     } else {
         const {protocol} = url.parse(opts.url);

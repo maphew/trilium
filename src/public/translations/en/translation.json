@@ -1,6 +1,7 @@
 {
   "about": {
     "title": "About TriliumNext Notes",
+    "close": "Close",
     "homepage": "Homepage:",
     "app_version": "App version:",
     "db_version": "DB version:",
@@ -32,7 +33,8 @@
     "search_note": "search for note by its name",
     "link_title_mirrors": "link title mirrors the note's current title",
     "link_title_arbitrary": "link title can be changed arbitrarily",
-    "link_title": "Link title"
+    "link_title": "Link title",
+    "button_add_link": "Add link <kbd>enter</kbd>"
   },
   "branch_prefix": {
     "edit_branch_prefix": "Edit branch prefix",
@@ -59,6 +61,7 @@
   },
   "clone_to": {
     "clone_notes_to": "Clone notes to...",
+    "close": "Close",
     "help_on_links": "Help on links",
     "notes_to_clone": "Notes to clone",
     "target_parent_note": "Target parent note",
@@ -71,6 +74,7 @@
   },
   "confirm": {
     "confirmation": "Confirmation",
+    "close": "Close",
     "cancel": "Cancel",
     "ok": "OK",
     "are_you_sure_remove_note": "Are you sure you want to remove the note \"{{title}}\" from relation map? ",
@@ -79,6 +83,7 @@
   },
   "delete_notes": {
     "delete_notes_preview": "Delete notes preview",
+    "close": "Close",
     "delete_all_clones_description": "Delete also all clones (can be undone in recent changes)",
     "erase_notes_description": "Normal (soft) deletion only marks the notes as deleted and they can be undeleted (in recent changes dialog) within a period of time. Checking this option will erase the notes immediately and it won't be possible to undelete the notes.",
     "erase_notes_warning": "Erase notes permanently (can't be undone), including all clones. This will force application reload.",
@@ -92,14 +97,14 @@
   "export": {
     "export_note_title": "Export note",
     "close": "Close",
-    "export_type_subtree": "this note and all of its descendants",
+    "export_type_subtree": "This note and all of its descendants",
     "format_html": "HTML - recommended as it keeps all format",
     "format_html_zip": "HTML in ZIP archive - this is recommended since this preserves all the formatting.",
     "format_markdown": "Markdown - this preserves most of the formatting.",
     "format_opml": "OPML - outliner interchange format for text only. Formatting, images and files are not included.",
     "opml_version_1": "OPML v1.0 - plain text only",
     "opml_version_2": "OPML v2.0 - allows also HTML",
-    "export_type_single": "only this note without its descendants",
+    "export_type_single": "Only this note without its descendants",
     "export": "Export",
     "choose_export_type": "Choose export type first please",
     "export_status": "Export status",
@@ -110,17 +115,17 @@
     "fullDocumentation": "Help (full documentation is available <a class=\"external\" href=\"https://triliumnext.github.io/Docs/\">online</a>)",
     "close": "Close",
     "noteNavigation": "Note navigation",
-    "goUpDown": "go up/down in the list of notes",
-    "collapseExpand": "collapse/expand node",
+    "goUpDown": "<kbd>UP</kbd>, <kbd>DOWN</kbd> - go up/down in the list of notes",
+    "collapseExpand": "<kbd>LEFT</kbd>, <kbd>RIGHT</kbd> - collapse/expand node",
     "notSet": "not set",
     "goBackForwards": "go back / forwards in the history",
     "showJumpToNoteDialog": "show <a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/note-navigation.html#jump-to-note\">\"Jump to\" dialog</a>",
     "scrollToActiveNote": "scroll to active note",
-    "jumpToParentNote": "jump to parent note",
+    "jumpToParentNote": "<kbd>Backspace</kbd> - jump to parent note",
     "collapseWholeTree": "collapse whole note tree",
     "collapseSubTree": "collapse sub-tree",
     "tabShortcuts": "Tab shortcuts",
-    "newTabNoteLink": "(or middle mouse click) on note link opens note in a new tab",
+    "newTabNoteLink": "<kbd>CTRL+click</kbd> - (or middle mouse click) on note link opens note in a new tab",
     "onlyInDesktop": "Only in desktop (Electron build)",
     "openEmptyTab": "open empty tab",
     "closeActiveTab": "close active tab",
@@ -135,20 +140,20 @@
     "moveNoteUpHierarchy": "move note up in the hierarchy",
     "multiSelectNote": "multi-select note above/below",
     "selectAllNotes": "select all notes in the current level",
-    "selectNote": "select note",
+    "selectNote": "<kbd>Shift+click</kbd> - select note",
     "copyNotes": "copy active note (or current selection) into clipboard (used for <a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/cloning-notes.html#cloning-notes\">cloning</a>)",
     "cutNotes": "cut current note (or current selection) into clipboard (used for moving notes)",
     "pasteNotes": "paste note(s) as sub-note into active note (which is either move or clone depending on whether it was copied or cut into clipboard)",
     "deleteNotes": "delete note / sub-tree",
     "editingNotes": "Editing notes",
     "editNoteTitle": "in tree pane will switch from tree pane into note title. Enter from note title will switch focus to text editor. <kbd>Ctrl+.</kbd> will switch back from editor to tree pane.",
-    "createEditLink": "create / edit external link",
+    "createEditLink": "<kbd>Ctrl+K</kbd> - create / edit external link",
     "createInternalLink": "create internal link",
     "followLink": "follow link under cursor",
     "insertDateTime": "insert current date and time at caret position",
     "jumpToTreePane": "jump away to the tree pane and scroll to active note",
     "markdownAutoformat": "Markdown-like autoformatting",
-    "headings": " etc. followed by space for headings",
+    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  etc. followed by space for headings",
     "bulletList": "<kbd>*</kbd> or <kbd>-</kbd> followed by space for bullet list",
     "numberedList": "<kbd>1.</kbd> or <kbd>1)</kbd> followed by space for numbered list",
     "blockQuote": "start a line with <kbd>></kbd> followed by space for block quote",
@@ -189,13 +194,14 @@
   },
   "include_note": {
     "dialog_title": "Include note",
+    "close": "Close",
     "label_note": "Note",
     "placeholder_search": "search for note by its name",
     "box_size_prompt": "Box size of the included note:",
     "box_size_small": "small (~ 10 lines)",
     "box_size_medium": "medium (~ 30 lines)",
     "box_size_full": "full (box shows complete text)",
-    "button_include": "Include note"
+    "button_include": "Include note <kbd>enter</kbd>"
   },
   "info": {
     "modalTitle": "Info message",
@@ -204,16 +210,19 @@
   },
   "jump_to_note": {
     "search_placeholder": "search for note by its name",
+    "close": "Close",
     "search_button": "Search in full text <kbd>Ctrl+Enter</kbd>"
   },
   "markdown_import": {
     "dialog_title": "Markdown import",
+    "close": "Close",
     "modal_body_text": "Because of browser sandbox it's not possible to directly read clipboard from JavaScript. Please paste the Markdown to import to textarea below and click on Import button",
     "import_button": "Import Ctrl+Enter",
     "import_success": "Markdown content has been imported into the document."
   },
   "move_to": {
     "dialog_title": "Move notes to ...",
+    "close": "Close",
     "notes_to_move": "Notes to move",
     "target_parent_note": "Target parent note",
     "search_placeholder": "search for note by its name",
@@ -223,16 +232,19 @@
   },
   "note_type_chooser": {
     "modal_title": "Choose note type",
+    "close": "Close",
     "modal_body": "Choose note type / template of the new note:",
     "templates": "Templates:"
   },
   "password_not_set": {
     "title": "Password is not set",
+    "close": "Close",
     "body1": "Protected notes are encrypted using a user password, but password has not been set yet.",
     "body2": "To be able to protect notes, click <a class=\"open-password-options-button\" href=\"javascript:\">here</a> to open the Options dialog and set your password."
   },
   "prompt": {
     "title": "Prompt",
+    "close": "Close",
     "ok": "OK <kbd>enter</kbd>",
     "defaultTitle": "Prompt"
   },
@@ -246,6 +258,7 @@
   "recent_changes": {
     "title": "Recent changes",
     "erase_notes_button": "Erase deleted notes now",
+    "close": "Close",
     "deleted_notes_message": "Deleted notes have been erased.",
     "no_changes_message": "No changes yet...",
     "undelete_link": "undelete",
@@ -256,6 +269,7 @@
     "delete_all_revisions": "Delete all revisions of this note",
     "delete_all_button": "Delete all revisions",
     "help_title": "Help on Note Revisions",
+    "close": "Close",
     "revision_last_edited": "This revision was last edited on {{date}}",
     "confirm_delete_all": "Do you want to delete all revisions of this note? This action will erase the revision title and content, but still preserve the revision metadata.",
     "no_revisions": "No revisions for this note yet...",
@@ -277,6 +291,7 @@
   },
   "sort_child_notes": {
     "sort_children_by": "Sort children by...",
+    "close": "Close",
     "sorting_criteria": "Sorting criteria",
     "title": "title",
     "date_created": "date created",
@@ -290,10 +305,11 @@
     "sort_with_respect_to_different_character_sorting": "sort with respect to different character sorting and collation rules in different languages or regions.",
     "natural_sort_language": "Natural sort language",
     "the_language_code_for_natural_sort": "The language code for natural sort, e.g. \"zh-CN\" for Chinese.",
-    "sort": "Sort"
+    "sort": "Sort <kbd>enter</kbd>"
   },
   "upload_attachments": {
     "upload_attachments_to_note": "Upload attachments to note",
+    "close": "Close",
     "choose_files": "Choose files",
     "files_will_be_uploaded": "Files will be uploaded as attachments into",
     "options": "Options",
@@ -359,6 +375,7 @@
     "auto_read_only_disabled": "text/code notes can be set automatically into read mode when they are too large. You can disable this behavior on per-note basis by adding this label to the note",
     "app_css": "marks CSS notes which are loaded into the Trilium application and can thus be used to modify Trilium's looks.",
     "app_theme": "marks CSS notes which are full Trilium themes and are thus available in Trilium options.",
+    "app_theme_base": "set to \"next\" in order to use the TriliumNext theme as a base for a custom theme instead of the legacy one.",
     "css_class": "value of this label is then added as CSS class to the node representing given note in the tree. This can be useful for advanced theming. Can be used in template notes.",
     "icon_class": "value of this label is added as a CSS class to the icon on the tree which can help visually distinguish the notes in the tree. Example might be bx bx-home - icons are taken from boxicons. Can be used in template notes.",
     "page_size": "number of items per page in note listing",
@@ -826,8 +843,7 @@
     "debug": "debug",
     "debug_description": "Debug will print extra debugging information into the console to aid in debugging complex queries",
     "action": "action",
-    "search": "Search",
-    "enter": "enter",
+    "search_button": "Search <kbd>enter</kbd>",
     "search_execute": "Search & Execute actions",
     "save_to_note": "Save to note",
     "search_parameters": "Search Parameters",
@@ -945,7 +961,7 @@
   },
   "protected_session": {
     "enter_password_instruction": "Showing protected note requires entering your password:",
-    "start_session_button": "Start protected session",
+    "start_session_button": "Start protected session <kbd>enter</kbd>",
     "started": "Protected session has been started.",
     "wrong_password": "Wrong password.",
     "protecting-finished-successfully": "Protecting finished successfully.",
@@ -1047,7 +1063,16 @@
     "note_tree_and_detail_font_sizing": "Note that tree and detail font sizing is relative to the main font size setting.",
     "not_all_fonts_available": "Not all listed fonts may be available on your system.",
     "apply_font_changes": "To apply font changes, click on",
-    "reload_frontend": "reload frontend"
+    "reload_frontend": "reload frontend",
+    "generic-fonts": "Generic fonts",
+    "sans-serif-system-fonts": "Sans-serif system fonts",
+    "serif-system-fonts": "Serif system fonts",
+    "monospace-system-fonts": "Monospace system fonts",
+    "handwriting-system-fonts": "Handwriting system fonts",
+    "serif": "Serif",
+    "sans-serif": "Sans Serif",
+    "monospace": "Monospace",
+    "system-default": "System default"
   },
   "max_content_width": {
     "title": "Content Width",
@@ -1071,9 +1096,12 @@
     "title": "Application Theme",
     "theme_label": "Theme",
     "override_theme_fonts_label": "Override theme fonts",
+    "auto_theme": "Auto",
     "light_theme": "Light",
     "dark_theme": "Dark",
-    "triliumnext": "TriliumNext (beta)",
+    "triliumnext": "TriliumNext Beta (Follow system color scheme)",
+    "triliumnext-light": "TriliumNext Beta (Light)",
+    "triliumnext-dark": "TriliumNext Beta (Dark)",
     "layout": "Layout",
     "layout-vertical-title": "Vertical",
     "layout-horizontal-title": "Horizontal",
@@ -1206,7 +1234,7 @@
     "existing_backups": "Existing backups",
     "date-and-time": "Date & time",
     "path": "Path",
-    "database_backed_up_to": "Database has been backed up to",
+    "database_backed_up_to": "Database has been backed up to {{backupFilePath}}",
     "no_backup_yet": "no backup yet"
   },
   "etapi": {
@@ -1326,7 +1354,7 @@
     "button-tree-map": "Tree map"
   },
   "tree-context-menu": {
-    "open-in-a-new-tab": "Open in a new tab",
+    "open-in-a-new-tab": "Open in a new tab <kbd>Ctrl+Click</kbd>",
     "open-in-a-new-split": "Open in a new split",
     "insert-note-after": "Insert note after",
     "insert-child-note": "Insert child note",
@@ -1434,7 +1462,7 @@
     "saved-search-note-refreshed": "Saved search note refreshed."
   },
   "title_bar_buttons": {
-    "window-on-top": "Keep this window on top."
+    "window-on-top": "Keep Window on Top"
   },
   "note_detail": {
     "could_not_find_typewidget": "Could not find typeWidget for type '{{type}}'"
@@ -1521,11 +1549,11 @@
     "add-script-launcher": "Add a script launcher",
     "add-custom-widget": "Add a custom widget",
     "add-spacer": "Add spacer",
-    "delete": "Delete",
+    "delete": "Delete <kbd data-command=\"deleteNotes\"></kbd>",
     "reset": "Reset",
     "move-to-visible-launchers": "Move to visible launchers",
     "move-to-available-launchers": "Move to available launchers",
-    "duplicate-launcher": "Duplicate launcher"
+    "duplicate-launcher": "Duplicate launcher <kbd data-command=\"duplicateSubtree\">"
   },
   "editable-text": {
     "auto-detect-language": "Auto-detected"
@@ -1554,7 +1582,8 @@
       "fixed": {
         "title": "Fixed",
         "description": "editing tools appear in the \"Formatting\" ribbon tab."
-      }
+      },
+      "multiline-toolbar": "Display the toolbar on multiple lines if it doesn't fit."
     }
   },
   "electron_context_menu": {
@@ -1574,5 +1603,25 @@
     "open_note_in_new_tab": "Open note in a new tab",
     "open_note_in_new_split": "Open note in a new split",
     "open_note_in_new_window": "Open note in a new window"
+  },
+  "electron_integration": {
+    "desktop-application": "Desktop Application",
+    "native-title-bar": "Native title bar",
+    "native-title-bar-description": "For Windows and macOS, keeping the native title bar off makes the application look more compact. On Linux, keeping the native title bar on integrates better with the rest of the system.",
+    "background-effects": "Enable background effects (Windows 11 only)",
+    "background-effects-description": "The Mica effect adds a blurred, stylish background to app windows, creating depth and a modern look.",
+    "restart-app-button": "Restart the application to view the changes",
+    "zoom-factor": "Zoom factor"
+  },
+  "note_autocomplete": {
+    "search-for": "Search for \"{{term}}\"",
+    "create-note": "Create and link child note \"{{term}}\"",
+    "insert-external-link": "Insert external link to \"{{term}}\"",
+    "clear-text-field": "Clear text field",
+    "show-recent-notes": "Show recent notes",
+    "full-text-search": "Full text search"
+  },
+  "note_tooltip": {
+    "note-has-been-deleted": "Note has been deleted."
   }
 }

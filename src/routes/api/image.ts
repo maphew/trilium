@@ -6,7 +6,6 @@ import fs from "fs";
 import { Request, Response } from 'express';
 import BNote from "../../becca/entities/bnote.js";
 import BRevision from "../../becca/entities/brevision.js";
-import { AppRequest } from '../route-interface.js';
 import { RESOURCE_DIR } from "../../services/resource_dir.js";
 
 function returnImageFromNote(req: Request, res: Response) {
@@ -82,7 +81,7 @@ function returnAttachedImage(req: Request, res: Response) {
     res.send(attachment.getContent());
 }
 
-function updateImage(req: AppRequest) {
+function updateImage(req: Request) {
     const {noteId} = req.params;
     const {file} = req;
 
@@ -108,7 +107,7 @@ function updateImage(req: AppRequest) {
             message: "Invalid image content."
         };
     }
-    
+
     imageService.updateImage(noteId, file.buffer, file.originalname);
 
     return { uploaded: true };

@@ -6,7 +6,7 @@ import path from "path";
 import mimeTypes from "mime-types";
 import mdService from "./md.js";
 import packageInfo from "../../../package.json" with { type: "json" };
-import utils from "../utils.js";
+import { getContentDisposition, escapeHtml } from "../utils.js";
 import protectedSessionService from "../protected_session.js";
 import sanitize from "sanitize-filename";
 import fs from "fs";
@@ -63,7 +63,7 @@ async function exportToZip(taskContext: TaskContext, branch: BBranch, format: "h
         if (fileName.length > 30) {
             // We use regex to match the extension to preserve multiple dots in extensions (e.g. .tar.gz).
             let match = fileName.match(/(\.[a-zA-Z0-9_.!#-]+)$/);
-            let ext = match ? match[0] : ''; 
+            let ext = match ? match[0] : '';
             // Crop the extension if extension length exceeds 30
             const croppedExt = ext.slice(-30);
             // Crop the file name section and append the cropped extension
@@ -311,7 +311,7 @@ async function exportToZip(taskContext: TaskContext, branch: BBranch, format: "h
                 if (!noteMeta?.notePath?.length) { throw new Error("Missing note path."); }
 
                 const cssUrl = `${"../".repeat(noteMeta.notePath.length - 1)}style.css`;
-                const htmlTitle = utils.escapeHtml(title);
+                const htmlTitle = escapeHtml(title);
 
                 // <base> element will make sure external links are openable - https://github.com/zadam/trilium/issues/1289#issuecomment-704066809
                 content = `<html>
@@ -324,9 +324,9 @@ async function exportToZip(taskContext: TaskContext, branch: BBranch, format: "h
 </head>
 <body>
   <div class="content">
-      <h1 data-trilium-h1>${htmlTitle}</h1>
-      
-      <div class="ck-content">${content}</div>
+    <h1 data-trilium-h1>${htmlTitle}</h1>
+
+    <div class="ck-content">${content}</div>
   </div>
 </body>
 </html>`;
@@ -411,7 +411,7 @@ ${markdownContent}`;
         function saveNavigationInner(meta: NoteMeta) {
             let html = '<li>';
 
-            const escapedTitle = utils.escapeHtml(`${meta.prefix ? `${meta.prefix} - ` : ''}${meta.title}`);
+            const escapedTitle = escapeHtml(`${meta.prefix ? `${meta.prefix} - ` : ''}${meta.title}`);
 
             if (meta.dataFileName && meta.noteId) {
                 const targetUrl = getNoteTargetUrl(meta.noteId, rootMeta);
@@ -568,7 +568,7 @@ ${markdownContent}`;
     const zipFileName = `${branch.prefix ? `${branch.prefix} - ` : ""}${note.getTitleOrProtected()}.zip`;
 
     if (setHeaders && "setHeader" in res) {
-        res.setHeader('Content-Disposition', utils.getContentDisposition(zipFileName));
+        res.setHeader('Content-Disposition', getContentDisposition(zipFileName));
         res.setHeader('Content-Type', 'application/zip');
     }
 

@@ -14,9 +14,8 @@ import ValidationError from "../../errors/validation_error.js";
 import { Request, Response } from 'express';
 import BNote from "../../becca/entities/bnote.js";
 import BAttachment from "../../becca/entities/battachment.js";
-import { AppRequest } from '../route-interface.js';
 
-function updateFile(req: AppRequest) {
+function updateFile(req: Request) {
     const note = becca.getNoteOrThrow(req.params.noteId);
 
     const file = req.file;
@@ -43,7 +42,7 @@ function updateFile(req: AppRequest) {
     };
 }
 
-function updateAttachment(req: AppRequest) {
+function updateAttachment(req: Request) {
     const attachment = becca.getAttachmentOrThrow(req.params.attachmentId);
     const file = req.file;
     if (!file) {
@@ -177,7 +176,7 @@ function saveToTmpDir(fileName: string, content: string | Buffer, entityType: st
     if (typeof content === "string") {
         fs.writeSync(tmpObj.fd, content);
     } else {
-        fs.writeSync(tmpObj.fd, content);   
+        fs.writeSync(tmpObj.fd, content);
     }
 
     fs.closeSync(tmpObj.fd);

@@ -1,8 +1,9 @@
+import { formatDateTime } from "../../../utils/formatters.js"
 import { t } from "../../../services/i18n.js";
-import server from "../../../services/server.js";
 import dialogService from "../../../services/dialog.js";
-import toastService from "../../../services/toast.js";
 import OptionsWidget from "./options_widget.js";
+import server from "../../../services/server.js";
+import toastService from "../../../services/toast.js";
 
 const TPL = `
 <div class="options-section">
@@ -95,7 +96,7 @@ export default class EtapiOptions extends OptionsWidget {
             $tokensTableBody.append(
                 $("<tr>")
                     .append($("<td>").text(token.name))
-                    .append($("<td>").text(token.utcDateCreated))
+                    .append($("<td>").text(formatDateTime(token.utcDateCreated)))
                     .append($("<td>").append(
                         $(`<span class="bx bx-pen token-table-button" title="${t("etapi.rename_token")}"></span>`)
                             .on("click", () => this.renameToken(token.etapiTokenId, token.name)),

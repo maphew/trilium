@@ -2,7 +2,7 @@ import sax from "sax";
 import stream from "stream";
 import { Throttle } from 'stream-throttle';
 import log from "../log.js";
-import utils from "../utils.js";
+import { md5, escapeHtml, fromBase64 } from "../utils.js";
 import sql from "../sql.js";
 import noteService from "../notes.js";
 import imageService from "../image.js";
@@ -151,7 +151,7 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
                 labelName = 'pageUrl';
             }
 
-            labelName = sanitizeAttributeName.sanitizeAttributeName(labelName || "");
+            labelName = sanitizeAttributeName(labelName || "");
 
             if (note.attributes) {
                 note.attributes.push({
@@ -202,7 +202,7 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
             } else if (currentTag === 'tag' && note.attributes) {
                 note.attributes.push({
                     type: 'label',
-                    name: sanitizeAttributeName.sanitizeAttributeName(text),
+                    name: sanitizeAttributeName(text),
                     value: ''
                 })
             }
@@ -240,8 +240,8 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
     function updateDates(note: BNote, utcDateCreated?: string, utcDateModified?: string) {
         // it's difficult to force custom dateCreated and dateModified to Note entity, so we do it post-creation with SQL
         sql.execute(`
-                UPDATE notes 
-                SET dateCreated = ?, 
+                UPDATE notes
+                SET dateCreated = ?,
                     utcDateCreated = ?,
                     dateModified = ?,
                     utcDateModified = ?
@@ -291,10 +291,10 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
             }
 
             if (typeof resource.content === "string") {
-                resource.content = utils.fromBase64(resource.content);
+                resource.content = fromBase64(resource.content);
             }
 
-            const hash = utils.md5(resource.content);
+            const hash = md5(resource.content);
 
             // skip all checked/unchecked checkboxes from OneNote
             if (['74de5d3d1286f01bac98d32a09f601d9',
@@ -314,7 +314,7 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
                 if (typeof resource.content !== "string") {
                     throw new Error("Missing or wrong content type for resource.");
                 }
-                
+
                 const resourceNote = noteService.createNewNote({
                     parentNoteId: noteEntity.noteId,
                     title: resource.title,
@@ -332,7 +332,7 @@ function importEnex(taskContext: TaskContext, file: File, parentNote: BNote): Pr
 
                 taskContext.increaseProgressCount();
 
-                const resourceLink = `<a href="#root/${resourceNote.noteId}">${utils.escapeHtml(resource.title)}</a>`;
+                const resourceLink = `<a href="#root/${resourceNote.noteId}">${escapeHtml(resource.title)}</a>`;
 
                 content = (content || "").replace(mediaRegex, resourceLink);
             };

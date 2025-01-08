@@ -9,7 +9,7 @@ import BUILTIN_ATTRIBUTES from "./builtin_attributes.js";
 import BNote from "../becca/entities/bnote.js";
 import { AttributeRow } from '../becca/entities/rows.js';
 
-const ATTRIBUTE_TYPES = ['label', 'relation'];
+const ATTRIBUTE_TYPES = new Set(['label', 'relation']);
 
 function getNotesWithLabel(name: string, value?: string): BNote[] {
     const query = attributeFormatter.formatAttrForSearch({type: 'label', name, value}, value !== undefined);
@@ -65,11 +65,11 @@ function getAttributeNames(type: string, nameLike: string) {
     nameLike = nameLike.toLowerCase();
 
     let names = sql.getColumn<string>(
-        `SELECT DISTINCT name 
-             FROM attributes 
-             WHERE isDeleted = 0
-               AND type = ?
-               AND name LIKE ?`, [type, `%${nameLike}%`]);
+        `SELECT DISTINCT name
+            FROM attributes
+            WHERE isDeleted = 0
+                AND type = ?
+                AND name LIKE ?`, [type, `%${nameLike}%`]);
 
     for (const attr of BUILTIN_ATTRIBUTES) {
         if (attr.type === type && attr.name.toLowerCase().includes(nameLike) && !names.includes(attr.name)) {
@@ -99,7 +99,7 @@ function getAttributeNames(type: string, nameLike: string) {
 }
 
 function isAttributeType(type: string): boolean {
-    return ATTRIBUTE_TYPES.includes(type);
+    return ATTRIBUTE_TYPES.has(type);
 }
 
 function isAttributeDangerous(type: string, name: string): boolean {

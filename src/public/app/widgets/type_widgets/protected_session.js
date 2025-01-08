@@ -17,7 +17,7 @@ const TPL = `
             <input class="protected-session-password-in-detail form-control protected-session-password" type="password">
         </div>
 
-        <button class="btn btn-primary">${t('protected_session.start_session_button')} <kbd>enter</kbd></button>
+        <button class="btn btn-primary">${t('protected_session.start_session_button')}</button>
     </form>
 </div>`;
 

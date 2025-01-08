@@ -16,23 +16,17 @@ export default class HistoryNavigationButton extends ButtonFromNoteWidget {
             .class("launcher-button");
     }
 
-    isEnabled() {
-        return super.isEnabled() && utils.isElectron();
-    }
-
     doRender() {
         super.doRender();
 
-        if (!utils.isElectron()) {
-            return;
+        if (utils.isElectron()) {
+            this.webContents = utils.dynamicRequire('@electron/remote').getCurrentWebContents();
+
+            // without this, the history is preserved across frontend reloads
+            this.webContents.clearHistory();
+
+            this.refresh();
         }
-
-        this.webContents = utils.dynamicRequire('@electron/remote').getCurrentWebContents();
-
-        // without this, the history is preserved across frontend reloads
-        this.webContents.clearHistory();
-
-        this.refresh();
     }
 
     async showContextMenu(e) {

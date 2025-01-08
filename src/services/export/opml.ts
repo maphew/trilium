@@ -1,6 +1,6 @@
 "use strict";
 
-import utils from "../utils.js";
+import { getContentDisposition, stripTags } from "../utils.js";
 import becca from "../../becca/becca.js";
 import TaskContext from "../task_context.js";
 import BBranch from "../../becca/entities/bbranch.js";
@@ -58,7 +58,7 @@ function exportToOpml(taskContext: TaskContext, branch: BBranch, version: string
 
     const filename = `${branch.prefix ? (`${branch.prefix} - `) : ''}${note.title}.opml`;
 
-    res.setHeader('Content-Disposition', utils.getContentDisposition(filename));
+    res.setHeader('Content-Disposition', getContentDisposition(filename));
     res.setHeader('Content-Type', 'text/x-opml');
 
     res.write(`<?xml version="1.0" encoding="UTF-8"?>
@@ -83,7 +83,7 @@ function prepareText(text: string) {
     const newLines = text.replace(/(<p[^>]*>|<br\s*\/?>)/g, '\n')
         .replace(/&nbsp;/g, ' '); // nbsp isn't in XML standard (only HTML)
 
-    const stripped = utils.stripTags(newLines);
+    const stripped = stripTags(newLines);
 
     const escaped = escapeXmlAttribute(stripped);
 

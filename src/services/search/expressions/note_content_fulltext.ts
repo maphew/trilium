@@ -9,10 +9,11 @@ import log from "../../log.js";
 import becca from "../../../becca/becca.js";
 import protectedSessionService from "../../protected_session.js";
 import striptags from "striptags";
-import utils from "../../utils.js";
+import { normalize } from "../../utils.js";
 import sql from "../../sql.js";
 
-const ALLOWED_OPERATORS = ['=', '!=', '*=*', '*=', '=*', '%='];
+
+const ALLOWED_OPERATORS = new Set(['=', '!=', '*=*', '*=', '=*', '%=']);
 
 const cachedRegexes: Record<string, RegExp> = {};
 
@@ -49,8 +50,8 @@ class NoteContentFulltextExp extends Expression {
     }
 
     execute(inputNoteSet: NoteSet, executionContext: {}, searchContext: SearchContext) {
-        if (!ALLOWED_OPERATORS.includes(this.operator)) {
-            searchContext.addError(`Note content can be searched only with operators: ${ALLOWED_OPERATORS.join(", ")}, operator ${this.operator} given.`);
+        if (!ALLOWED_OPERATORS.has(this.operator)) {
+            searchContext.addError(`Note content can be searched only with operators: ${Array.from(ALLOWED_OPERATORS).join(", ")}, operator ${this.operator} given.`);
 
             return inputNoteSet;
         }
@@ -124,7 +125,7 @@ class NoteContentFulltextExp extends Expression {
     }
 
     preprocessContent(content: string | Buffer, type: string, mime: string) {
-        content = utils.normalize(content.toString());
+        content = normalize(content.toString());
 
         if (type === 'text' && mime === 'text/html') {
             if (!this.raw && content.length < 20000) { // striptags is slow for very large notes
@@ -133,6 +134,74 @@ class NoteContentFulltextExp extends Expression {
 
             content = content.replace(/&nbsp;/g, ' ');
         }
+        else if (type === 'mindMap' && mime === 'application/json') {
+           
+            let mindMapcontent = JSON.parse (content);
+
+                        // Define interfaces for the JSON structure
+            interface MindmapNode {
+                id: string;
+                topic: string;
+                children: MindmapNode[]; // Recursive structure
+                direction?: number;
+                expanded?: boolean;
+            }
+            
+            interface MindmapData {
+                nodedata: MindmapNode;
+                arrows: any[]; // If you know the structure, replace `any` with the correct type
+                summaries: any[];
+                direction: number;
+                theme: {
+                name: string;
+                type: string;
+                palette: string[];
+                cssvar: Record<string, string>; // Object with string keys and string values
+                };
+            }
+            
+                // Recursive function to collect all topics
+                function collectTopics(node: MindmapNode): string[] {
+                // Collect the current node's topic
+                let topics = [node.topic];
+            
+                // If the node has children, collect topics recursively
+                if (node.children && node.children.length > 0) {
+                for (const child of node.children) {
+                    topics = topics.concat(collectTopics(child));
+                }
+                }
+            
+                return topics;
+            }
+            
+            
+            // Start extracting from the root node
+            const topicsArray = collectTopics(mindMapcontent.nodedata);
+            
+            // Combine topics into a single string
+            const topicsString = topicsArray.join(", ");
+            
+        
+            content = normalize(topicsString.toString());
+          } 
+        else if (type === 'canvas' && mime === 'application/json') {
+            interface Element {
+                type: string;
+                text?: string; // Optional since not all objects have a `text` property
+                id: string;
+                [key: string]: any; // Other properties that may exist
+            }
+            
+            let canvasContent = JSON.parse (content);
+            const elements: Element [] = canvasContent.elements;
+            const texts = elements
+                .filter((element: Element) => element.type === 'text' && element.text) // Filter for 'text' type elements with a 'text' property
+                .map((element: Element) => element.text!); // Use `!` to assert `text` is defined after filtering
+
+            content = normalize(texts.toString())
+          }
+
 
         return content.trim();
     }

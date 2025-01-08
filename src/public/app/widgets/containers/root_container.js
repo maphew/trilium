@@ -5,6 +5,6 @@ export default class RootContainer extends FlexContainer {
         super(isHorizontalLayout ? "column" : "row");
 
         this.id('root-widget');
-        this.css('height', '100%');
+        this.css('height', '100dvh');
     }
 }

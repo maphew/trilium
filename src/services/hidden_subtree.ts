@@ -254,6 +254,40 @@ function buildHiddenSubtreeDefinition(): Item {
                 ]
             },
             {
+                id: '_lbMobileRoot',
+                title: "Mobile Launch Bar",
+                type: "doc",
+                icon: "bx-mobile",
+                isExpanded: true,
+                attributes: [ { type: 'label', name: 'docName', value: 'launchbar_intro' } ],
+                children: [
+                    {
+                        id: "_lbMobileAvailableLaunchers",
+                        title: t("hidden-subtree.available-launchers-title"),
+                        type: 'doc',
+                        icon: 'bx-hide',
+                        isExpanded: true,
+                        attributes: [ { type: 'label', name: 'docName', value: 'launchbar_intro' } ],
+                        children: []
+                    },
+                    {
+                        id: "_lbMobileVisibleLaunchers",
+                        title: t("hidden-subtree.visible-launchers-title"),
+                        type: 'doc',
+                        icon: 'bx-show',
+                        isExpanded: true,
+                        attributes: [ { type: 'label', name: 'docName', value: 'launchbar_intro' } ],
+                        children: [
+                            { id: '_lbMobileBackInHistory', title: t("hidden-subtree.go-to-previous-note-title"), type: 'launcher', builtinWidget: 'backInHistoryButton', icon: 'bx bxs-chevron-left',
+                                attributes: [ { type: 'label', name: 'docName', value: 'launchbar_history_navigation' } ]},
+                            { id: '_lbMobileForwardInHistory', title: t("hidden-subtree.go-to-next-note-title"), type: 'launcher', builtinWidget: 'forwardInHistoryButton', icon: 'bx bxs-chevron-right',
+                                attributes: [ { type: 'label', name: 'docName', value: 'launchbar_history_navigation' } ]},
+                            { id: '_lbMobileJumpTo', title: t("hidden-subtree.jump-to-note-title"), type: 'launcher', command: 'jumpToNote', icon: 'bx bx-plus-circle' }
+                        ]
+                    }
+                ]
+            },
+            {
                 id: '_options',
                 title: t("hidden-subtree.options-title"),
                 type: 'book',
@@ -281,7 +315,7 @@ interface CheckHiddenExtraOpts {
     restoreNames?: boolean;
 }
 
-function checkHiddenSubtree(force = false, extraOpts: CheckHiddenExtraOpts = {}) {    
+function checkHiddenSubtree(force = false, extraOpts: CheckHiddenExtraOpts = {}) {
     if (!force && !migrationService.isDbUpToDate()) {
         // on-delete hook might get triggered during some future migration and cause havoc
         log.info("Will not check hidden subtree until migration is finished.");

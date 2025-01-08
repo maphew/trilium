@@ -2,7 +2,7 @@ import log from "./log.js";
 import fs from "fs";
 import resourceDir from "./resource_dir.js";
 import sql from "./sql.js";
-import utils from "./utils.js";
+import { isElectron, deferred } from "./utils.js";
 import optionService from "./options.js";
 import port from "./port.js";
 import BOption from "../becca/entities/boption.js";
@@ -18,11 +18,11 @@ import becca_loader from "../becca/becca_loader.js";
 import password from "./encryption/password.js";
 import backup from "./backup.js";
 
-const dbReady = utils.deferred<void>();
+const dbReady = deferred<void>();
 
 function schemaExists() {
     return !!sql.getValue(`SELECT name FROM sqlite_master
-                                 WHERE type = 'table' AND name = 'options'`);
+                                WHERE type = 'table' AND name = 'options'`);
 }
 
 function isDbInitialized() {
@@ -38,7 +38,7 @@ function isDbInitialized() {
 async function initDbConnection() {
     if (!isDbInitialized()) {
         log.info(`DB not initialized, please visit setup page` +
-            (utils.isElectron() ? '' : ` - http://[your-server-host]:${port} to see instructions on how to initialize Trilium.`));
+            (isElectron() ? '' : ` - http://[your-server-host]:${port} to see instructions on how to initialize Trilium.`));
 
         return;
     }
@@ -87,7 +87,7 @@ async function createInitialDatabase() {
             isExpanded: true,
             notePosition: 10
         }).save();
-        
+
         optionsInitService.initDocumentOptions();
         optionsInitService.initNotSyncedOptions(true, {});
         optionsInitService.initStartupOptions();
@@ -131,7 +131,7 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', 
 
     // We have to import async since options init requires keyboard actions which require translations.
     const optionsInitService = (await import("./options_init.js")).default;
-    
+
     sql.transactional(() => {
         sql.executeScript(schema);
 
@@ -171,22 +171,22 @@ function initializeDb() {
     cls.init(initDbConnection);
 
     log.info(`DB size: ${getDbSize()} KB`);
- 
+
     dbReady.then(() => {
         if (config.General && config.General.noBackup === true) {
             log.info("Disabling scheduled backups.");
-    
+
             return;
         }
-    
+
         setInterval(() => backup.regularBackup(), 4 * 60 * 60 * 1000);
-    
+
         // kickoff first backup soon after start up
         setTimeout(() => backup.regularBackup(), 5 * 60 * 1000);
-    
+
         // optimize is usually inexpensive no-op, so running it semi-frequently is not a big deal
         setTimeout(() => optimize(), 60 * 60 * 1000);
-    
+
         setInterval(() => optimize(), 10 * 60 * 60 * 1000);
     });
 }

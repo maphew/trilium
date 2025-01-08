@@ -2,7 +2,7 @@
 
 import mimeTypes from "mime-types";
 import html from "html";
-import utils from "../utils.js";
+import { getContentDisposition, escapeHtml } from "../utils.js";
 import mdService from "./md.js";
 import becca from "../../becca/becca.js";
 import TaskContext from "../task_context.js";
@@ -61,7 +61,7 @@ function exportSingleNote(taskContext: TaskContext, branch: BBranch, format: "ht
 
     const fileName = `${note.title}.${extension}`;
 
-    res.setHeader('Content-Disposition', utils.getContentDisposition(fileName));
+    res.setHeader('Content-Disposition', getContentDisposition(fileName));
     res.setHeader('Content-Type', `${mime}; charset=UTF-8`);
 
     res.send(payload);
@@ -119,7 +119,7 @@ function inlineAttachments(content: string) {
         const base64Content = attachmentContent.toString('base64');
         const hrefValue = `data:${attachment.mime};base64,${base64Content}`;
 
-        return `href="${hrefValue}" download="${utils.escapeHtml(attachment.title)}"`;
+        return `href="${hrefValue}" download="${escapeHtml(attachment.title)}"`;
     });
 
     return content;

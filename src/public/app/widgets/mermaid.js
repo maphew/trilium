@@ -16,13 +16,13 @@ const TPL = `<div class="mermaid-widget">
             margin-bottom: 10px;
             flex-basis: 0;
         }
-        
+
         .mermaid-render {
             overflow: auto;
             height: 100%;
             text-align: center;
         }
-        
+
         .mermaid-render svg {
             width: 95%; /* https://github.com/zadam/trilium/issues/4340 */
         }
@@ -58,22 +58,10 @@ export default class MermaidWidget extends NoteContextAwareWidget {
         this.$errorContainer.hide();
 
         await libraryLoader.requireLibrary(libraryLoader.MERMAID);
-        
-        const documentStyle = window.getComputedStyle(document.documentElement);
-        const mermaidTheme = documentStyle.getPropertyValue('--mermaid-theme');        
-        
+
         mermaid.mermaidAPI.initialize({
             startOnLoad: false,
-            theme: mermaidTheme.trim(),
-            securityLevel: 'antiscript',
-            flow: { useMaxWidth: false },
-            sequence: { useMaxWidth: false },
-            gantt: { useMaxWidth: false },
-            "class": { useMaxWidth: false },
-            state: { useMaxWidth: false },
-            pie: { useMaxWidth: true },
-            journey: { useMaxWidth: false },
-            git: { useMaxWidth: false },
+            ...getMermaidConfig()
         });
 
         this.$display.empty();
@@ -145,4 +133,22 @@ export default class MermaidWidget extends NoteContextAwareWidget {
         const svg = await this.renderSvg();
         utils.downloadSvg(this.note.title, svg);
     }
+}
+
+export function getMermaidConfig() {
+    const documentStyle = window.getComputedStyle(document.documentElement);
+    const mermaidTheme = documentStyle.getPropertyValue('--mermaid-theme');
+
+    return {
+        theme: mermaidTheme.trim(),
+        securityLevel: 'antiscript',
+        flow: { useMaxWidth: false },
+        sequence: { useMaxWidth: false },
+        gantt: { useMaxWidth: false },
+        "class": { useMaxWidth: false },
+        state: { useMaxWidth: false },
+        pie: { useMaxWidth: true },
+        journey: { useMaxWidth: false },
+        git: { useMaxWidth: false },
+    };
 }

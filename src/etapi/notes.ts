@@ -9,8 +9,7 @@ import searchService from "../services/search/services/search.js";
 import SearchContext from "../services/search/search_context.js";
 import zipExportService from "../services/export/zip.js";
 import zipImportService from "../services/import/zip.js";
-import { Router } from 'express';
-import { AppRequest } from '../routes/route-interface.js';
+import { Request, Router } from 'express';
 import { ParsedQs } from 'qs';
 import { NoteParams } from '../services/note-interface.js';
 import { SearchParams } from '../services/search/services/types.js';
@@ -192,7 +191,7 @@ function register(router: Router) {
     });
 }
 
-function parseSearchParams(req: AppRequest) {
+function parseSearchParams(req: Request) {
     const rawSearchParams: SearchParams = {
         fastSearch: parseBoolean(req.query, 'fastSearch'),
         includeArchivedNotes: parseBoolean(req.query, 'includeArchivedNotes'),

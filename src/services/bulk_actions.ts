@@ -2,7 +2,7 @@ import log from "./log.js";
 import becca from "../becca/becca.js";
 import cloningService from "./cloning.js";
 import branchService from "./branches.js";
-import utils from "./utils.js";
+import { randomString } from "./utils.js";
 import eraseService from "./erase.js";
 import BNote from "../becca/entities/bnote.js";
 
@@ -32,7 +32,7 @@ const ACTION_HANDLERS: Record<string, ActionHandler> = {
         note.addRelation(action.relationName, action.targetNoteId);
     },
     deleteNote: (action, note) => {
-        const deleteId = `searchbulkaction-${utils.randomString(10)}`;
+        const deleteId = `searchbulkaction-${randomString(10)}`;
 
         note.deleteNote(deleteId);
     },

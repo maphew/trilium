@@ -62,10 +62,6 @@ export default class TabManager extends Component {
             ], true);
 
             const filteredNoteContexts = noteContextsToOpen.filter(openTab => {
-                if (utils.isMobile()) { // mobile frontend doesn't have tabs so show only the active tab
-                    return !!openTab.active;
-                }
-
                 const noteId = treeService.getNoteIdFromUrl(openTab.notePath);
                 if (!(noteId in froca.notes)) {
                     // note doesn't exist so don't try to open tab for it
@@ -272,15 +268,7 @@ export default class TabManager extends Component {
     async openEmptyTab(ntxId = null, hoistedNoteId = 'root', mainNtxId = null) {
         const noteContext = new NoteContext(ntxId, hoistedNoteId, mainNtxId);
 
-        let existingNoteContext;
-
-        if (utils.isMobile()) {
-            // kind of hacky way to enforce a single tab on mobile interface - all requests to create a new one
-            // are forced to reuse the existing ab instead
-            existingNoteContext = this.getActiveContext();
-        } else {
-            existingNoteContext = this.children.find(nc => nc.ntxId === noteContext.ntxId);
-        }
+        const existingNoteContext = this.children.find(nc => nc.ntxId === noteContext.ntxId);
 
         if (existingNoteContext) {
             await existingNoteContext.setHoistedNoteId(hoistedNoteId);
@@ -421,7 +409,10 @@ export default class TabManager extends Component {
             }
 
             // close dangling autocompletes after closing the tab
-            $(".aa-input").autocomplete("close");
+            const $autocompleteEl = $(".aa-input");
+            if ("autocomplete" in $autocompleteEl) {
+                $autocompleteEl.autocomplete("close");
+            }
 
             const noteContextsToRemove = noteContextToRemove.getSubContexts();
             const ntxIdsToRemove = noteContextsToRemove.map(nc => nc.ntxId);
@@ -551,7 +542,7 @@ export default class TabManager extends Component {
             await this.removeNoteContext(ntxIdToRemove);
         }
     }
-    
+
     async closeOtherTabsCommand({ntxId}) {
         for (const ntxIdToRemove of this.mainNoteContexts.map(nc => nc.ntxId)) {
             if (ntxIdToRemove !== ntxId) {
@@ -589,7 +580,7 @@ export default class TabManager extends Component {
     async copyTabToNewWindowCommand({ntxId}) {
         const {notePath, hoistedNoteId} = this.getNoteContextById(ntxId);
         this.triggerCommand('openInWindow', {notePath, hoistedNoteId});
-    } 
+    }
 
     async reopenLastTabCommand() {
         let closeLastEmptyTab = null;

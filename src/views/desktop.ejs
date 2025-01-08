@@ -3,6 +3,9 @@
 <head>
     <meta charset="utf-8">
     <link rel="shortcut icon" href="favicon.ico">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <link rel="manifest" crossorigin="use-credentials" href="manifest.webmanifest">
     <title>TriliumNext Notes</title>
 </head>
@@ -18,29 +21,7 @@
 
 <div class="dropdown-menu dropdown-menu-sm" id="context-menu-container"></div>
 
-<script type="text/javascript">
-    global = globalThis; /* fixes https://github.com/webpack/webpack/issues/10035 */
-
-    window.glob = {
-        device: "desktop",
-        baseApiUrl: 'api/',
-        activeDialog: null,
-        maxEntityChangeIdAtLoad: <%= maxEntityChangeIdAtLoad %>,
-        maxEntityChangeSyncIdAtLoad: <%= maxEntityChangeSyncIdAtLoad %>,
-        instanceName: '<%= instanceName %>',
-        csrfToken: '<%= csrfToken %>',
-        isDev: <%= isDev %>,
-        appCssNoteIds: <%- JSON.stringify(appCssNoteIds) %>,
-        isMainWindow: <%= isMainWindow %>,
-        isProtectedSessionAvailable: <%= isProtectedSessionAvailable %>,
-        triliumVersion: "<%= triliumVersion %>",
-        assetPath: "<%= assetPath %>",
-        appPath: "<%= appPath %>",
-        platform: "<%= platform %>",
-        hasNativeTitleBar: <%= hasNativeTitleBar %>,
-        TRILIUM_SAFE_MODE: <%= !!process.env.TRILIUM_SAFE_MODE %>
-    };
-</script>
+<%- include("./partials/windowGlobal.ejs", locals) %>
 
 <style>
     .note-split {
@@ -74,6 +55,10 @@
 
 <% if (themeCssUrl) { %>
 <link href="<%= themeCssUrl %>" rel="stylesheet">
+<% } %>
+
+<% if (themeUseNextAsBase) { %>
+<link href="<%= assetPath %>/stylesheets/theme-next.css" rel="stylesheet">
 <% } %>
 
 <link href="<%= assetPath %>/stylesheets/style.css" rel="stylesheet">

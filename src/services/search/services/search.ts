@@ -8,7 +8,7 @@ import SearchResult from "../search_result.js";
 import SearchContext from "../search_context.js";
 import becca from "../../../becca/becca.js";
 import beccaService from "../../../becca/becca_service.js";
-import utils from "../../utils.js";
+import { normalize, escapeHtml, escapeRegExp } from "../../utils.js";
 import log from "../../log.js";
 import hoistedNoteService from "../../hoisted_note.js";
 import BNote from "../../../becca/entities/bnote.js";
@@ -346,6 +346,7 @@ function searchNotesForAutocomplete(query: string, fastSearch: boolean = true) {
         includeArchivedNotes: false,
         includeHiddenNotes: true,
         fuzzyAttributeSearch: true,
+        ignoreInternalAttributes: true,
         ancestorNoteId: hoistedNoteService.isHoistedInHiddenSubtree()
             ? 'root'
             : hoistedNoteService.getHoistedNoteId()
@@ -355,7 +356,7 @@ function searchNotesForAutocomplete(query: string, fastSearch: boolean = true) {
 
     const trimmed = allSearchResults.slice(0, 200);
 
-    highlightSearchResults(trimmed, searchContext.highlightedTokens);
+    highlightSearchResults(trimmed, searchContext.highlightedTokens, searchContext.ignoreInternalAttributes);
 
     return trimmed.map(result => {
         return {
@@ -367,7 +368,10 @@ function searchNotesForAutocomplete(query: string, fastSearch: boolean = true) {
     });
 }
 
-function highlightSearchResults(searchResults: SearchResult[], highlightedTokens: string[]) {
+/**
+ * @param ignoreInternalAttributes whether to ignore certain attributes from the search such as ~internalLink.
+ */
+function highlightSearchResults(searchResults: SearchResult[], highlightedTokens: string[], ignoreInternalAttributes = false) {
     highlightedTokens = Array.from(new Set(highlightedTokens));
 
     // we remove < signs because they can cause trouble in matching and overwriting existing highlighted chunks
@@ -395,8 +399,12 @@ function highlightSearchResults(searchResults: SearchResult[], highlightedTokens
         }
 
         for (const attr of note.getAttributes()) {
-            if (highlightedTokens.find(token => utils.normalize(attr.name).includes(token)
-                || utils.normalize(attr.value).includes(token))) {
+            if (attr.type === "relation" && attr.name === "internalLink" && ignoreInternalAttributes) {
+                continue;
+            }
+
+            if (highlightedTokens.find(token => normalize(attr.name).includes(token)
+                || normalize(attr.value).includes(token))) {
 
                 result.highlightedNotePathTitle += ` "${formatAttribute(attr)}'`;
             }
@@ -415,7 +423,7 @@ function highlightSearchResults(searchResults: SearchResult[], highlightedTokens
 
         for (const result of searchResults) {
             // Reset token
-            const tokenRegex = new RegExp(utils.escapeRegExp(token), "gi");
+            const tokenRegex = new RegExp(escapeRegExp(token), "gi");
             let match;
 
             // Find all matches
@@ -441,15 +449,15 @@ function highlightSearchResults(searchResults: SearchResult[], highlightedTokens
 
 function formatAttribute(attr: BAttribute) {
     if (attr.type === 'relation') {
-        return `~${utils.escapeHtml(attr.name)}=…`;
+        return `~${escapeHtml(attr.name)}=…`;
     }
     else if (attr.type === 'label') {
-        let label = `#${utils.escapeHtml(attr.name)}`;
+        let label = `#${escapeHtml(attr.name)}`;
 
         if (attr.value) {
             const val = /[^\w-]/.test(attr.value) ? `"${attr.value}"` : attr.value;
 
-            label += `=${utils.escapeHtml(val)}`;
+            label += `=${escapeHtml(val)}`;
         }
 
         return label;

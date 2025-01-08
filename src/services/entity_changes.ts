@@ -2,7 +2,7 @@ import sql from "./sql.js";
 import dateUtils from "./date_utils.js";
 import log from "./log.js";
 import cls from "./cls.js";
-import utils from "./utils.js";
+import { randomString } from "./utils.js";
 import instanceId from "./instance_id.js";
 import becca from "../becca/becca.js";
 import blobService from "../services/blob.js";
@@ -30,7 +30,7 @@ function putEntityChange(origEntityChange: EntityChange) {
     delete ec.id;
 
     if (!ec.changeId) {
-        ec.changeId = utils.randomString(12);
+        ec.changeId = randomString(12);
     }
 
     ec.componentId = ec.componentId || cls.getComponentId() || "NA"; // NA = not available
@@ -39,9 +39,9 @@ function putEntityChange(origEntityChange: EntityChange) {
     ec.isErased = ec.isErased ? 1 : 0;
     ec.id = sql.replace("entity_changes", ec);
 
-	if (ec.id) {
-		maxEntityChangeId = Math.max(maxEntityChangeId, ec.id);
-	}
+    if (ec.id) {
+        maxEntityChangeId = Math.max(maxEntityChangeId, ec.id);
+    }
 
     cls.putEntityChange(ec);
 }
@@ -95,7 +95,7 @@ function addEntityChangesForSector(entityName: string, sector: string) {
 function addEntityChangesForDependingEntity(sector: string, tableName: string, primaryKeyColumn: string) {
     // problem in blobs might be caused by problem in entity referencing the blob
     const dependingEntityChanges = sql.getRows<EntityChange>(`
-                SELECT dep_change.* 
+                SELECT dep_change.*
                 FROM entity_changes orig_sector
                 JOIN ${tableName} ON ${tableName}.blobId = orig_sector.entityId
                 JOIN entity_changes dep_change ON dep_change.entityName = '${tableName}' AND dep_change.entityId = ${tableName}.${primaryKeyColumn}
@@ -110,11 +110,11 @@ function addEntityChangesForDependingEntity(sector: string, tableName: string, p
 
 function cleanupEntityChangesForMissingEntities(entityName: string, entityPrimaryKey: string) {
     sql.execute(`
-      DELETE 
-      FROM entity_changes 
-      WHERE
+    DELETE
+    FROM entity_changes
+    WHERE
         isErased = 0
-        AND entityName = '${entityName}' 
+        AND entityName = '${entityName}'
         AND entityId NOT IN (SELECT ${entityPrimaryKey} FROM ${entityName})`);
 }
 

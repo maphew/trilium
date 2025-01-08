@@ -1,7 +1,7 @@
 import becca from "../becca/becca.js";
 import NotFoundError from "../errors/not_found_error.js";
 import protectedSessionService from "./protected_session.js";
-import utils from "./utils.js";
+import { hash } from "./utils.js";
 import type { Blob } from "./blob-interface.js";
 
 function getBlobPojo(entityName: string, entityId: string, opts?: { preview: boolean }) {
@@ -51,7 +51,7 @@ function processContent(content: Buffer | string | null, isProtected: boolean, i
 }
 
 function calculateContentHash({blobId, content}: Blob) {
-    return utils.hash(`${blobId}|${content.toString()}`);
+    return hash(`${blobId}|${content.toString()}`);
 }
 
 export default {

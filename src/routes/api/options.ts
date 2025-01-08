@@ -7,6 +7,7 @@ import ValidationError from "../../errors/validation_error.js";
 import { Request } from 'express';
 import { changeLanguage } from "../../services/i18n.js";
 import { listSyntaxHighlightingThemes } from "../../services/code_block_theme.js";
+import type { OptionNames } from "../../services/options_interface.js";
 
 // options allowed to be updated directly in the Options dialog
 const ALLOWED_OPTIONS = new Set([
@@ -67,6 +68,7 @@ const ALLOWED_OPTIONS = new Set([
     'locale',
     'firstDayOfWeek',
     'textNoteEditorType',
+    'textNoteEditorMultilineToolbar',
     'layoutOrientation',
     'backgroundEffects',
     'allowedHtmlTags', // Allow configuring HTML import tags
@@ -80,7 +82,7 @@ function getOptions() {
 
     for (const optionName in optionMap) {
         if (isAllowed(optionName)) {
-            resultMap[optionName] = optionMap[optionName];
+            resultMap[optionName] = optionMap[optionName as OptionNames];
         }
     }
 
@@ -116,7 +118,7 @@ function update(name: string, value: string) {
         log.info(`Updating option '${name}' to '${value}'`);
     }
 
-    optionService.setOption(name, value);
+    optionService.setOption(name as OptionNames, value);
 
     if (name === "locale") {
         // This runs asynchronously, so it's not perfect, but it does the trick for now.

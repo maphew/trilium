@@ -1,0 +1,124 @@
+/*
+ * TEXT NOTES
+ */
+
+/*
+ * Code Blocks 
+ */
+
+ .attachment-content-wrapper pre,
+ .ck-content pre,
+ .ck-mermaid__editing-view {
+    border: 0;
+    border-radius: 6px;
+    box-shadow: var(--code-block-box-shadow);
+    padding: 0 !important;
+    margin-top: 2px !important;    
+}
+
+.ck-content pre {
+    overflow: unset;
+}
+
+html .note-detail-editable-text :not(figure, .include-note, hr):first-child {
+    /* Create some space for the top-side shadow */
+    margin-top: 1px !important;
+}
+
+.ck.ck-editor__editable pre[data-language]::after {
+    --ck-color-code-block-label-background: rgba(128, 128, 128, .5);
+    border-radius: 0 0 5px 5px;
+    padding: 0px 10px;
+    letter-spacing: .5px;
+    font-weight: bold;
+}
+
+.attachment-content-wrapper pre code,
+.ck-content pre code,
+.ck-mermaid__editing-view {
+    display: block;
+    padding: 1em !important;
+    overflow: auto;
+}
+
+.ck-content pre code::-webkit-scrollbar {
+    height: 6px;
+}
+
+.ck-content pre code::-webkit-scrollbar-thumb {
+    height: 4px;
+    border: none !important;
+    background: gray !important;
+}
+
+.ck-content pre code::-webkit-scrollbar-track, ::-webkit-scrollbar-thumb {
+    cursor: default;
+}
+
+.ck-content blockquote {
+    background: var(--card-background-color);
+    border: 1px solid var(--card-border-color) !important;
+    box-shadow: var(--card-box-shadow);
+    border-radius: 10px;
+    padding: 1em 2.5em;
+    position: relative;
+    font-style: unset !important;
+}
+
+.ck-content blockquote p:last-of-type {
+    margin-bottom: 0 !important;
+}
+
+.ck-content blockquote:before,
+.ck-content blockquote:after {
+    position: absolute;
+    top: 0;
+    font-size: 48px;
+    opacity: 0.1;
+}
+
+.ck-content blockquote:before {
+    content: "“";
+    left: 0.2em;
+}
+
+.ck-content blockquote:after {
+    content: "”";
+    right: 0.35em;            
+}
+
+.ck-content h2,
+.ck-content h3,
+.ck-content h4,
+.ck-content h5,
+.ck-content h6 {
+    font-weight: 300;
+}
+
+.ck-content hr {
+    margin: 5px 0;
+    height: 1px;
+    background-color: var(--main-border-color);
+    opacity: 1;
+}
+
+.ck-content p code {
+    border: 1px solid var(--card-border-color);
+    box-shadow: var(--card-box-shadow);
+    border-radius: 6px;
+    background-color: var(--card-background-color);
+}
+
+.note-detail-printable:not(.word-wrap) pre code {
+    white-space: pre;
+    margin-right: 1em;
+}
+
+.code-sample-wrapper .hljs {
+    transition: background-color linear 100ms;
+}
+
+.ck-content .footnote-section {
+    border: 0 !important;
+    border-top: 1px solid var(--main-border-color) !important;
+}

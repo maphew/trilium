@@ -1,6 +1,7 @@
 import AbstractTextTypeWidget from "./abstract_text_type_widget.js";
 import libraryLoader from "../../services/library_loader.js";
 import { applySyntaxHighlight } from "../../services/syntax_highlight.js";
+import { getMermaidConfig } from "../mermaid.js";
 
 const TPL = `
 <div class="note-detail-readonly-text note-detail-printable">
@@ -12,7 +13,7 @@ const TPL = `
     .note-detail-readonly-text h4 { font-size: 1.2em; }
     .note-detail-readonly-text h5 { font-size: 1.1em; }
     .note-detail-readonly-text h6 { font-size: 1.0em; }
-    
+
     body.heading-style-markdown .note-detail-readonly-text h1::before { content: "#\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-readonly-text h2::before { content: "##\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-readonly-text h3::before { content: "###\\2004"; color: var(--muted-text-color); }
@@ -26,7 +27,7 @@ const TPL = `
     body.heading-style-underline .note-detail-readonly-text h4:not(.include-note-title) { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-readonly-text h5 { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-readonly-text h6 { border-bottom: 1px solid var(--main-border-color); }
-    
+
     .note-detail-readonly-text {
         padding-left: 24px;
         padding-top: 10px;
@@ -34,22 +35,22 @@ const TPL = `
         min-height: 50px;
         position: relative;
     }
-    
+
     body.mobile .note-detail-readonly-text {
         padding-left: 10px;
     }
-        
+
     .note-detail-readonly-text p:first-child, .note-detail-readonly-text::before {
         margin-top: 0;
     }
-    
+
     .note-detail-readonly-text img {
         max-width: 100%;
         cursor: pointer;
     }
-    
+
     .edit-text-note-button {
-        position: absolute; 
+        position: absolute;
         top: 5px;
         right: 10px;
         font-size: 150%;
@@ -59,7 +60,7 @@ const TPL = `
         border-radius: var(--button-border-radius);
         color: var(--button-text-color);
     }
-    
+
     .edit-text-note-button:hover {
         border-color: var(--button-border-color);
     }
@@ -90,7 +91,7 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
         // we load CKEditor also for read only notes because they contain content styles required for correct rendering of even read only notes
         // we could load just ckeditor-content.css but that causes CSS conflicts when both build CSS and this content CSS is loaded at the same time
         // (see https://github.com/zadam/trilium/issues/1590 for example of such conflict)
-        await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);        
+        await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);
 
         const blob = await note.getBlob();
 
@@ -112,7 +113,24 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
             renderMathInElement(this.$content[0], {trust: true});
         }
 
+        await this.#applyInlineMermaid();
         await applySyntaxHighlight(this.$content);
+    }
+
+    async #applyInlineMermaid() {
+        const $el = this.$content.find('code[class="language-mermaid"]').closest("pre");
+        if (!$el.length) {
+            return;
+        }
+
+        // Rewrite the code block from <pre><code> to <div> in order not to apply a codeblock style to it.
+        $el.replaceWith((i, content) => {
+            return $('<div class="mermaid-diagram">').text($(content).text());
+        });
+
+        // Initialize mermaid
+        await libraryLoader.requireLibrary(libraryLoader.MERMAID);
+        mermaid.init(getMermaidConfig(), this.$content.find(".mermaid-diagram"));
     }
 
     async refreshIncludedNoteEvent({noteId}) {

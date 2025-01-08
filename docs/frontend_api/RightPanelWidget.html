@@ -93,7 +93,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line19">line 19</a>
+        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line21">line 21</a>
     </li></ul></dd>
     
 
@@ -335,7 +335,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line108">line 108</a>
+        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line123">line 123</a>
     </li></ul></dd>
     
 
@@ -523,7 +523,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line21">line 21</a>
+        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line23">line 23</a>
     </li></ul></dd>
     
 
@@ -544,6 +544,181 @@
 
     
         <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="css"><span class="type-signature"></span>css<span class="signature">(name, value)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Sets the CSS attribute of the given name to the given value.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">the name of the CSS attribute to set (e.g. `padding-left`).</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>value</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">the value of the CSS attribute to set (e.g. `12px`).</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="NoteContextAwareWidget.html#css">NoteContextAwareWidget#css</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="widgets_basic_widget.js.html">widgets/basic_widget.js</a>, <a href="widgets_basic_widget.js.html#line75">line 75</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    self for chaining.
+</div>
+
+
+
+    
+
+
+
+
 
         
             
@@ -657,7 +832,7 @@
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_basic_widget.js.html">widgets/basic_widget.js</a>, <a href="widgets_basic_widget.js.html#line78">line 78</a>
+        <a href="widgets_basic_widget.js.html">widgets/basic_widget.js</a>, <a href="widgets_basic_widget.js.html#line118">line 118</a>
     </li></ul></dd>
     
 
@@ -773,7 +948,7 @@ Do not override this method unless you know what you're doing.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line37">line 37</a>
+        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line39">line 39</a>
     </li></ul></dd>
     
 
@@ -863,7 +1038,7 @@ Your class should override this method.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line66">line 66</a>
+        <a href="widgets_right_panel_widget.js.html">widgets/right_panel_widget.js</a>, <a href="widgets_right_panel_widget.js.html#line70">line 70</a>
     </li></ul></dd>
     
 
@@ -931,6 +1106,13 @@ Your class should override this method.
 
 
 
+<div class="description">
+    Indicates if the widget is enabled. Widgets are enabled by default. Generally setting this to `false` will cause the widget not to be displayed, however it will still be available on the DOM but hidden.
+
+<p>
+If the widget is not enabled, it will not receive `refreshWithNote` updates.
+</div>
+
 
 
 
@@ -977,7 +1159,7 @@ Your class should override this method.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line53">line 53</a>
+        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line58">line 58</a>
     </li></ul></dd>
     
 
@@ -1022,6 +1204,399 @@ Your class should override this method.
 
     </dd>
 </dl>
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="optChild"><span class="type-signature"></span>optChild<span class="signature">(condition, &hellip;components)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Conditionally adds the given components as children to this component.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+        <th>Attributes</th>
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>condition</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                </td>
+            
+
+            
+
+            <td class="description last">whether to add the components.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>components</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">any</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+
+                
+
+                
+                    &lt;repeatable><br>
+                
+                </td>
+            
+
+            
+
+            <td class="description last">the components to be added as children to this component provided the condition is truthy.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="NoteContextAwareWidget.html#optChild">NoteContextAwareWidget#optChild</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="widgets_basic_widget.js.html">widgets/basic_widget.js</a>, <a href="widgets_basic_widget.js.html#line50">line 50</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    self for chaining.
+</div>
+
+
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="optCss"><span class="type-signature"></span>optCss<span class="signature">(condition, name, value)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Sets the CSS attribute of the given name to the given value, but only if the condition provided is truthy.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>condition</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">`true` in order to apply the CSS, `false` to ignore it.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>name</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">the name of the CSS attribute to set (e.g. `padding-left`).</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>value</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">the value of the CSS attribute to set (e.g. `12px`).</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-overrides">Overrides:</dt>
+    <dd class="tag-overrides"><ul class="dummy"><li>
+        <a href="NoteContextAwareWidget.html#optCss">NoteContextAwareWidget#optCss</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="widgets_basic_widget.js.html">widgets/basic_widget.js</a>, <a href="widgets_basic_widget.js.html#line88">line 88</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    self for chaining.
+</div>
+
+
 
     
 
@@ -1142,7 +1717,7 @@ widget with each note.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line73">line 73</a>
+        <a href="widgets_note_context_aware_widget.js.html">widgets/note_context_aware_widget.js</a>, <a href="widgets_note_context_aware_widget.js.html#line88">line 88</a>
     </li></ul></dd>
     
 
@@ -1212,7 +1787,7 @@ widget with each note.
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a>
 </footer>
 
 <script> prettyPrint(); </script>

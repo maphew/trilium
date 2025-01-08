@@ -6,7 +6,7 @@ import protectedSessionService from "./protected_session.js";
 import noteService from "./notes.js";
 import optionService from "./options.js";
 import sql from "./sql.js";
-import jimp from "jimp";
+import { Jimp } from "jimp";
 import imageType from "image-type";
 import sanitizeFilename from "sanitize-filename";
 import isSvg from "is-svg";
@@ -15,7 +15,7 @@ import htmlSanitizer from "./html_sanitizer.js";
 
 async function processImage(uploadBuffer: Buffer, originalName: string, shrinkImageSwitch: boolean) {
     const compressImages = optionService.getOptionBool("compressImages");
-    const origImageFormat = getImageType(uploadBuffer);
+    const origImageFormat = await getImageType(uploadBuffer);
 
     if (!origImageFormat || !["jpg", "png"].includes(origImageFormat.ext)) {
         shrinkImageSwitch = false;
@@ -30,7 +30,7 @@ async function processImage(uploadBuffer: Buffer, originalName: string, shrinkIm
 
     if (compressImages && shrinkImageSwitch) {
         finalImageBuffer = await shrinkImage(uploadBuffer, originalName);
-        imageFormat = getImageType(finalImageBuffer);
+        imageFormat = await getImageType(finalImageBuffer);
     } else {
         finalImageBuffer = uploadBuffer;
         imageFormat = origImageFormat || {
@@ -44,16 +44,12 @@ async function processImage(uploadBuffer: Buffer, originalName: string, shrinkIm
     };
 }
 
-function getImageType(buffer: Buffer) {
-    if (isSvg(buffer)) {
-        return {
-            ext: 'svg'
-        }
+async function getImageType(buffer: Buffer) {
+    if (isSvg(buffer.toString())) {
+        return { ext: 'svg' }
     }
     else {
-        return imageType(buffer) || {
-            ext: "jpg"
-        }; // optimistic JPG default
+        return await imageType(buffer) || { ext: "jpg" }; // optimistic JPG default
     }
 }
 
@@ -212,21 +208,19 @@ async function resize(buffer: Buffer, quality: number) {
 
     const start = Date.now();
 
-    const image = await jimp.read(buffer);
+    const image = await Jimp.read(buffer);
 
     if (image.bitmap.width > image.bitmap.height && image.bitmap.width > imageMaxWidthHeight) {
-        image.resize(imageMaxWidthHeight, jimp.AUTO);
+        image.resize({ w: imageMaxWidthHeight });
     }
     else if (image.bitmap.height > imageMaxWidthHeight) {
-        image.resize(jimp.AUTO, imageMaxWidthHeight);
+        image.resize({ h: imageMaxWidthHeight });
     }
 
-    image.quality(quality);
-
     // when converting PNG to JPG, we lose the alpha channel, this is replaced by white to match Trilium white background
-    image.background(0xFFFFFFFF);
+    image.background = 0xFFFFFFFF;
 
-    const resultBuffer = await image.getBufferAsync(jimp.MIME_JPEG);
+    const resultBuffer = await image.getBuffer("image/jpeg", { quality });
 
     log.info(`Resizing image of ${resultBuffer.byteLength} took ${Date.now() - start}ms`);
 

@@ -14,38 +14,37 @@ const TPL = `
         .attachment-detail-widget {
             height: 100%;
         }
-    
+
         .attachment-detail-wrapper {
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
         }
-        
+
         .attachment-title-line {
             display: flex;
             align-items: baseline;
             gap: 1em;
         }
-        
+
         .attachment-details {
             margin-left: 10px;
         }
-        
+
         .attachment-content-wrapper {
             flex-grow: 1;
         }
-        
+
         .attachment-content-wrapper .rendered-content {
             height: 100%;
         }
-        
+
         .attachment-content-wrapper pre {
-            background: var(--accented-background-color);
             padding: 10px;
             margin-top: 10px;
             margin-bottom: 10px;
         }
-        
+
         .attachment-detail-wrapper.list-view .attachment-content-wrapper {
             max-height: 300px;
         }
@@ -57,26 +56,26 @@ const TPL = `
         .attachment-detail-wrapper.full-detail .attachment-content-wrapper {
             height: 100%;
         }
-        
+
         .attachment-detail-wrapper.list-view .attachment-content-wrapper pre {
             max-height: 400px;
         }
-        
+
         .attachment-content-wrapper img {
             margin: 10px;
         }
-        
+
         .attachment-detail-wrapper.list-view .attachment-content-wrapper img, .attachment-detail-wrapper.list-view .attachment-content-wrapper video {
-            max-height: 300px; 
-            max-width: 90%; 
+            max-height: 300px;
+            max-width: 90%;
             object-fit: contain;
         }
-        
+
         .attachment-detail-wrapper.full-detail .attachment-content-wrapper img {
-            max-width: 90%; 
+            max-width: 90%;
             object-fit: contain;
         }
-        
+
         .attachment-detail-wrapper.scheduled-for-deletion .attachment-content-wrapper img {
             filter: contrast(10%);
         }
@@ -85,13 +84,13 @@ const TPL = `
     <div class="attachment-detail-wrapper">
         <div class="attachment-title-line">
             <div class="attachment-actions-container"></div>
-            <h4 class="attachment-title"></h4>                
+            <h4 class="attachment-title"></h4>
             <div class="attachment-details"></div>
             <div style="flex: 1 1;"></div>
         </div>
-        
+
         <div class="attachment-deletion-warning alert alert-info" style="margin-top: 15px;"></div>
-        
+
         <div class="attachment-content-wrapper"></div>
     </div>
 </div>`;

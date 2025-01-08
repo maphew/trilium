@@ -9,7 +9,6 @@ import assetPath from "../services/asset_path.js";
 import appPath from "../services/app_path.js";
 import ValidationError from "../errors/validation_error.js";
 import { Request, Response } from 'express';
-import { AppRequest } from './route-interface.js';
 
 function loginPage(req: Request, res: Response) {
     res.render('login', {
@@ -57,7 +56,7 @@ function setPassword(req: Request, res: Response) {
     res.redirect('login');
 }
 
-function login(req: AppRequest, res: Response) {
+function login(req: Request, res: Response) {
     const guessedPassword = req.body.password;
 
     if (verifyPassword(guessedPassword)) {
@@ -93,7 +92,7 @@ function verifyPassword(guessedPassword: string) {
     return guess_hashed.equals(hashed_password);
 }
 
-function logout(req: AppRequest, res: Response) {
+function logout(req: Request, res: Response) {
     req.session.regenerate(() => {
         req.session.loggedIn = false;
 

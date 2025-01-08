@@ -94,13 +94,14 @@
   },
   "login": {
     "title": "Login",
-    "heading": "Trilium login",
+    "heading": "Trilium Login",
     "incorrect-password": "Password is incorrect. Please try again.",
     "password": "Password",
     "remember-me": "Remember me",
     "button": "Login"
   },
   "set_password": {
+    "title": "Set Password",
     "heading": "Set password",
     "description": "Before you can start using Trilium from web, you need to set a password first. You will then use this password to login.",
     "password": "Password",
@@ -240,5 +241,10 @@
     "other": "Other",
     "advanced-title": "Advanced",
     "visible-launchers-title": "Visible Launchers"
+  },
+  "notes": {
+    "new-note": "New note",
+    "duplicate-note-suffix": "(dup)",
+    "duplicate-note-title": "{{ noteTitle }} {{ duplicateNoteSuffix }}"
   }
 }

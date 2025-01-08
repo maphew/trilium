@@ -12,6 +12,8 @@ import appContext from "../../components/app_context.js";
 import dialogService from "../../services/dialog.js";
 import { initSyntaxHighlighting } from "./ckeditor/syntax_highlight.js";
 import options from "../../services/options.js";
+import toast from "../../services/toast.js";
+import { getMermaidConfig } from "../mermaid.js";
 
 const ENABLE_INSPECTOR = false;
 
@@ -41,41 +43,41 @@ const TPL = `
         padding-top: 10px;
         height: 100%;
     }
-    
+
     body.mobile .note-detail-editable-text {
         padding-left: 4px;
     }
-    
+
     .note-detail-editable-text a:hover {
         cursor: pointer;
     }
-    
+
     .note-detail-editable-text a[href^="http://"], .note-detail-editable-text a[href^="https://"] {
         cursor: text !important;
     }
-    
+
     .note-detail-editable-text *:not(figure, .include-note, hr):first-child {
         margin-top: 0 !important;
     }
-         
-    .note-detail-editable-text h2 { font-size: 1.6em; } 
+
+    .note-detail-editable-text h2 { font-size: 1.6em; }
     .note-detail-editable-text h3 { font-size: 1.4em; }
     .note-detail-editable-text h4 { font-size: 1.2em; }
     .note-detail-editable-text h5 { font-size: 1.1em; }
     .note-detail-editable-text h6 { font-size: 1.0em; }
-    
+
     body.heading-style-markdown .note-detail-editable-text h2::before { content: "##\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-editable-text h3::before { content: "###\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-editable-text h4:not(.include-note-title)::before { content: "####\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-editable-text h5::before { content: "#####\\2004"; color: var(--muted-text-color); }
     body.heading-style-markdown .note-detail-editable-text h6::before { content: "######\\2004"; color: var(--muted-text-color); }
-    
+
     body.heading-style-underline .note-detail-editable-text h2 { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-editable-text h3 { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-editable-text h4:not(.include-note-title) { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-editable-text h5 { border-bottom: 1px solid var(--main-border-color); }
     body.heading-style-underline .note-detail-editable-text h6 { border-bottom: 1px solid var(--main-border-color); }
-    
+
     .note-detail-editable-text-editor {
         padding-top: 10px;
         border: 0 !important;
@@ -108,7 +110,7 @@ function buildListOfLanguages() {
 
 /**
  * The editor can operate into two distinct modes:
- * 
+ *
  * - Ballon block mode, in which there is a floating toolbar for the selected text, but another floating button for the entire block (i.e. paragraph).
  * - Decoupled mode, in which the editing toolbar is actually added on the client side (in {@link ClassicEditorToolbar}), see https://ckeditor.com/docs/ckeditor5/latest/examples/framework/bottom-toolbar-editor.html for an example on how the decoupled editor works.
  */
@@ -176,14 +178,36 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         });
 
         this.watchdog.setCreator(async (elementOrData, editorConfig) => {
+            const extraOpts = {};
+            if (isClassicEditor) {
+                extraOpts.toolbar = {
+                    shouldNotGroupWhenFull: options.get("textNoteEditorMultilineToolbar") === "true"
+                };
+            }
+
             const editor = await editorClass.create(elementOrData, {
                 ...editorConfig,
+                ...extraOpts,
                 htmlSupport: {
                     allow: JSON.parse(options.get("allowedHtmlTags")),
                     styles: true,
                     classes: true,
                     attributes: true
                 }
+            });
+
+            const notificationsPlugin = editor.plugins.get("Notification");
+            notificationsPlugin.on("show:warning", (evt, data) => {
+                const title = data.title;
+                const message = data.message.message;
+
+                if (title && message) {
+                    toast.showErrorTitleAndMessage(data.title, data.message.message);
+                } else if (title) {
+                    toast.showError(title || message);
+                }
+
+                evt.stop();
             });
 
             await initSyntaxHighlighting(editor);
@@ -196,9 +220,20 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                 } else {
                     $classicToolbarWidget = $("body").find(".classic-toolbar-widget");
                 }
-                
+
                 $classicToolbarWidget.empty();
                 $classicToolbarWidget[0].appendChild(editor.ui.view.toolbar.element);
+
+                if (utils.isMobile()) {
+                    this.$editor.on("focus", (e) => {
+                        $classicToolbarWidget.addClass("visible");
+                    });
+
+                    // Hide the formatting toolbar
+                    this.$editor.on("focusout", (e) => {
+                        this.$editor[0].focus();
+                    });
+                }
             }
 
             editor.model.document.on('change:data', () => this.spacedUpdate.scheduleUpdate());
@@ -223,6 +258,10 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                 lazyLoad: async () => await libraryLoader.requireLibrary(libraryLoader.KATEX),
                 forceOutputType: false, // forces output to use outputType
                 enablePreview: true // Enable preview view
+            },
+            mermaid: {
+                lazyLoad: async () => await libraryLoader.requireLibrary(libraryLoader.MERMAID),
+                config: getMermaidConfig()
             }
         });
     }

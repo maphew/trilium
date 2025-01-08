@@ -32,7 +32,8 @@
     "search_note": "按名稱搜尋筆記",
     "link_title_mirrors": "鏈接標題跟隨筆記標題變化",
     "link_title_arbitrary": "鏈接標題可隨意修改",
-    "link_title": "鏈接標題"
+    "link_title": "鏈接標題",
+    "button_add_link": "添加鏈接 <kbd>Enter</kbd>"
   },
   "branch_prefix": {
     "edit_branch_prefix": "編輯分支前綴",
@@ -109,17 +110,17 @@
     "fullDocumentation": "幫助（完整<a class=\"external\" href=\"https://triliumnext.github.io/Docs/\">在線文檔</a>)",
     "close": "關閉",
     "noteNavigation": "筆記導航",
-    "goUpDown": "在筆記列表中向上/向下移動",
-    "collapseExpand": "折疊/展開節點",
+    "goUpDown": "<kbd>UP</kbd>, <kbd>DOWN</kbd> - 在筆記列表中向上/向下移動",
+    "collapseExpand": "<kbd>LEFT</kbd>, <kbd>RIGHT</kbd> - 折疊/展開節點",
     "notSet": "未設定",
     "goBackForwards": "在歷史記錄中前後移動",
     "showJumpToNoteDialog": "顯示<a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/note-navigation.html#jump-to-note\">\"跳轉到\" 對話框</a>",
     "scrollToActiveNote": "滾動到活動筆記",
-    "jumpToParentNote": "跳轉到上級筆記",
+    "jumpToParentNote": "<kbd>Backspace</kbd> - 跳轉到上級筆記",
     "collapseWholeTree": "折疊整個筆記樹",
     "collapseSubTree": "折疊子樹",
     "tabShortcuts": "標籤快捷鍵",
-    "newTabNoteLink": "在筆記鏈接上使用CTRL+點擊（或中鍵點擊）在新標籤中打開筆記",
+    "newTabNoteLink": "<kbd>CTRL+click</kbd> - 在筆記鏈接上使用CTRL+點擊（或中鍵點擊）在新標籤中打開筆記",
     "onlyInDesktop": "僅在桌面版（電子構建）中",
     "openEmptyTab": "打開空白標籤頁",
     "closeActiveTab": "關閉活動標籤頁",
@@ -134,20 +135,20 @@
     "moveNoteUpHierarchy": "在層級結構中向上移動筆記",
     "multiSelectNote": "多選上/下筆記",
     "selectAllNotes": "選擇當前級別的所有筆記",
-    "selectNote": "選擇筆記",
+    "selectNote": "<kbd>Shift+Click</kbd> - 選擇筆記",
     "copyNotes": "將活動筆記（或當前選擇）複製到剪貼簿（用於<a class=\"external\" href=\"https://triliumnext.github.io/Docs/Wiki/cloning-notes.html#cloning-notes\">複製</a>）",
     "cutNotes": "將當前筆記（或當前選擇）剪下到剪貼簿（用於移動筆記）",
     "pasteNotes": "將筆記貼上為活動筆記的子筆記（根據是複製還是剪下到剪貼簿來決定是移動還是複製）",
     "deleteNotes": "刪除筆記/子樹",
     "editingNotes": "編輯筆記",
     "editNoteTitle": "在樹形筆記樹中，焦點會從筆記樹切換到筆記標題。按下 Enter 鍵會將焦點從筆記標題切換到文字編輯器。按下 <kbd>Ctrl+.</kbd> 會將焦點從編輯器切換回筆記樹。",
-    "createEditLink": "新增/編輯外部鏈接",
+    "createEditLink": "<kbd>Ctrl+K</kbd> - 新增/編輯外部鏈接",
     "createInternalLink": "新增內部鏈接",
     "followLink": "跟隨遊標下的鏈接",
     "insertDateTime": "在插入點插入當前日期和時間",
     "jumpToTreePane": "跳轉到樹面板並滾動到活動筆記",
     "markdownAutoformat": "類Markdown自動格式化",
-    "headings": " 等，後跟空格，自動轉換為標題",
+    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  等，後跟空格，自動轉換為標題",
     "bulletList": "<kbd>*</kbd> 或 <kbd>-</kbd> 後跟空格，自動轉換為項目符號列表",
     "numberedList": "<kbd>1.</kbd> or <kbd>1)</kbd> 後跟空格，自動轉換為編號列表",
     "blockQuote": "一行以 <kbd>></kbd> 開頭並後跟空格，自動轉換為塊引用",
@@ -185,7 +186,7 @@
     "box_size_small": "小型 (顯示大約10行)",
     "box_size_medium": "中型 (顯示大約30行)",
     "box_size_full": "完整顯示（完整文字框）",
-    "button_include": "包含筆記"
+    "button_include": "包含筆記 <kbd>Enter</kbd>"
   },
   "info": {
     "modalTitle": "資訊消息",
@@ -280,7 +281,7 @@
     "sort_with_respect_to_different_character_sorting": "根據不同語言或地區的字符排序和排序規則排序。",
     "natural_sort_language": "自然排序語言",
     "the_language_code_for_natural_sort": "自然排序的語言程式碼，例如繁體中文的 \"zh-TW\"。",
-    "sort": "排序"
+    "sort": "排序 <kbd>Enter</kbd>"
   },
   "upload_attachments": {
     "upload_attachments_to_note": "上傳附件到筆記",
@@ -816,8 +817,7 @@
     "debug": "除錯",
     "debug_description": "除錯將打印額外的除錯資訊到控制台，以幫助除錯複雜查詢",
     "action": "操作",
-    "search": "搜尋",
-    "enter": "輸入",
+    "search_button": "搜尋 <kbd>Enter</kbd>",
     "search_execute": "搜尋並執行操作",
     "save_to_note": "保存到筆記",
     "search_parameters": "搜尋參數",
@@ -935,7 +935,7 @@
   },
   "protected_session": {
     "enter_password_instruction": "顯示受保護的筆記需要輸入您的密碼：",
-    "start_session_button": "開始受保護的會話",
+    "start_session_button": "開始受保護的會話 <kbd>Enter</kbd>",
     "started": "已啓動受保護的會話。",
     "wrong_password": "密碼錯誤。",
     "protecting-finished-successfully": "已成功完成保護操作。",
@@ -1195,7 +1195,7 @@
     "existing_backups": "現有備份",
     "date-and-time": "日期和時間",
     "path": "路徑",
-    "database_backed_up_to": "資料庫已備份到",
+    "database_backed_up_to": "資料庫已備份到 {{backupFilePath}}",
     "no_backup_yet": "尚無備份"
   },
   "etapi": {
@@ -1315,7 +1315,7 @@
     "button-tree-map": "樹形地圖"
   },
   "tree-context-menu": {
-    "open-in-a-new-tab": "在新標籤頁中打開",
+    "open-in-a-new-tab": "在新標籤頁中打開 <kbd>Ctrl+Click</kbd>",
     "open-in-a-new-split": "在新分欄中打開",
     "insert-note-after": "在後面插入筆記",
     "insert-child-note": "插入子筆記",
@@ -1510,11 +1510,11 @@
     "add-script-launcher": "添加腳本啓動器",
     "add-custom-widget": "添加自定義小部件",
     "add-spacer": "添加間隔",
-    "delete": "刪除",
+    "delete": "刪除  <kbd data-command=\"deleteNotes\">",
     "reset": "重置",
     "move-to-visible-launchers": "移動到可見啓動器",
     "move-to-available-launchers": "移動到可用啓動器",
-    "duplicate-launcher": "複製啓動器"
+    "duplicate-launcher": "複製啓動器 <kbd data-command=\"duplicateSubtree\">"
   },
   "editable-text": {
     "auto-detect-language": "自動檢測"

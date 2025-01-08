@@ -1,18 +1,8 @@
-function sanitizeAttributeName(origName: string) {
-    let fixedName: string;
-
-    if (origName === '') {
-        fixedName = "unnamed";
-    }
-    else {
+export default function sanitizeAttributeName(origName: string) {
+    const fixedName = (origName === '')
+        ? "unnamed"
+        : origName.replace(/[^\p{L}\p{N}_:]/ug, "_");
         // any not allowed character should be replaced with underscore
-        fixedName = origName.replace(/[^\p{L}\p{N}_:]/ug, "_");
-    }
 
     return fixedName;
 }
-
-
-export default {
-    sanitizeAttributeName
-};

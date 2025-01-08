@@ -1,8 +1,9 @@
-import server from "../../services/server.js";
-import utils from "../../services/utils.js";
+import { formatDateTime } from "../../utils/formatters.js"
 import { t } from "../../services/i18n.js";
 import BasicWidget from "../basic_widget.js";
 import openService from "../../services/open.js";
+import server from "../../services/server.js";
+import utils from "../../services/utils.js";
 
 
 const TPL = `
@@ -11,10 +12,10 @@ const TPL = `
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">${t("about.title")}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t('about.close')}"></button>
             </div>
             <div class="modal-body">
-                <table class="table table-borderless text-nowrap">
+                <table class="table table-borderless">
                     <tr>
                         <th>${t("about.homepage")}</th>
                         <td><a href="https://github.com/TriliumNext/Notes" class="external">https://github.com/TriliumNext/Notes</a></td>
@@ -49,7 +50,14 @@ const TPL = `
             </div>
         </div>
     </div>
-</div>`;
+</div>
+
+<style>
+.about-dialog a {
+    word-break: break-all;
+}
+</style>
+`;
 
 export default class AboutDialog extends BasicWidget {
     doRender() {
@@ -68,7 +76,7 @@ export default class AboutDialog extends BasicWidget {
         this.$appVersion.text(appInfo.appVersion);
         this.$dbVersion.text(appInfo.dbVersion);
         this.$syncVersion.text(appInfo.syncVersion);
-        this.$buildDate.text(appInfo.buildDate);
+        this.$buildDate.text(formatDateTime(appInfo.buildDate));
         this.$buildRevision.text(appInfo.buildRevision);
         this.$buildRevision.attr('href', `https://github.com/TriliumNext/Notes/commit/${appInfo.buildRevision}`);
         if (utils.isElectron()) {

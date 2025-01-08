@@ -1,15 +1,15 @@
 import optionService from "./options.js";
-import type { OptionMap } from "./options.js";
+import type { OptionMap, OptionNames } from "./options_interface.js";
 import appInfo from "./app_info.js";
-import utils from "./utils.js";
+import { randomSecureToken, isWindows } from "./utils.js";
 import log from "./log.js";
 import dateUtils from "./date_utils.js";
 import keyboardActions from "./keyboard_actions.js";
 import { KeyboardShortcutWithRequiredActionName } from './keyboard_actions_interface.js';
 
 function initDocumentOptions() {
-    optionService.createOption('documentId', utils.randomSecureToken(16), false);
-    optionService.createOption('documentSecret', utils.randomSecureToken(16), false);
+    optionService.createOption('documentId', randomSecureToken(16), false);
+    optionService.createOption('documentSecret', randomSecureToken(16), false);
 }
 
 /**
@@ -24,19 +24,19 @@ interface NotSyncedOpts {
  * Represents a correspondence between an option and its default value, to be initialized when the database is missing that particular option (after a migration from an older version, or when creating a new database).
  */
 interface DefaultOption {
-    name: string;
+    name: OptionNames;
     /**
-     * The value to initialize the option with, if the option is not already present in the database.
-     * 
-     * If a function is passed in instead, the function is called if the option does not exist (with access to the current options) and the return value is used instead. Useful to migrate a new option with a value depending on some other option that might be initialized.
-     */
+    * The value to initialize the option with, if the option is not already present in the database.
+    *
+    * If a function is passed Gin instead, the function is called if the option does not exist (with access to the current options) and the return value is used instead. Useful to migrate a new option with a value depending on some other option that might be initialized.
+    */
     value: string | ((options: OptionMap) => string);
     isSynced: boolean;
 }
 
 /**
  * Initializes the default options for new databases only.
- * 
+ *
  * @param initialized `true` if the database has been fully initialized (i.e. a new database was created), or `false` if the database is created for sync.
  * @param opts additional options to be initialized, for example the sync configuration.
  */
@@ -56,10 +56,10 @@ async function initNotSyncedOptions(initialized: boolean, opts: NotSyncedOpts = 
     optionService.createOption('initialized', initialized ? 'true' : 'false', false);
 
     optionService.createOption('lastSyncedPull', '0', false);
-    optionService.createOption('lastSyncedPush', '0', false);    
+    optionService.createOption('lastSyncedPush', '0', false);
 
     optionService.createOption('theme', 'next', false);
-    
+
     optionService.createOption('syncServerHost', opts.syncServerHost || '', false);
     optionService.createOption('syncServerTimeout', '120000', false);
     optionService.createOption('syncProxy', opts.syncProxy || '', false);
@@ -72,7 +72,7 @@ const defaultOptions: DefaultOption[] = [
     { name: 'revisionSnapshotTimeInterval', value: '600', isSynced: true },
     { name: 'revisionSnapshotNumberLimit', value: '-1', isSynced: true },
     { name: 'protectedSessionTimeout', value: '600', isSynced: true },
-    { name: 'zoomFactor', value: process.platform === "win32" ? '0.9' : '1.0', isSynced: false },
+    { name: 'zoomFactor', value: isWindows() ? '0.9' : '1.0', isSynced: false },
     { name: 'overrideThemeFonts', value: 'false', isSynced: false },
     { name: 'mainFontFamily', value: 'theme', isSynced: false },
     { name: 'mainFontSize', value: '100', isSynced: false },
@@ -134,6 +134,7 @@ const defaultOptions: DefaultOption[] = [
 
     // Text note configuration
     { name: "textNoteEditorType", value: "ckeditor-balloon", isSynced: true },
+    { name: "textNoteEditorMultilineToolbar", value: "false", isSynced: true },
 
     // HTML import configuration
     { name: "layoutOrientation", value: "vertical", isSynced: false },
@@ -159,7 +160,7 @@ const defaultOptions: DefaultOption[] = [
 
 /**
  * Initializes the options, by checking which options from {@link #allDefaultOptions()} are missing and registering them. It will also check some environment variables such as safe mode, to make any necessary adjustments.
- * 
+ *
  * This method is called regardless of whether a new database is created, or an existing database is used.
  */
 function initStartupOptions() {
@@ -198,7 +199,7 @@ function getKeyboardDefaultOptions() {
             name: `keyboardShortcuts${ka.actionName.charAt(0).toUpperCase()}${ka.actionName.slice(1)}`,
             value: JSON.stringify(ka.defaultShortcuts),
             isSynced: false
-        }));
+        })) as DefaultOption[];
 }
 
 export default {

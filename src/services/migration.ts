@@ -2,7 +2,7 @@ import backupService from "./backup.js";
 import sql from "./sql.js";
 import fs from "fs-extra";
 import log from "./log.js";
-import utils from "./utils.js";
+import { crash } from "./utils.js";
 import resourceDir from "./resource_dir.js";
 import appInfo from "./app_info.js";
 import cls from "./cls.js";
@@ -20,7 +20,7 @@ async function migrate() {
     if (currentDbVersion < 214) {
         log.error("Direct migration from your current version is not supported. Please upgrade to the latest v0.60.4 first and only then to this version.");
 
-        await utils.crash();
+        await crash();
         return;
     }
 
@@ -75,15 +75,15 @@ async function migrate() {
                 await executeMigration(mig);
 
                 sql.execute(`UPDATE options
-                             SET value = ?
-                             WHERE name = ?`, [mig.dbVersion.toString(), "dbVersion"]);
+                            SET value = ?
+                            WHERE name = ?`, [mig.dbVersion.toString(), "dbVersion"]);
 
                 log.info(`Migration to version ${mig.dbVersion} has been successful.`);
             } catch (e: any) {
                 log.error(`error during migration to version ${mig.dbVersion}: ${e.stack}`);
                 log.error("migration failed, crashing hard"); // this is not very user-friendly :-/
 
-                utils.crash();
+                crash();
                 break; // crash() is sometimes async
             }
         }
@@ -135,7 +135,7 @@ async function migrateIfNecessary() {
     if (currentDbVersion > appInfo.dbVersion && process.env.TRILIUM_IGNORE_DB_VERSION !== 'true') {
         log.error(`Current DB version ${currentDbVersion} is newer than the current DB version ${appInfo.dbVersion}, which means that it was created by a newer and incompatible version of Trilium. Upgrade to the latest version of Trilium to resolve this issue.`);
 
-        await utils.crash();
+        await crash();
     }
 
     if (!isDbUpToDate()) {
