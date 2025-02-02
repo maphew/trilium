@@ -1,6 +1,6 @@
 import { t } from "../../services/i18n.js";
-import utils from '../../services/utils.js';
-import server from '../../services/server.js';
+import utils from "../../services/utils.js";
+import server from "../../services/server.js";
 import toastService from "../../services/toast.js";
 import appContext from "../../components/app_context.js";
 import libraryLoader from "../../services/library_loader.js";
@@ -64,7 +64,7 @@ const TPL = `
                         <div class="revision-title-buttons"></div>
                     </div>
 
-                    <div class="revision-content"></div>
+                    <div class="revision-content use-tn-links"></div>
                 </div>
             </div>
             <div class="modal-footer py-0">
@@ -98,28 +98,30 @@ export default class RevisionsDialog extends BasicWidget {
         this.$eraseAllRevisionsButton = this.$widget.find(".revisions-erase-all-revisions-button");
         this.$snapshotInterval = this.$widget.find(".revisions-snapshot-interval");
         this.$maximumRevisions = this.$widget.find(".maximum-revisions-for-current-note");
-        this.$revisionSettingsButton = this.$widget.find(".revision-settings-button")
+        this.$revisionSettingsButton = this.$widget.find(".revision-settings-button");
         this.listDropdown.show();
 
-        this.$listDropdown.parent().on('hide.bs.dropdown', e => {
+        this.$listDropdown.parent().on("hide.bs.dropdown", (e) => {
             // Prevent closing dropdown by pressing ESC and clicking outside
             e.preventDefault();
         });
 
-        document.addEventListener('keydown', e => {
-            // Close the revision dialog when revision element is focused and ESC is pressed
-            if (e.key === 'Escape' ||
-                e.target.classList.contains(['dropdown-item', 'active'])) {
-                this.modal.hide();
-            }
-        }, true)
+        document.addEventListener(
+            "keydown",
+            (e) => {
+                // Close the revision dialog when revision element is focused and ESC is pressed
+                if (e.key === "Escape" || e.target.classList.contains(["dropdown-item", "active"])) {
+                    this.modal.hide();
+                }
+            },
+            true
+        );
 
-        this.$widget.on('shown.bs.modal', () => {
-            this.$list.find(`[data-revision-id="${this.revisionId}"]`)
-                .trigger('focus');
+        this.$widget.on("shown.bs.modal", () => {
+            this.$list.find(`[data-revision-id="${this.revisionId}"]`).trigger("focus");
         });
 
-        this.$eraseAllRevisionsButton.on('click', async () => {
+        this.$eraseAllRevisionsButton.on("click", async () => {
             const text = t("revisions.confirm_delete_all");
 
             if (await dialogService.confirm(text)) {
@@ -131,16 +133,16 @@ export default class RevisionsDialog extends BasicWidget {
             }
         });
 
-        this.$list.on('focus', '.dropdown-item', e => {
-            this.$list.find('.dropdown-item').each((i, el) => {
-                $(el).toggleClass('active', el === e.target);
+        this.$list.on("focus", ".dropdown-item", (e) => {
+            this.$list.find(".dropdown-item").each((i, el) => {
+                $(el).toggleClass("active", el === e.target);
             });
 
             this.setContentPane();
         });
 
-        this.$revisionSettingsButton.on('click', async () => {
-            appContext.tabManager.openContextWithNote('_optionsOther', { activate: true });
+        this.$revisionSettingsButton.on("click", async () => {
+            appContext.tabManager.openContextWithNote("_optionsOther", { activate: true });
         });
     }
 
@@ -162,8 +164,8 @@ export default class RevisionsDialog extends BasicWidget {
             this.$list.append(
                 $('<a class="dropdown-item" tabindex="0">')
                     .text(`${item.dateLastEdited.substr(0, 16)} (${utils.formatSize(item.contentLength)})`)
-                    .attr('data-revision-id', item.revisionId)
-                    .attr('title', t("revisions.revision_last_edited", { date: item.dateLastEdited }))
+                    .attr("data-revision-id", item.revisionId)
+                    .attr("title", t("revisions.revision_last_edited", { date: item.dateLastEdited }))
             );
         }
 
@@ -181,21 +183,21 @@ export default class RevisionsDialog extends BasicWidget {
         this.$eraseAllRevisionsButton.toggle(this.revisionItems.length > 0);
 
         // Show the footer of the revisions dialog
-        this.$snapshotInterval.text(t("revisions.snapshot_interval", { seconds: options.getInt('revisionSnapshotTimeInterval') }))
+        this.$snapshotInterval.text(t("revisions.snapshot_interval", { seconds: options.getInt("revisionSnapshotTimeInterval") }));
         let revisionsNumberLimit = parseInt(this.note.getLabelValue("versioningLimit") ?? "");
         if (!Number.isInteger(revisionsNumberLimit)) {
-            revisionsNumberLimit = parseInt(options.getInt('revisionSnapshotNumberLimit'));
+            revisionsNumberLimit = parseInt(options.getInt("revisionSnapshotNumberLimit"));
         }
         if (revisionsNumberLimit === -1) {
-            revisionsNumberLimit = "∞"
+            revisionsNumberLimit = "∞";
         }
-        this.$maximumRevisions.text(t("revisions.maximum_revisions", { number: revisionsNumberLimit }))
+        this.$maximumRevisions.text(t("revisions.maximum_revisions", { number: revisionsNumberLimit }));
     }
 
     async setContentPane() {
-        const revisionId = this.$list.find(".active").attr('data-revision-id');
+        const revisionId = this.$list.find(".active").attr("data-revision-id");
 
-        const revisionItem = this.revisionItems.find(r => r.revisionId === revisionId);
+        const revisionItem = this.revisionItems.find((r) => r.revisionId === revisionId);
 
         this.$title.html(revisionItem.title);
 
@@ -209,7 +211,7 @@ export default class RevisionsDialog extends BasicWidget {
 
         const $restoreRevisionButton = $(`<button class="btn btn-sm" type="button">${t("revisions.restore_button")}</button>`);
 
-        $restoreRevisionButton.on('click', async () => {
+        $restoreRevisionButton.on("click", async () => {
             const text = t("revisions.confirm_restore");
 
             if (await dialogService.confirm(text)) {
@@ -223,7 +225,7 @@ export default class RevisionsDialog extends BasicWidget {
 
         const $eraseRevisionButton = $(`<button class="btn btn-sm" type="button">${t("revisions.delete_button")}</button>`);
 
-        $eraseRevisionButton.on('click', async () => {
+        $eraseRevisionButton.on("click", async () => {
             const text = t("revisions.confirm_delete");
 
             if (await dialogService.confirm(text)) {
@@ -236,18 +238,14 @@ export default class RevisionsDialog extends BasicWidget {
         });
 
         if (!revisionItem.isProtected || protectedSessionHolder.isProtectedSessionAvailable()) {
-            this.$titleButtons
-                .append($restoreRevisionButton)
-                .append(' &nbsp; ');
+            this.$titleButtons.append($restoreRevisionButton).append(" &nbsp; ");
         }
 
-        this.$titleButtons
-            .append($eraseRevisionButton)
-            .append(' &nbsp; ');
+        this.$titleButtons.append($eraseRevisionButton).append(" &nbsp; ");
 
         const $downloadButton = $(`<button class="btn btn-sm btn-primary" type="button">${t("revisions.download_button")}</button>`);
 
-        $downloadButton.on('click', () => openService.downloadRevision(revisionItem.noteId, revisionItem.revisionId));
+        $downloadButton.on("click", () => openService.downloadRevision(revisionItem.noteId, revisionItem.revisionId));
 
         if (!revisionItem.isProtected || protectedSessionHolder.isProtectedSessionAvailable()) {
             this.$titleButtons.append($downloadButton);
@@ -259,65 +257,52 @@ export default class RevisionsDialog extends BasicWidget {
 
         const fullRevision = await server.get(`revisions/${revisionItem.revisionId}`);
 
-        if (revisionItem.type === 'text') {
+        if (revisionItem.type === "text") {
             this.$content.html(fullRevision.content);
 
-            if (this.$content.find('span.math-tex').length > 0) {
+            if (this.$content.find("span.math-tex").length > 0) {
                 await libraryLoader.requireLibrary(libraryLoader.KATEX);
 
                 renderMathInElement(this.$content[0], { trust: true });
             }
-        } else if (revisionItem.type === 'code') {
+        } else if (revisionItem.type === "code") {
             this.$content.html($("<pre>").text(fullRevision.content));
-        } else if (revisionItem.type === 'image') {
+        } else if (revisionItem.type === "image") {
             if (fullRevision.mime === "image/svg+xml") {
                 let encodedSVG = encodeURIComponent(fullRevision.content); //Base64 of other format images may be embedded in svg
-                this.$content.html($("<img>")
-                    .attr("src", `data:${fullRevision.mime};utf8,${encodedSVG}`)
-                    .css("max-width", "100%")
-                    .css("max-height", "100%"));
+                this.$content.html($("<img>").attr("src", `data:${fullRevision.mime};utf8,${encodedSVG}`).css("max-width", "100%").css("max-height", "100%"));
             } else {
-                this.$content.html($("<img>")
-                    // the reason why we put this inline as base64 is that we do not want to let user copy this
-                    // as a URL to be used in a note. Instead, if they copy and paste it into a note, it will be uploaded as a new note
-                    .attr("src", `data:${fullRevision.mime};base64,${fullRevision.content}`)
-                    .css("max-width", "100%")
-                    .css("max-height", "100%"));
+                this.$content.html(
+                    $("<img>")
+                        // the reason why we put this inline as base64 is that we do not want to let user copy this
+                        // as a URL to be used in a note. Instead, if they copy and paste it into a note, it will be uploaded as a new note
+                        .attr("src", `data:${fullRevision.mime};base64,${fullRevision.content}`)
+                        .css("max-width", "100%")
+                        .css("max-height", "100%")
+                );
             }
-        } else if (revisionItem.type === 'file') {
+        } else if (revisionItem.type === "file") {
             const $table = $("<table cellpadding='10'>")
-                .append($("<tr>").append(
-                    $("<th>").text(t("revisions.mime")),
-                    $("<td>").text(revisionItem.mime)
-                ))
-                .append($("<tr>").append(
-                    $("<th>").text(t("revisions.file_size")),
-                    $("<td>").text(utils.formatSize(revisionItem.contentLength))
-                ));
+                .append($("<tr>").append($("<th>").text(t("revisions.mime")), $("<td>").text(revisionItem.mime)))
+                .append($("<tr>").append($("<th>").text(t("revisions.file_size")), $("<td>").text(utils.formatSize(revisionItem.contentLength))));
 
             if (fullRevision.content) {
-                $table.append($("<tr>").append(
-                    $('<td colspan="2">').append(
-                        $('<div style="font-weight: bold;">').text(t("revisions.preview")),
-                        $('<pre class="file-preview-content"></pre>')
-                            .text(fullRevision.content)
+                $table.append(
+                    $("<tr>").append(
+                        $('<td colspan="2">').append($('<div style="font-weight: bold;">').text(t("revisions.preview")), $('<pre class="file-preview-content"></pre>').text(fullRevision.content))
                     )
-                ));
+                );
             }
 
             this.$content.html($table);
         } else if (["canvas", "mindMap"].includes(revisionItem.type)) {
             const encodedTitle = encodeURIComponent(revisionItem.title);
 
-            this.$content.html($("<img>")
-                .attr("src", `api/revisions/${revisionItem.revisionId}/image/${encodedTitle}?${Math.random()}`)
-                .css("max-width", "100%"));
-        } else if (revisionItem.type === 'mermaid') {
+            this.$content.html($("<img>").attr("src", `api/revisions/${revisionItem.revisionId}/image/${encodedTitle}?${Math.random()}`).css("max-width", "100%"));
+        } else if (revisionItem.type === "mermaid") {
             const encodedTitle = encodeURIComponent(revisionItem.title);
 
-            this.$content.html($("<img>")
-                .attr("src", `api/revisions/${revisionItem.revisionId}/image/${encodedTitle}?${Math.random()}`)
-                .css("max-width", "100%"));
+            this.$content.html($("<img>").attr("src", `api/revisions/${revisionItem.revisionId}/image/${encodedTitle}?${Math.random()}`).css("max-width", "100%"));
 
             this.$content.append($("<pre>").text(fullRevision.content));
         } else {

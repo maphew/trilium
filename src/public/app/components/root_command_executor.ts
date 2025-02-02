@@ -1,5 +1,5 @@
 import Component from "./component.js";
-import appContext, { CommandData, CommandListenerData } from "./app_context.js";
+import appContext, { type CommandData, type CommandListenerData } from "./app_context.js";
 import dateNoteService from "../services/date_notes.js";
 import treeService from "../services/tree.js";
 import openService from "../services/open.js";
@@ -25,11 +25,11 @@ export default class RootCommandExecutor extends Component {
 
         const noteContext = await appContext.tabManager.openTabWithNoteWithHoisting(sqlConsoleNote.noteId, { activate: true });
 
-        appContext.triggerEvent('focusOnDetail', {ntxId: noteContext.ntxId});
+        appContext.triggerEvent("focusOnDetail", { ntxId: noteContext.ntxId });
     }
 
-    async searchNotesCommand({searchString, ancestorNoteId}: CommandListenerData<"searchNotes">) {
-        const searchNote = await dateNoteService.createSearchNote({searchString, ancestorNoteId});
+    async searchNotesCommand({ searchString, ancestorNoteId }: CommandListenerData<"searchNotes">) {
+        const searchNote = await dateNoteService.createSearchNote({ searchString, ancestorNoteId });
         if (!searchNote) {
             return;
         }
@@ -41,13 +41,13 @@ export default class RootCommandExecutor extends Component {
             activate: true
         });
 
-        appContext.triggerCommand('focusOnSearchDefinition', {ntxId: noteContext.ntxId});
+        appContext.triggerCommand("focusOnSearchDefinition", { ntxId: noteContext.ntxId });
     }
 
-    async searchInSubtreeCommand({notePath}: CommandListenerData<"searchInSubtree">) {
+    async searchInSubtreeCommand({ notePath }: CommandListenerData<"searchInSubtree">) {
         const noteId = treeService.getNoteIdFromUrl(notePath);
 
-        this.searchNotesCommand({ancestorNoteId: noteId});
+        this.searchNotesCommand({ ancestorNoteId: noteId });
     }
 
     openNoteExternallyCommand() {
@@ -83,11 +83,11 @@ export default class RootCommandExecutor extends Component {
     }
 
     toggleLeftPaneCommand() {
-        options.toggle('leftPaneVisible');
+        options.toggle("leftPaneVisible");
     }
 
     async showBackendLogCommand() {
-        await appContext.tabManager.openTabWithNoteWithHoisting('_backendLog', { activate: true });
+        await appContext.tabManager.openTabWithNoteWithHoisting("_backendLog", { activate: true });
     }
 
     async showLaunchBarSubtreeCommand() {
@@ -97,26 +97,26 @@ export default class RootCommandExecutor extends Component {
     }
 
     async showShareSubtreeCommand() {
-        await this.showAndHoistSubtree('_share');
+        await this.showAndHoistSubtree("_share");
     }
 
     async showHiddenSubtreeCommand() {
-        await this.showAndHoistSubtree('_hidden');
+        await this.showAndHoistSubtree("_hidden");
     }
 
-    async showOptionsCommand({section}: CommandListenerData<"showOptions">) {
-        await appContext.tabManager.openContextWithNote(section || '_options', {
+    async showOptionsCommand({ section }: CommandListenerData<"showOptions">) {
+        await appContext.tabManager.openContextWithNote(section || "_options", {
             activate: true,
-            hoistedNoteId: '_options'
+            hoistedNoteId: "_options"
         });
     }
 
     async showSQLConsoleHistoryCommand() {
-        await this.showAndHoistSubtree('_sqlConsole');
+        await this.showAndHoistSubtree("_sqlConsole");
     }
 
     async showSearchHistoryCommand() {
-        await this.showAndHoistSubtree('_search');
+        await this.showAndHoistSubtree("_search");
     }
 
     async showAndHoistSubtree(subtreeNoteId: string) {
@@ -133,7 +133,7 @@ export default class RootCommandExecutor extends Component {
             await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
                 activate: true,
                 viewScope: {
-                    viewMode: 'source'
+                    viewMode: "source"
                 }
             });
         }
@@ -146,7 +146,7 @@ export default class RootCommandExecutor extends Component {
             await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
                 activate: true,
                 viewScope: {
-                    viewMode: 'attachments'
+                    viewMode: "attachments"
                 }
             });
         }
@@ -159,7 +159,7 @@ export default class RootCommandExecutor extends Component {
             await appContext.tabManager.openTabWithNoteWithHoisting(notePath, {
                 activate: true,
                 viewScope: {
-                    viewMode: 'attachments'
+                    viewMode: "attachments"
                 }
             });
         }
@@ -167,23 +167,43 @@ export default class RootCommandExecutor extends Component {
 
     toggleTrayCommand() {
         if (!utils.isElectron()) return;
-        const {BrowserWindow} = utils.dynamicRequire('@electron/remote');
-        const windows = (BrowserWindow.getAllWindows()) as Electron.BaseWindow[];
-        const isVisible = windows.every(w => w.isVisible());
-        const action = isVisible ? "hide" : "show"
+        const { BrowserWindow } = utils.dynamicRequire("@electron/remote");
+        const windows = BrowserWindow.getAllWindows() as Electron.BaseWindow[];
+        const isVisible = windows.every((w) => w.isVisible());
+        const action = isVisible ? "hide" : "show";
         for (const window of windows) window[action]();
     }
 
-    firstTabCommand()   { this.#goToTab(1); }
-    secondTabCommand()  { this.#goToTab(2); }
-    thirdTabCommand()   { this.#goToTab(3); }
-    fourthTabCommand()  { this.#goToTab(4); }
-    fifthTabCommand()   { this.#goToTab(5); }
-    sixthTabCommand()   { this.#goToTab(6); }
-    seventhTabCommand() { this.#goToTab(7); }
-    eigthTabCommand()   { this.#goToTab(8); }
-    ninthTabCommand()   { this.#goToTab(9); }
-    lastTabCommand()    { this.#goToTab(Number.POSITIVE_INFINITY); }
+    firstTabCommand() {
+        this.#goToTab(1);
+    }
+    secondTabCommand() {
+        this.#goToTab(2);
+    }
+    thirdTabCommand() {
+        this.#goToTab(3);
+    }
+    fourthTabCommand() {
+        this.#goToTab(4);
+    }
+    fifthTabCommand() {
+        this.#goToTab(5);
+    }
+    sixthTabCommand() {
+        this.#goToTab(6);
+    }
+    seventhTabCommand() {
+        this.#goToTab(7);
+    }
+    eigthTabCommand() {
+        this.#goToTab(8);
+    }
+    ninthTabCommand() {
+        this.#goToTab(9);
+    }
+    lastTabCommand() {
+        this.#goToTab(Number.POSITIVE_INFINITY);
+    }
 
     #goToTab(tabNumber: number) {
         const mainNoteContexts = appContext.tabManager.getMainNoteContexts();

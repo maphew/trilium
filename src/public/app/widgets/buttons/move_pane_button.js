@@ -13,7 +13,7 @@ export default class MovePaneButton extends OnClickButtonWidget {
             .titlePlacement("bottom")
             .onClick(async (widget, e) => {
                 e.stopPropagation();
-                widget.triggerCommand("moveThisNoteSplit", {ntxId: widget.getClosestNtxId(), isMovingLeft: this.isMovingLeft});
+                widget.triggerCommand("moveThisNoteSplit", { ntxId: widget.getClosestNtxId(), isMovingLeft: this.isMovingLeft });
             })
             .class("icon-action");
     }
@@ -27,7 +27,7 @@ export default class MovePaneButton extends OnClickButtonWidget {
             // movable if the current context is not a main context, i.e. non-null mainNtxId
             return !!this.noteContext?.mainNtxId;
         } else {
-            const currentIndex = appContext.tabManager.noteContexts.findIndex(c => c.ntxId === this.ntxId);
+            const currentIndex = appContext.tabManager.noteContexts.findIndex((c) => c.ntxId === this.ntxId);
             const nextContext = appContext.tabManager.noteContexts[currentIndex + 1];
             // movable if the next context is not null and not a main context, i.e. non-null mainNtxId
             return !!nextContext?.mainNtxId;

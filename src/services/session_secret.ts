@@ -3,7 +3,7 @@
 import fs from "fs";
 import dataDir from "./data_dir.js";
 import log from "./log.js";
-import { randomSecureToken } from "./utils.js"
+import { randomSecureToken } from "./utils.js";
 
 const sessionSecretPath = `${dataDir.TRILIUM_DATA_DIR}/session_secret.txt`;
 
@@ -17,8 +17,7 @@ if (!fs.existsSync(sessionSecretPath)) {
     log.info("Generated session secret");
 
     fs.writeFileSync(sessionSecretPath, sessionSecret, ENCODING);
-}
-else {
+} else {
     sessionSecret = fs.readFileSync(sessionSecretPath, ENCODING);
 }
 

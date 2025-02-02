@@ -79,7 +79,7 @@ const TPL = `
         </style>
 
         <button type="button" class="show-floating-buttons-button btn bx bx-chevrons-left"
-            title="${t('show_floating_buttons_button.button_title')}"></button>
+            title="${t("show_floating_buttons_button.button_title")}"></button>
     </div>
 </div>`;
 
@@ -95,7 +95,7 @@ export default class FloatingButtons extends NoteContextAwareWidget {
 
     async refreshWithNote(note) {
         this.toggle(true);
-        this.$widget.find(".show-floating-buttons-button").on('click', () => this.toggle(true));
+        this.$widget.find(".show-floating-buttons-button").on("click", () => this.toggle(true));
     }
 
     toggle(show) {

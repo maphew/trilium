@@ -5,7 +5,7 @@ import sql from "../../services/sql.js";
 import cls from "../../services/cls.js";
 import specialNotesService from "../../services/special_notes.js";
 import becca from "../../becca/becca.js";
-import { Request } from 'express';
+import type { Request } from "express";
 
 function getInboxNote(req: Request) {
     return specialNotesService.getInboxNote(req.params.date);

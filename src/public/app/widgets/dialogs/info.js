@@ -34,7 +34,7 @@ export default class InfoDialog extends BasicWidget {
         this.$infoContent = this.$widget.find(".info-dialog-content");
         this.$okButton = this.$widget.find(".info-dialog-ok-button");
 
-        this.$widget.on('shown.bs.modal', () => this.$okButton.trigger("focus"));
+        this.$widget.on("shown.bs.modal", () => this.$okButton.trigger("focus"));
 
         this.$widget.on("hidden.bs.modal", () => {
             if (this.resolve) {
@@ -42,16 +42,16 @@ export default class InfoDialog extends BasicWidget {
             }
 
             if (this.$originallyFocused) {
-                this.$originallyFocused.trigger('focus');
+                this.$originallyFocused.trigger("focus");
                 this.$originallyFocused = null;
             }
         });
 
-        this.$okButton.on('click', () => this.modal.hide());
+        this.$okButton.on("click", () => this.modal.hide());
     }
 
     showInfoDialogEvent({ message, callback }) {
-        this.$originallyFocused = $(':focus');
+        this.$originallyFocused = $(":focus");
 
         this.$infoContent.text(message);
 

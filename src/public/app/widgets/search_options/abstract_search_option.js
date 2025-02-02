@@ -12,13 +12,13 @@ export default class AbstractSearchOption extends Component {
         this.note = note;
     }
 
-    static async setAttribute(noteId, type, name, value = '') {
+    static async setAttribute(noteId, type, name, value = "") {
         await server.put(`notes/${noteId}/set-attribute`, { type, name, value });
 
         await ws.waitForMaxKnownEntityChangeId();
     }
 
-    async setAttribute(type, name, value = '') {
+    async setAttribute(type, name, value = "") {
         await this.constructor.setAttribute(this.note.noteId, type, name, value);
     }
 
@@ -26,16 +26,16 @@ export default class AbstractSearchOption extends Component {
         try {
             const $rendered = this.doRender();
 
-            $rendered.find('.search-option-del')
-                .on('click', () => this.deleteOption())
-                .attr('title', t('abstract_search_option.remove_this_search_option')); // 使用 t 函数处理 i18n 字符串
+            $rendered
+                .find(".search-option-del")
+                .on("click", () => this.deleteOption())
+                .attr("title", t("abstract_search_option.remove_this_search_option")); // 使用 t 函数处理 i18n 字符串
 
             utils.initHelpDropdown($rendered);
 
             return $rendered;
-        }
-        catch (e) {
-            logError(t('abstract_search_option.failed_rendering', { dto: JSON.stringify(this.attribute.dto), error: e.message, stack: e.stack })); // 使用 t 函数处理 i18n 字符串
+        } catch (e) {
+            logError(t("abstract_search_option.failed_rendering", { dto: JSON.stringify(this.attribute.dto), error: e.message, stack: e.stack })); // 使用 t 函数处理 i18n 字符串
             return null;
         }
     }
@@ -48,7 +48,7 @@ export default class AbstractSearchOption extends Component {
 
         await ws.waitForMaxKnownEntityChangeId();
 
-        await this.triggerCommand('refreshSearchDefinition');
+        await this.triggerCommand("refreshSearchDefinition");
     }
 
     async deleteAttribute(type, name) {

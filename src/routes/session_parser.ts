@@ -13,7 +13,7 @@ const sessionParser = session({
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // in milliseconds
     },
-    name: 'trilium.sid',
+    name: "trilium.sid",
     store: new FileStore({
         ttl: 30 * 24 * 3600,
         path: `${dataDir.TRILIUM_DATA_DIR}/sessions`

@@ -41,36 +41,36 @@ const TPL = `
     <div class="dropdown-menu dropdown-menu-right">
 
         <li data-trigger-command="openAttachment" class="dropdown-item"
-            title="${t('attachments_actions.open_externally_title')}"><span class="bx bx-file-find"></span> ${t('attachments_actions.open_externally')}</li>
+            title="${t("attachments_actions.open_externally_title")}"><span class="bx bx-file-find"></span> ${t("attachments_actions.open_externally")}</li>
         
         <li data-trigger-command="openAttachmentCustom" class="dropdown-item"
-            title="${t('attachments_actions.open_custom_title')}"><span class="bx bx-customize"></span> ${t('attachments_actions.open_custom')}</li>
+            title="${t("attachments_actions.open_custom_title")}"><span class="bx bx-customize"></span> ${t("attachments_actions.open_custom")}</li>
         
         <li data-trigger-command="downloadAttachment" class="dropdown-item">
-            <span class="bx bx-download"></span> ${t('attachments_actions.download')}</li>
+            <span class="bx bx-download"></span> ${t("attachments_actions.download")}</li>
 
         <li data-trigger-command="copyAttachmentLinkToClipboard" class="dropdown-item"><span class="bx bx-link">
-            </span> ${t('attachments_actions.copy_link_to_clipboard')}</li>
+            </span> ${t("attachments_actions.copy_link_to_clipboard")}</li>
 
         
         <div class="dropdown-divider"></div>
 
 
         <li data-trigger-command="uploadNewAttachmentRevision" class="dropdown-item"><span class="bx bx-upload">
-            </span> ${t('attachments_actions.upload_new_revision')}</li>
+            </span> ${t("attachments_actions.upload_new_revision")}</li>
 
         <li data-trigger-command="renameAttachment" class="dropdown-item">
-            <span class="bx bx-rename"></span> ${t('attachments_actions.rename_attachment')}</li>
+            <span class="bx bx-rename"></span> ${t("attachments_actions.rename_attachment")}</li>
 
         <li data-trigger-command="deleteAttachment" class="dropdown-item">
-            <span class="bx bx-trash destructive-action-icon"></span> ${t('attachments_actions.delete_attachment')}</li>
+            <span class="bx bx-trash destructive-action-icon"></span> ${t("attachments_actions.delete_attachment")}</li>
 
 
         <div class="dropdown-divider"></div>
             
 
         <li data-trigger-command="convertAttachmentIntoNote" class="dropdown-item"><span class="bx bx-note">
-            </span> ${t('attachments_actions.convert_attachment_into_note')}</li>
+            </span> ${t("attachments_actions.convert_attachment_into_note")}</li>
         
     </div>
     
@@ -92,46 +92,34 @@ export default class AttachmentActionsWidget extends BasicWidget {
     doRender() {
         this.$widget = $(TPL);
         this.dropdown = bootstrap.Dropdown.getOrCreateInstance(this.$widget.find("[data-bs-toggle='dropdown']"));
-        this.$widget.on('click', '.dropdown-item', () => this.dropdown.toggle());
+        this.$widget.on("click", ".dropdown-item", () => this.dropdown.toggle());
 
         this.$uploadNewRevisionInput = this.$widget.find(".attachment-upload-new-revision-input");
-        this.$uploadNewRevisionInput.on('change', async () => {
+        this.$uploadNewRevisionInput.on("change", async () => {
             const fileToUpload = this.$uploadNewRevisionInput[0].files[0]; // copy to allow reset below
-            this.$uploadNewRevisionInput.val('');
+            this.$uploadNewRevisionInput.val("");
 
             const result = await server.upload(`attachments/${this.attachmentId}/file`, fileToUpload);
 
             if (result.uploaded) {
-                toastService.showMessage(t('attachments_actions.upload_success'));
+                toastService.showMessage(t("attachments_actions.upload_success"));
             } else {
-                toastService.showError(t('attachments_actions.upload_failed'));
+                toastService.showError(t("attachments_actions.upload_failed"));
             }
         });
 
         const isElectron = utils.isElectron();
         if (!this.isFullDetail) {
             const $openAttachmentButton = this.$widget.find("[data-trigger-command='openAttachment']");
-            $openAttachmentButton
-                .addClass("disabled")
-                .append($('<span class="bx bx-info-circle disabled-tooltip" />')
-                    .attr("title", t('attachments_actions.open_externally_detail_page'))
-                );
+            $openAttachmentButton.addClass("disabled").append($('<span class="bx bx-info-circle disabled-tooltip" />').attr("title", t("attachments_actions.open_externally_detail_page")));
             if (isElectron) {
                 const $openAttachmentCustomButton = this.$widget.find("[data-trigger-command='openAttachmentCustom']");
-                $openAttachmentCustomButton
-                    .addClass("disabled")
-                    .append($('<span class="bx bx-info-circle disabled-tooltip" />')
-                        .attr("title", t('attachments_actions.open_externally_detail_page'))
-                    );
+                $openAttachmentCustomButton.addClass("disabled").append($('<span class="bx bx-info-circle disabled-tooltip" />').attr("title", t("attachments_actions.open_externally_detail_page")));
             }
         }
         if (!isElectron) {
             const $openAttachmentCustomButton = this.$widget.find("[data-trigger-command='openAttachmentCustom']");
-            $openAttachmentCustomButton
-                .addClass("disabled")
-                .append($('<span class="bx bx-info-circle disabled-tooltip" />')
-                    .attr("title", t('attachments_actions.open_custom_client_only'))
-                );
+            $openAttachmentCustomButton.addClass("disabled").append($('<span class="bx bx-info-circle disabled-tooltip" />').attr("title", t("attachments_actions.open_custom_client_only")));
         }
     }
 
@@ -148,7 +136,7 @@ export default class AttachmentActionsWidget extends BasicWidget {
     }
 
     async uploadNewAttachmentRevisionCommand() {
-        this.$uploadNewRevisionInput.trigger('click');
+        this.$uploadNewRevisionInput.trigger("click");
     }
 
     async copyAttachmentLinkToClipboardCommand() {
@@ -156,29 +144,29 @@ export default class AttachmentActionsWidget extends BasicWidget {
     }
 
     async deleteAttachmentCommand() {
-        if (!await dialogService.confirm(t('attachments_actions.delete_confirm', { title: this.attachment.title }))) {
+        if (!(await dialogService.confirm(t("attachments_actions.delete_confirm", { title: this.attachment.title })))) {
             return;
         }
 
         await server.remove(`attachments/${this.attachmentId}`);
-        toastService.showMessage(t('attachments_actions.delete_success', { title: this.attachment.title }));
+        toastService.showMessage(t("attachments_actions.delete_success", { title: this.attachment.title }));
     }
 
     async convertAttachmentIntoNoteCommand() {
-        if (!await dialogService.confirm(t('attachments_actions.convert_confirm', { title: this.attachment.title }))) {
+        if (!(await dialogService.confirm(t("attachments_actions.convert_confirm", { title: this.attachment.title })))) {
             return;
         }
 
-        const { note: newNote } = await server.post(`attachments/${this.attachmentId}/convert-to-note`)
-        toastService.showMessage(t('attachments_actions.convert_success', { title: this.attachment.title }));
+        const { note: newNote } = await server.post(`attachments/${this.attachmentId}/convert-to-note`);
+        toastService.showMessage(t("attachments_actions.convert_success", { title: this.attachment.title }));
         await ws.waitForMaxKnownEntityChangeId();
         await appContext.tabManager.getActiveContext().setNote(newNote.noteId);
     }
 
     async renameAttachmentCommand() {
         const attachmentTitle = await dialogService.prompt({
-            title: t('attachments_actions.rename_attachment'),
-            message: t('attachments_actions.enter_new_name'),
+            title: t("attachments_actions.rename_attachment"),
+            message: t("attachments_actions.enter_new_name"),
             defaultValue: this.attachment.title
         });
 

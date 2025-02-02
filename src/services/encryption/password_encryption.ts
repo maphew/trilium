@@ -6,7 +6,7 @@ import dataEncryptionService from "./data_encryption.js";
 function verifyPassword(password: string) {
     const givenPasswordHash = toBase64(myScryptService.getVerificationHash(password));
 
-    const dbPasswordHash = optionService.getOptionOrNull('passwordVerificationHash');
+    const dbPasswordHash = optionService.getOptionOrNull("passwordVerificationHash");
 
     if (!dbPasswordHash) {
         return false;
@@ -20,13 +20,13 @@ function setDataKey(password: string, plainTextDataKey: string | Buffer) {
 
     const newEncryptedDataKey = dataEncryptionService.encrypt(passwordDerivedKey, plainTextDataKey);
 
-    optionService.setOption('encryptedDataKey', newEncryptedDataKey);
+    optionService.setOption("encryptedDataKey", newEncryptedDataKey);
 }
 
 function getDataKey(password: string) {
     const passwordDerivedKey = myScryptService.getPasswordDerivedKey(password);
 
-    const encryptedDataKey = optionService.getOption('encryptedDataKey');
+    const encryptedDataKey = optionService.getOption("encryptedDataKey");
 
     const decryptedDataKey = dataEncryptionService.decrypt(passwordDerivedKey, encryptedDataKey);
 

@@ -27,7 +27,7 @@ export default class PasswordNoteSetDialog extends BasicWidget {
         this.$openPasswordOptionsButton = this.$widget.find(".open-password-options-button");
         this.$openPasswordOptionsButton.on("click", () => {
             this.modal.hide();
-            this.triggerCommand("showOptions", { section: '_optionsPassword' });
+            this.triggerCommand("showOptions", { section: "_optionsPassword" });
         });
     }
 

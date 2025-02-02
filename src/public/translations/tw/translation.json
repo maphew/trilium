@@ -148,10 +148,10 @@
     "insertDateTime": "在插入點插入當前日期和時間",
     "jumpToTreePane": "跳轉到樹面板並滾動到活動筆記",
     "markdownAutoformat": "類Markdown自動格式化",
-    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  等，後跟空格，自動轉換為標題",
-    "bulletList": "<kbd>*</kbd> 或 <kbd>-</kbd> 後跟空格，自動轉換為項目符號列表",
-    "numberedList": "<kbd>1.</kbd> or <kbd>1)</kbd> 後跟空格，自動轉換為編號列表",
-    "blockQuote": "一行以 <kbd>></kbd> 開頭並後跟空格，自動轉換為塊引用",
+    "headings": "<code>##</code>, <code>###</code>, <code>####</code>  等，後跟空格，自動轉換為標題",
+    "bulletList": "<code>*</code> 或 <code>-</code> 後跟空格，自動轉換為項目符號列表",
+    "numberedList": "<code>1.</code> or <code>1)</code> 後跟空格，自動轉換為編號列表",
+    "blockQuote": "一行以 <code>></code> 開頭並後跟空格，自動轉換為塊引用",
     "troubleshooting": "故障排除",
     "reloadFrontend": "重新加載Trilium前端",
     "showDevTools": "顯示開發者工具",
@@ -1068,7 +1068,7 @@
     "layout-horizontal-title": "水平",
     "layout-vertical-description": "啓動欄位於左側（默認）",
     "layout-horizontal-description": "啓動欄位於標籤欄下方，標籤欄現在是全寬的。"
- },
+  },
   "zoom_factor": {
     "title": "縮放系數（僅桌面客戶端有效）",
     "description": "縮放也可以通過 CTRL+- 和 CTRL+= 快捷鍵進行控制。"

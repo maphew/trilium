@@ -1,3 +1,4 @@
+@import url(./forms.css);
 @import url(./shell.css);
 @import url(./settings.css);
 @import url(./notes/text.css);
@@ -25,7 +26,7 @@
 
     --launcher-pane-size: 58px;
     --launcher-pane-horizontal-size: 54px;
-    --launcher-pane-horizontal-icon-size: 20px;    
+    --launcher-pane-horizontal-icon-size: 20px;
     --launcher-pane-button-margin: 6px;
     --launcher-pane-button-gap: 3px;
 
@@ -43,7 +44,7 @@
     --center-pane-border-radius: 10px;
 
     --menu-padding-size: 8px;
-    --menu-item-icon-vert-offset: 0;    
+    --menu-item-icon-vert-offset: -2px;
 
     --more-accented-background-color: var(--card-background-hover-color);
 
@@ -52,8 +53,13 @@
     --timeline-item-top-padding: 4px;
     --timeline-item-bottom-padding: 8px;
     --timeline-bullet-size: 10px;
-    --timeline-bullet-vertical-pos: .75em;
+    --timeline-bullet-vertical-pos: 0.75em;
     --timeline-connector-size: 4px;
+
+    --help-backdrop-blur: 10px;
+
+    --icon-button-size: 32px;
+    --icon-button-icon-ratio: .65;
 
     /* Theme capabilities */
     --tab-note-icons: true;

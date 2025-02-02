@@ -21,31 +21,33 @@ const TPL = `
 </div>`;
 
 export default class EditableCodeTypeWidget extends AbstractCodeTypeWidget {
-    static getType() { return "editableCode"; }
+    static getType() {
+        return "editableCode";
+    }
 
     doRender() {
         this.$widget = $(TPL);
         this.contentSized();
-        this.$editor = this.$widget.find('.note-detail-code-editor');
+        this.$editor = this.$widget.find(".note-detail-code-editor");
 
-        keyboardActionService.setupActionsForElement('code-detail', this.$widget, this);
+        keyboardActionService.setupActionsForElement("code-detail", this.$widget, this);
 
-        super.doRender();        
+        super.doRender();
     }
-       
+
     getExtraOpts() {
         return {
-            keyMap: options.is('vimKeymapEnabled') ? "vim": "default",
+            keyMap: options.is("vimKeymapEnabled") ? "vim" : "default",
             lint: true,
             gutters: ["CodeMirror-lint-markers"],
             tabindex: 300,
             dragDrop: false, // with true the editor inlines dropped files which is not what we expect
-            placeholder: t('editable_code.placeholder'),
+            placeholder: t("editable_code.placeholder")
         };
     }
 
     onEditorInitialized() {
-        this.codeEditor.on('change', () => this.spacedUpdate.scheduleUpdate());
+        this.codeEditor.on("change", () => this.spacedUpdate.scheduleUpdate());
     }
 
     async doRefresh(note) {
@@ -64,7 +66,7 @@ export default class EditableCodeTypeWidget extends AbstractCodeTypeWidget {
         };
     }
 
-    async executeWithCodeEditorEvent({resolve, ntxId}) {
+    async executeWithCodeEditorEvent({ resolve, ntxId }) {
         if (!this.isNoteContext(ntxId)) {
             return;
         }

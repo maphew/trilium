@@ -1,10 +1,11 @@
-import { Request, Response } from 'express';
+import type { Request, Response } from "express";
 import optionService from "../../services/options.js";
-import { OptionMap } from '../../services/options_interface.js';
+import type { OptionMap } from "../../services/options_interface.js";
 
 const SYSTEM_SANS_SERIF = [
     "system-ui",
-    "-apple-system", "BlinkMacSystemFont",
+    "-apple-system",
+    "BlinkMacSystemFont",
     "Segoe UI",
     "Cantarell",
     "Ubuntu",
@@ -12,25 +13,17 @@ const SYSTEM_SANS_SERIF = [
     "Helvetica",
     "Arial",
     "sans-serif",
-    "Apple Color Emoji", "Segoe UI Emoji"
+    "Apple Color Emoji",
+    "Segoe UI Emoji"
 ].join(",");
 
-const SYSTEM_MONOSPACE = [
-    "ui-monospace",
-    "SFMono-Regular", "SF Mono",
-    "Consolas",
-    "Source Code Pro",
-    "Ubuntu Mono",
-    "Menlo",
-    "Liberation Mono",
-    "monospace"
-].join(",");
+const SYSTEM_MONOSPACE = ["ui-monospace", "SFMono-Regular", "SF Mono", "Consolas", "Source Code Pro", "Ubuntu Mono", "Menlo", "Liberation Mono", "monospace"].join(",");
 
 function getFontCss(req: Request, res: Response) {
-    res.setHeader('Content-Type', 'text/css');
+    res.setHeader("Content-Type", "text/css");
 
-    if (!optionService.getOptionBool('overrideThemeFonts')) {
-        res.send('');
+    if (!optionService.getOptionBool("overrideThemeFonts")) {
+        res.send("");
 
         return;
     }
@@ -38,10 +31,10 @@ function getFontCss(req: Request, res: Response) {
     const optionsMap = optionService.getOptionMap();
 
     // using body to be more specific than themes' :root
-    let style = 'body {';
+    let style = "body {";
     style += getFontFamily(optionsMap);
     style += getFontSize(optionsMap);
-    style += '}';
+    style += "}";
 
     res.send(style);
 }
@@ -67,19 +60,19 @@ function getFontFamily({ mainFontFamily, treeFontFamily, detailFontFamily, monos
     }
 
     // Apply the font override if not using theme fonts.
-    if (mainFontFamily !== 'theme') {
+    if (mainFontFamily !== "theme") {
         style += `--main-font-family: ${mainFontFamily};`;
     }
 
-    if (treeFontFamily !== 'theme') {
+    if (treeFontFamily !== "theme") {
         style += `--tree-font-family: ${treeFontFamily};`;
     }
 
-    if (detailFontFamily !== 'theme') {
+    if (detailFontFamily !== "theme") {
         style += `--detail-font-family: ${detailFontFamily};`;
     }
 
-    if (monospaceFontFamily !== 'theme') {
+    if (monospaceFontFamily !== "theme") {
         style += `--monospace-font-family: ${monospaceFontFamily};`;
     }
 

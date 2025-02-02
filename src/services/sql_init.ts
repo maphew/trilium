@@ -10,7 +10,7 @@ import TaskContext from "./task_context.js";
 import migrationService from "./migration.js";
 import cls from "./cls.js";
 import config from "./config.js";
-import { OptionRow } from '../becca/entities/rows.js';
+import type { OptionRow } from "../becca/entities/rows.js";
 import BNote from "../becca/entities/bnote.js";
 import BBranch from "../becca/entities/bbranch.js";
 import zipImportService from "./import/zip.js";
@@ -32,13 +32,12 @@ function isDbInitialized() {
 
     const initialized = sql.getValue("SELECT value FROM options WHERE name = 'initialized'");
 
-    return initialized === 'true';
+    return initialized === "true";
 }
 
 async function initDbConnection() {
     if (!isDbInitialized()) {
-        log.info(`DB not initialized, please visit setup page` +
-            (isElectron() ? '' : ` - http://[your-server-host]:${port} to see instructions on how to initialize Trilium.`));
+        log.info(`DB not initialized, please visit setup page` + (isElectron ? "" : ` - http://[your-server-host]:${port} to see instructions on how to initialize Trilium.`));
 
         return;
     }
@@ -73,17 +72,17 @@ async function createInitialDatabase() {
         log.info("Creating root note ...");
 
         rootNote = new BNote({
-            noteId: 'root',
-            title: 'root',
-            type: 'text',
-            mime: 'text/html'
+            noteId: "root",
+            title: "root",
+            type: "text",
+            mime: "text/html"
         }).save();
 
-        rootNote.setContent('');
+        rootNote.setContent("");
 
         new BBranch({
-            noteId: 'root',
-            parentNoteId: 'none',
+            noteId: "root",
+            parentNoteId: "none",
             isExpanded: true,
             notePosition: 10
         }).save();
@@ -96,7 +95,7 @@ async function createInitialDatabase() {
 
     log.info("Importing demo content ...");
 
-    const dummyTaskContext = new TaskContext("no-progress-reporting", 'import', false);
+    const dummyTaskContext = new TaskContext("no-progress-reporting", "import", false);
 
     await zipImportService.importZip(dummyTaskContext, demoFile, rootNote);
 
@@ -107,12 +106,15 @@ async function createInitialDatabase() {
 
         const startNoteId = sql.getValue("SELECT noteId FROM branches WHERE parentNoteId = 'root' AND isDeleted = 0 ORDER BY notePosition");
 
-        optionService.setOption('openNoteContexts', JSON.stringify([
-            {
-                notePath: startNoteId,
-                active: true
-            }
-        ]));
+        optionService.setOption(
+            "openNoteContexts",
+            JSON.stringify([
+                {
+                    notePath: startNoteId,
+                    active: true
+                }
+            ])
+        );
     });
 
     log.info("Schema and initial content generated.");
@@ -120,7 +122,7 @@ async function createInitialDatabase() {
     initDbConnection();
 }
 
-async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', syncProxy = '') {
+async function createDatabaseForSync(options: OptionRow[], syncServerHost = "", syncProxy = "") {
     log.info("Creating database for sync");
 
     if (isDbInitialized()) {
@@ -148,7 +150,7 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = '', 
 
 function setDbAsInitialized() {
     if (!isDbInitialized()) {
-        optionService.setOption('initialized', 'true');
+        optionService.setOption("initialized", "true");
 
         initDbConnection();
     }

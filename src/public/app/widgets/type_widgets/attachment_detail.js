@@ -38,8 +38,8 @@ export default class AttachmentDetailTypeWidget extends TypeWidget {
 
     doRender() {
         this.$widget = $(TPL);
-        this.$wrapper = this.$widget.find('.attachment-wrapper');
-        this.$linksWrapper = this.$widget.find('.links-wrapper');
+        this.$wrapper = this.$widget.find(".attachment-wrapper");
+        this.$linksWrapper = this.$widget.find(".links-wrapper");
 
         super.doRender();
     }
@@ -48,17 +48,21 @@ export default class AttachmentDetailTypeWidget extends TypeWidget {
         this.$wrapper.empty();
         this.children = [];
 
-        const $helpButton = $('<button class="attachment-help-button" type="button" data-help-page="attachments.html" title="' + t('attachment_detail.open_help_page') + '"><span class="bx bx-help-circle"></span></button>');
+        const $helpButton = $(
+            '<button class="attachment-help-button" type="button" data-help-page="attachments.html" title="' +
+                t("attachment_detail.open_help_page") +
+                '"><span class="bx bx-help-circle"></span></button>'
+        );
         utils.initHelpButtons($helpButton);
 
         this.$linksWrapper.empty().append(
-            t('attachment_detail.owning_note'),
+            t("attachment_detail.owning_note"),
             await linkService.createLink(this.noteId),
-            t('attachment_detail.you_can_also_open'),
+            t("attachment_detail.you_can_also_open"),
             await linkService.createLink(this.noteId, {
-                title: t('attachment_detail.list_of_all_attachments'),
+                title: t("attachment_detail.list_of_all_attachments"),
                 viewScope: {
-                    viewMode: 'attachments'
+                    viewMode: "attachments"
                 }
             }),
             $helpButton
@@ -67,7 +71,7 @@ export default class AttachmentDetailTypeWidget extends TypeWidget {
         const attachment = await froca.getAttachment(this.attachmentId, true);
 
         if (!attachment) {
-            this.$wrapper.html("<strong>" + t('attachment_detail.attachment_deleted') + "</strong>");
+            this.$wrapper.html("<strong>" + t("attachment_detail.attachment_deleted") + "</strong>");
             return;
         }
 
@@ -77,8 +81,8 @@ export default class AttachmentDetailTypeWidget extends TypeWidget {
         this.$wrapper.append(attachmentDetailWidget.render());
     }
 
-    async entitiesReloadedEvent({loadResults}) {
-        const attachmentRow = loadResults.getAttachmentRows().find(att => att.attachmentId === this.attachmentId);
+    async entitiesReloadedEvent({ loadResults }) {
+        const attachmentRow = loadResults.getAttachmentRows().find((att) => att.attachmentId === this.attachmentId);
 
         if (attachmentRow?.isDeleted) {
             this.refresh(); // all other updates are handled within AttachmentDetailWidget

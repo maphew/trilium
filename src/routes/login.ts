@@ -8,10 +8,10 @@ import passwordService from "../services/encryption/password.js";
 import assetPath from "../services/asset_path.js";
 import appPath from "../services/app_path.js";
 import ValidationError from "../errors/validation_error.js";
-import { Request, Response } from 'express';
+import type { Request, Response } from "express";
 
 function loginPage(req: Request, res: Response) {
-    res.render('login', {
+    res.render("login", {
         failedAuth: false,
         assetPath: assetPath,
         appPath: appPath
@@ -19,7 +19,7 @@ function loginPage(req: Request, res: Response) {
 }
 
 function setPasswordPage(req: Request, res: Response) {
-    res.render('set_password', {
+    res.render("set_password", {
         error: false,
         assetPath: assetPath,
         appPath: appPath
@@ -31,7 +31,7 @@ function setPassword(req: Request, res: Response) {
         throw new ValidationError("Password has been already set");
     }
 
-    let {password1, password2} = req.body;
+    let { password1, password2 } = req.body;
     password1 = password1.trim();
     password2 = password2.trim();
 
@@ -44,7 +44,7 @@ function setPassword(req: Request, res: Response) {
     }
 
     if (error) {
-        res.render('set_password', {
+        res.render("set_password", {
             error,
             assetPath: assetPath
         });
@@ -53,7 +53,7 @@ function setPassword(req: Request, res: Response) {
 
     passwordService.setPassword(password1);
 
-    res.redirect('login');
+    res.redirect("login");
 }
 
 function login(req: Request, res: Response) {
@@ -64,20 +64,19 @@ function login(req: Request, res: Response) {
 
         req.session.regenerate(() => {
             if (rememberMe) {
-                req.session.cookie.maxAge = 21 * 24 * 3600000;  // 3 weeks
+                req.session.cookie.maxAge = 21 * 24 * 3600000; // 3 weeks
             } else {
                 req.session.cookie.expires = null;
             }
 
             req.session.loggedIn = true;
-            res.redirect('.');
+            res.redirect(".");
         });
-    }
-    else {
+    } else {
         // note that logged IP address is usually meaningless since the traffic should come from a reverse proxy
         log.info(`WARNING: Wrong password from ${req.ip}, rejecting.`);
 
-        res.status(401).render('login', {
+        res.status(401).render("login", {
             failedAuth: true,
             assetPath: assetPath
         });
@@ -85,7 +84,7 @@ function login(req: Request, res: Response) {
 }
 
 function verifyPassword(guessedPassword: string) {
-    const hashed_password = utils.fromBase64(optionService.getOption('passwordVerificationHash'));
+    const hashed_password = utils.fromBase64(optionService.getOption("passwordVerificationHash"));
 
     const guess_hashed = myScryptService.getVerificationHash(guessedPassword);
 
@@ -95,10 +94,8 @@ function verifyPassword(guessedPassword: string) {
 function logout(req: Request, res: Response) {
     req.session.regenerate(() => {
         req.session.loggedIn = false;
-
-        res.redirect('login');
+        res.sendStatus(200);
     });
-
 }
 
 export default {

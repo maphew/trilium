@@ -4,13 +4,12 @@ import attributeService from "../services/attributes.js";
 
 export default class NoteWrapperWidget extends FlexContainer {
     constructor() {
-        super('column');
+        super("column");
 
-        this.css("flex-grow", "1")
-            .collapsible();
+        this.css("flex-grow", "1").collapsible();
     }
 
-    setNoteContextEvent({noteContext}) {
+    setNoteContextEvent({ noteContext }) {
         this.noteContext = noteContext;
 
         this.refresh();
@@ -42,10 +41,7 @@ export default class NoteWrapperWidget extends FlexContainer {
             return;
         }
 
-        this.$widget.toggleClass("full-content-width",
-            ['image', 'mermaid', 'book', 'render', 'canvas', 'webView', 'mindMap'].includes(note.type)
-            || !!note?.isLabelTruthy('fullContentWidth')
-        );
+        this.$widget.toggleClass("full-content-width", ["image", "mermaid", "book", "render", "canvas", "webView", "mindMap", "geoMap"].includes(note.type) || !!note?.isLabelTruthy("fullContentWidth"));
 
         this.$widget.addClass(note.getCssClass());
 
@@ -55,13 +51,14 @@ export default class NoteWrapperWidget extends FlexContainer {
         this.$widget.toggleClass("protected", note.isProtected);
     }
 
-    async entitiesReloadedEvent({loadResults}) {
+    async entitiesReloadedEvent({ loadResults }) {
         // listening on changes of note.type and CSS class
 
         const noteId = this.noteContext?.noteId;
-        if (loadResults.isNoteReloaded(noteId)
-            || loadResults.getAttributeRows().find(attr => attr.type === 'label' && attr.name === 'cssClass' && attributeService.isAffecting(attr, this.noteContext?.note))) {
-
+        if (
+            loadResults.isNoteReloaded(noteId) ||
+            loadResults.getAttributeRows().find((attr) => attr.type === "label" && attr.name === "cssClass" && attributeService.isAffecting(attr, this.noteContext?.note))
+        ) {
             this.refresh();
         }
     }

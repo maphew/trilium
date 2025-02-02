@@ -50,7 +50,7 @@ function processContent(content: Buffer | string | null, isProtected: boolean, i
     }
 }
 
-function calculateContentHash({blobId, content}: Blob) {
+function calculateContentHash({ blobId, content }: Blob) {
     return hash(`${blobId}|${content.toString()}`);
 }
 

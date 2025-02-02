@@ -6,11 +6,11 @@ export default class ProtectedNoteSwitchWidget extends SwitchWidget {
     doRender() {
         super.doRender();
 
-        this.$switchOnName.text(t("protect_note.toggle-on"));
-        this.$switchOnButton.attr("title", t("protect_note.toggle-on-hint"));
+        this.switchOnName = t("protect_note.toggle-on");
+        this.switchOnTooltip =  t("protect_note.toggle-on-hint");
 
-        this.$switchOffName.text(t("protect_note.toggle-off"));
-        this.$switchOffButton.attr("title", t("protect_note.toggle-off-hint"));
+        this.switchOffName = t("protect_note.toggle-off");
+        this.switchOffTooltip = t("protect_note.toggle-off-hint");
     }
 
     switchOn() {
@@ -18,15 +18,14 @@ export default class ProtectedNoteSwitchWidget extends SwitchWidget {
     }
 
     switchOff() {
-        protectedSessionService.protectNote(this.noteId, false, false)
+        protectedSessionService.protectNote(this.noteId, false, false);
     }
 
     async refreshWithNote(note) {
-        this.$switchOn.toggle(!note.isProtected);
-        this.$switchOff.toggle(!!note.isProtected);
+        this.isToggled = note.isProtected;
     }
 
-    entitiesReloadedEvent({loadResults}) {
+    entitiesReloadedEvent({ loadResults }) {
         if (loadResults.isNoteReloaded(this.noteId)) {
             this.refresh();
         }

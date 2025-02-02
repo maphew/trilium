@@ -26,7 +26,7 @@ const TPL = `
     <pre class="file-preview-content"></pre>
     
     <div class="file-preview-not-available alert alert-info">
-        ${t('file.file_preview_not_available')}
+        ${t("file.file_preview_not_available")}
     </div>
     
     <iframe class="pdf-preview" style="width: 100%; height: 100%; flex-grow: 100;"></iframe>
@@ -37,7 +37,9 @@ const TPL = `
 </div>`;
 
 export default class FileTypeWidget extends TypeWidget {
-    static getType() { return "file"; }
+    static getType() {
+        return "file";
+    }
 
     doRender() {
         this.$widget = $(TPL);
@@ -56,7 +58,7 @@ export default class FileTypeWidget extends TypeWidget {
         const blob = await this.note.getBlob();
 
         this.$previewContent.empty().hide();
-        this.$pdfPreview.attr('src', '').empty().hide();
+        this.$pdfPreview.attr("src", "").empty().hide();
         this.$previewNotAvailable.hide();
         this.$videoPreview.hide();
         this.$audioPreview.hide();
@@ -64,30 +66,26 @@ export default class FileTypeWidget extends TypeWidget {
         if (blob.content) {
             this.$previewContent.show().scrollTop(0);
             this.$previewContent.text(blob.content);
-        }
-        else if (note.mime === 'application/pdf') {
+        } else if (note.mime === "application/pdf") {
             this.$pdfPreview.show().attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open`));
-        }
-        else if (note.mime.startsWith('video/')) {
+        } else if (note.mime.startsWith("video/")) {
             this.$videoPreview
                 .show()
                 .attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open-partial`))
                 .attr("type", this.note.mime)
                 .css("width", this.$widget.width());
-        }
-        else if (note.mime.startsWith('audio/')) {
+        } else if (note.mime.startsWith("audio/")) {
             this.$audioPreview
                 .show()
                 .attr("src", openService.getUrlForDownload(`api/notes/${this.noteId}/open-partial`))
                 .attr("type", this.note.mime)
                 .css("width", this.$widget.width());
-        }
-        else {
+        } else {
             this.$previewNotAvailable.show();
         }
     }
 
-    async entitiesReloadedEvent({loadResults}) {
+    async entitiesReloadedEvent({ loadResults }) {
         if (loadResults.isNoteReloaded(this.noteId)) {
             this.refresh();
         }

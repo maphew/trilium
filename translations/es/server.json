@@ -243,6 +243,12 @@
     "visible-launchers-title": "Lanzadores visibles"
   },
   "notes": {
-    "new-note": "Nueva nota"
+    "new-note": "Nueva nota",
+    "duplicate-note-suffix": "(dup)",
+    "duplicate-note-title": "{{noteTitle}} {{duplicateNoteSuffix}}"
+  },
+  "backend_log": {
+    "log-does-not-exist": "El archivo de registro del backend '{{fileName}}' no existe (aún).",
+    "reading-log-failed": "Leer el archivo de registro del backend '{{fileName}}' falló."
   }
 }

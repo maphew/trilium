@@ -1,12 +1,11 @@
-import FBranch, { FBranchRow } from "../entities/fbranch.js";
-import FNote, { FNoteRow } from "../entities/fnote.js";
-import FAttribute, { FAttributeRow } from "../entities/fattribute.js";
+import FBranch, { type FBranchRow } from "../entities/fbranch.js";
+import FNote, { type FNoteRow } from "../entities/fnote.js";
+import FAttribute, { type FAttributeRow } from "../entities/fattribute.js";
 import server from "./server.js";
 import appContext from "../components/app_context.js";
-import FBlob, { FBlobRow } from "../entities/fblob.js";
-import FAttachment, { FAttachmentRow } from "../entities/fattachment.js";
-import { Froca } from "./froca-interface.js";
-
+import FBlob, { type FBlobRow } from "../entities/fblob.js";
+import FAttachment, { type FAttachmentRow } from "../entities/fattachment.js";
+import type { Froca } from "./froca-interface.js";
 
 interface SubtreeResponse {
     notes: FNoteRow[];
@@ -44,7 +43,7 @@ class FrocaImpl implements Froca {
     }
 
     async loadInitialTree() {
-        const resp = await server.get<SubtreeResponse>('tree');
+        const resp = await server.get<SubtreeResponse>("tree");
 
         // clear the cache only directly before adding new content which is important for e.g., switching to protected session
 
@@ -73,7 +72,7 @@ class FrocaImpl implements Froca {
         const noteIdsToSort = new Set<string>();
 
         for (const noteRow of noteRows) {
-            const {noteId} = noteRow;
+            const { noteId } = noteRow;
 
             let note = this.notes[noteId];
 
@@ -81,12 +80,12 @@ class FrocaImpl implements Froca {
                 note.update(noteRow);
 
                 // search note doesn't have child branches in the database and all the children are virtual branches
-                if (note.type !== 'search') {
+                if (note.type !== "search") {
                     for (const childNoteId of note.children) {
                         const childNote = this.notes[childNoteId];
 
                         if (childNote) {
-                            childNote.parents = childNote.parents.filter(p => p !== noteId);
+                            childNote.parents = childNote.parents.filter((p) => p !== noteId);
 
                             delete this.branches[childNote.parentToBranch[noteId]];
                             delete childNote.parentToBranch[noteId];
@@ -99,7 +98,7 @@ class FrocaImpl implements Froca {
 
                 // we want to remove all "real" branches (represented in the database) since those will be created
                 // from branches argument but want to preserve all virtual ones from saved search
-                note.parents = note.parents.filter(parentNoteId => {
+                note.parents = note.parents.filter((parentNoteId) => {
                     const parentNote = this.notes[parentNoteId];
                     const branch = this.branches[parentNote.childToBranch[noteId]];
 
@@ -111,15 +110,14 @@ class FrocaImpl implements Froca {
                         return true;
                     }
 
-                    parentNote.children = parentNote.children.filter(p => p !== noteId);
+                    parentNote.children = parentNote.children.filter((p) => p !== noteId);
 
                     delete this.branches[parentNote.childToBranch[noteId]];
                     delete parentNote.childToBranch[noteId];
 
                     return false;
                 });
-            }
-            else {
+            } else {
                 this.notes[noteId] = new FNote(this, noteRow);
             }
         }
@@ -145,7 +143,7 @@ class FrocaImpl implements Froca {
         }
 
         for (const attributeRow of attributeRows) {
-            const {attributeId} = attributeRow;
+            const { attributeId } = attributeRow;
 
             this.attributes[attributeId] = new FAttribute(this, attributeRow);
 
@@ -155,7 +153,7 @@ class FrocaImpl implements Froca {
                 note.attributes.push(attributeId);
             }
 
-            if (attributeRow.type === 'relation') {
+            if (attributeRow.type === "relation") {
                 const targetNote = this.notes[attributeRow.value];
 
                 if (targetNote) {
@@ -180,21 +178,21 @@ class FrocaImpl implements Froca {
 
         noteIds = Array.from(new Set(noteIds)); // make noteIds unique
 
-        const resp = await server.post<SubtreeResponse>('tree/load', { noteIds });
+        const resp = await server.post<SubtreeResponse>("tree/load", { noteIds });
 
         this.addResp(resp);
 
-        appContext.triggerEvent('notesReloaded', {noteIds});
+        appContext.triggerEvent("notesReloaded", { noteIds });
     }
 
     async loadSearchNote(noteId: string) {
         const note = await this.getNote(noteId);
 
-        if (!note || note.type !== 'search') {
+        if (!note || note.type !== "search") {
             return;
         }
 
-        const {searchResultNoteIds, highlightedTokens, error} = await server.get<SearchNoteResponse>(`search-note/${note.noteId}`);
+        const { searchResultNoteIds, highlightedTokens, error } = await server.get<SearchNoteResponse>(`search-note/${note.noteId}`);
 
         if (!Array.isArray(searchResultNoteIds)) {
             throw new Error(`Search note '${note.noteId}' failed: ${searchResultNoteIds}`);
@@ -208,14 +206,16 @@ class FrocaImpl implements Froca {
 
         const branches: FBranchRow[] = [...note.getParentBranches(), ...note.getChildBranches()];
 
-        searchResultNoteIds.forEach((resultNoteId, index) => branches.push({
-            // branchId should be repeatable since sometimes we reload some notes without rerendering the tree
-            branchId: `virt-${note.noteId}-${resultNoteId}`,
-            noteId: resultNoteId,
-            parentNoteId: note.noteId,
-            notePosition: (index + 1) * 10,
-            fromSearchNote: true
-        }));
+        searchResultNoteIds.forEach((resultNoteId, index) =>
+            branches.push({
+                // branchId should be repeatable since sometimes we reload some notes without rerendering the tree
+                branchId: `virt-${note.noteId}-${resultNoteId}`,
+                noteId: resultNoteId,
+                parentNoteId: note.noteId,
+                notePosition: (index + 1) * 10,
+                fromSearchNote: true
+            })
+        );
 
         // update this note with standard (parent) branches + virtual (children) branches
         this.addResp({
@@ -227,37 +227,40 @@ class FrocaImpl implements Froca {
         froca.notes[note.noteId].searchResultsLoaded = true;
         froca.notes[note.noteId].highlightedTokens = highlightedTokens;
 
-        return {error};
+        return { error };
     }
 
     getNotesFromCache(noteIds: string[], silentNotFoundError = false): FNote[] {
-        return noteIds.map(noteId => {
-            if (!this.notes[noteId] && !silentNotFoundError) {
-                console.trace(`Can't find note '${noteId}'`);
+        return noteIds
+            .map((noteId) => {
+                if (!this.notes[noteId] && !silentNotFoundError) {
+                    console.trace(`Can't find note '${noteId}'`);
 
-                return null;
-            }
-            else {
-                return this.notes[noteId];
-            }
-        }).filter(note => !!note) as FNote[];
+                    return null;
+                } else {
+                    return this.notes[noteId];
+                }
+            })
+            .filter((note) => !!note) as FNote[];
     }
 
     async getNotes(noteIds: string[] | JQuery<string>, silentNotFoundError = false): Promise<FNote[]> {
         noteIds = Array.from(new Set(noteIds)); // make unique
-        const missingNoteIds = noteIds.filter(noteId => !this.notes[noteId]);
+        const missingNoteIds = noteIds.filter((noteId) => !this.notes[noteId]);
 
         await this.reloadNotes(missingNoteIds);
 
-        return noteIds.map(noteId => {
-            if (!this.notes[noteId] && !silentNotFoundError) {
-                console.trace(`Can't find note '${noteId}'`);
+        return noteIds
+            .map((noteId) => {
+                if (!this.notes[noteId] && !silentNotFoundError) {
+                    console.trace(`Can't find note '${noteId}'`);
 
-                return null;
-            } else {
-                return this.notes[noteId];
-            }
-        }).filter(note => !!note) as FNote[];
+                    return null;
+                } else {
+                    return this.notes[noteId];
+                }
+            })
+            .filter((note) => !!note) as FNote[];
     }
 
     async noteExists(noteId: string): Promise<boolean> {
@@ -267,11 +270,10 @@ class FrocaImpl implements Froca {
     }
 
     async getNote(noteId: string, silentNotFoundError = false): Promise<FNote | null> {
-        if (noteId === 'none') {
+        if (noteId === "none") {
             console.trace(`No 'none' note.`);
             return null;
-        }
-        else if (!noteId) {
+        } else if (!noteId) {
             console.trace(`Falsy noteId '${noteId}', returning null.`);
             return null;
         }
@@ -288,9 +290,7 @@ class FrocaImpl implements Froca {
     }
 
     getBranches(branchIds: string[], silentNotFoundError = false): FBranch[] {
-        return branchIds
-            .map(branchId => this.getBranch(branchId, silentNotFoundError))
-            .filter(b => !!b) as FBranch[];
+        return branchIds.map((branchId) => this.getBranch(branchId, silentNotFoundError)).filter((b) => !!b) as FBranch[];
     }
 
     getBranch(branchId: string, silentNotFoundError = false) {
@@ -298,15 +298,14 @@ class FrocaImpl implements Froca {
             if (!silentNotFoundError) {
                 logError(`Not existing branch '${branchId}'`);
             }
-        }
-        else {
+        } else {
             return this.branches[branchId];
         }
     }
 
     async getBranchId(parentNoteId: string, childNoteId: string) {
-        if (childNoteId === 'root') {
-            return 'none_root';
+        if (childNoteId === "root") {
+            return "none_root";
         }
 
         const child = await this.getNote(childNoteId);
@@ -354,7 +353,7 @@ class FrocaImpl implements Froca {
     }
 
     processAttachmentRows(attachmentRows: FAttachmentRow[]): FAttachment[] {
-        return attachmentRows.map(attachmentRow => {
+        return attachmentRows.map((attachmentRow) => {
             let attachment;
 
             if (attachmentRow.attachmentId in this.attachments) {
@@ -376,16 +375,15 @@ class FrocaImpl implements Froca {
         const key = `${entityType}-${entityId}`;
 
         if (!this.blobPromises[key]) {
-            this.blobPromises[key] = server.get<FBlobRow>(`${entityType}/${entityId}/blob`)
-                .then(row => new FBlob(row))
-                .catch(e => console.error(`Cannot get blob for ${entityType} '${entityId}'`, e));
+            this.blobPromises[key] = server
+                .get<FBlobRow>(`${entityType}/${entityId}/blob`)
+                .then((row) => new FBlob(row))
+                .catch((e) => console.error(`Cannot get blob for ${entityType} '${entityId}'`, e));
 
             // we don't want to keep large payloads forever in memory, so we clean that up quite quickly
             // this cache is more meant to share the data between different components within one business transaction (e.g. loading of the note into the tab context and all the components)
             // if the blob is updated within the cache lifetime, it should be invalidated by froca_updater
-            this.blobPromises[key]?.then(
-                () => setTimeout(() => this.blobPromises[key] = null, 1000)
-            );
+            this.blobPromises[key]?.then(() => setTimeout(() => (this.blobPromises[key] = null), 1000));
         }
 
         return await this.blobPromises[key];

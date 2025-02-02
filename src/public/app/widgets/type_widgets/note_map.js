@@ -4,12 +4,14 @@ import NoteMapWidget from "../note_map.js";
 const TPL = `<div class="note-detail-note-map note-detail-printable"></div>`;
 
 export default class NoteMapTypeWidget extends TypeWidget {
-    static getType() { return "noteMap"; }
+    static getType() {
+        return "noteMap";
+    }
 
     constructor() {
         super();
 
-        this.noteMapWidget = new NoteMapWidget('type');
+        this.noteMapWidget = new NoteMapWidget("type");
         this.child(this.noteMapWidget);
     }
 

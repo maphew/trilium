@@ -1,5 +1,5 @@
 import { t } from "../../services/i18n.js";
-import utils from '../../services/utils.js';
+import utils, { escapeQuotes } from "../../services/utils.js";
 import treeService from "../../services/tree.js";
 import importService from "../../services/import.js";
 import options from "../../services/options.js";
@@ -11,7 +11,7 @@ const TPL = `
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">${t("upload_attachments.upload_attachments_to_note")}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t('upload_attachments.close')}"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t("upload_attachments.close")}"></button>
             </div>
             <form class="upload-attachment-form">
                 <div class="modal-body">
@@ -24,7 +24,7 @@ const TPL = `
                     <div class="form-group">
                         <strong>${t("upload_attachments.options")}:</strong>
                         <div class="checkbox">
-                            <label data-bs-toggle="tooltip" title="${t("upload_attachments.tooltip")}">
+                            <label data-bs-toggle="tooltip" title="${escapeQuotes(t("upload_attachments.tooltip"))}">
                                 <input class="shrink-images-checkbox form-check-input" value="1" type="checkbox" checked> <span>${t("upload_attachments.shrink_images")}</span>
                             </label>
                         </div>
@@ -55,18 +55,17 @@ export default class UploadAttachmentsDialog extends BasicWidget {
         this.$uploadButton = this.$widget.find(".upload-attachment-button");
         this.$shrinkImagesCheckbox = this.$widget.find(".shrink-images-checkbox");
 
-        this.$form.on('submit', () => {
+        this.$form.on("submit", () => {
             // disabling so that import is not triggered again.
             this.$uploadButton.attr("disabled", "disabled");
             this.uploadAttachments(this.parentNoteId);
             return false;
         });
 
-        this.$fileUploadInput.on('change', () => {
+        this.$fileUploadInput.on("change", () => {
             if (this.$fileUploadInput.val()) {
                 this.$uploadButton.removeAttr("disabled");
-            }
-            else {
+            } else {
                 this.$uploadButton.attr("disabled", "disabled");
             }
         });
@@ -79,8 +78,8 @@ export default class UploadAttachmentsDialog extends BasicWidget {
     async showUploadAttachmentsDialogEvent({ noteId }) {
         this.parentNoteId = noteId;
 
-        this.$fileUploadInput.val('').trigger('change'); // to trigger upload button disabling listener below
-        this.$shrinkImagesCheckbox.prop("checked", options.is('compressImages'));
+        this.$fileUploadInput.val("").trigger("change"); // to trigger upload button disabling listener below
+        this.$shrinkImagesCheckbox.prop("checked", options.is("compressImages"));
 
         this.$noteTitle.text(await treeService.getNoteTitle(this.parentNoteId));
 
@@ -90,14 +89,14 @@ export default class UploadAttachmentsDialog extends BasicWidget {
     async uploadAttachments(parentNoteId) {
         const files = Array.from(this.$fileUploadInput[0].files); // shallow copy since we're resetting the upload button below
 
-        const boolToString = $el => $el.is(":checked") ? "true" : "false";
+        const boolToString = ($el) => ($el.is(":checked") ? "true" : "false");
 
         const options = {
-            shrinkImages: boolToString(this.$shrinkImagesCheckbox),
+            shrinkImages: boolToString(this.$shrinkImagesCheckbox)
         };
 
         this.modal.hide();
 
-        await importService.uploadFiles('attachments', parentNoteId, files, options);
+        await importService.uploadFiles("attachments", parentNoteId, files, options);
     }
 }

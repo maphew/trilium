@@ -14,7 +14,7 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
         super();
 
         this.attrs = {
-            style: ''
+            style: ""
         };
         this.classes = [];
 
@@ -101,13 +101,13 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
     }
 
     collapsible() {
-        this.css('min-height', '0');
-        this.css('min-width', '0');
+        this.css("min-height", "0");
+        this.css("min-width", "0");
         return this;
     }
 
     filling() {
-        this.css('flex-grow', '1');
+        this.css("flex-grow", "1");
         return this;
     }
 
@@ -127,31 +127,28 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
             this.logRenderingError(e);
         }
 
-        this.$widget.attr('data-component-id', this.componentId);
-        this.$widget
-            .addClass('component')
-            .prop('component', this);
+        this.$widget.attr("data-component-id", this.componentId);
+        this.$widget.addClass("component").prop("component", this);
 
         if (!this.isEnabled()) {
             this.toggleInt(false);
         }
 
         if (this.cssEl) {
-            const css = this.cssEl.trim().startsWith('<style>') ? this.cssEl : `<style>${this.cssEl}</style>`;
+            const css = this.cssEl.trim().startsWith("<style>") ? this.cssEl : `<style>${this.cssEl}</style>`;
 
             this.$widget.append(css);
         }
 
         for (const key in this.attrs) {
-            if (key === 'style') {
+            if (key === "style") {
                 if (this.attrs[key]) {
-                    let style = this.$widget.attr('style');
+                    let style = this.$widget.attr("style");
                     style = style ? `${style}; ${this.attrs[key]}` : this.attrs[key];
 
                     this.$widget.attr(key, style);
                 }
-            }
-            else {
+            } else {
                 this.$widget.attr(key, this.attrs[key]);
             }
         }
@@ -196,7 +193,7 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
      * Indicates if the widget is enabled. Widgets are enabled by default. Generally setting this to `false` will cause the widget not to be displayed, however it will still be available on the DOM but hidden.
      * @returns whether the widget is enabled.
      */
-    isEnabled() {
+    isEnabled(): boolean | null | undefined {
         return true;
     }
 
@@ -208,20 +205,20 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
      */
     doRender() {}
 
-    toggleInt(show: boolean) {
-        this.$widget.toggleClass('hidden-int', !show);
+    toggleInt(show: boolean | null | undefined) {
+        this.$widget.toggleClass("hidden-int", !show);
     }
 
     isHiddenInt() {
-        return this.$widget.hasClass('hidden-int');
+        return this.$widget.hasClass("hidden-int");
     }
 
     toggleExt(show: boolean) {
-        this.$widget.toggleClass('hidden-ext', !show);
+        this.$widget.toggleClass("hidden-ext", !show);
     }
 
     isHiddenExt() {
-        return this.$widget.hasClass('hidden-ext');
+        return this.$widget.hasClass("hidden-ext");
     }
 
     canBeShown() {
@@ -245,8 +242,7 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
     getClosestNtxId() {
         if (this.$widget) {
             return this.$widget.closest("[data-ntx-id]").attr("data-ntx-id");
-        }
-        else {
+        } else {
             return null;
         }
     }
@@ -259,6 +255,4 @@ export class TypedBasicWidget<T extends TypedComponent<any>> extends TypedCompon
  *
  * For information on using widgets, see the tutorial {@tutorial widget_basics}.
  */
-export default class BasicWidget extends TypedBasicWidget<Component> {
-
-}
+export default class BasicWidget extends TypedBasicWidget<Component> {}

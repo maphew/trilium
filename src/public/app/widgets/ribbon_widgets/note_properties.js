@@ -11,7 +11,7 @@ const TPL = `
     </style>
 
     <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">
-        ${t('note_properties.this_note_was_originally_taken_from')} <a class="page-url external"></a>
+        ${t("note_properties.this_note_was_originally_taken_from")} <a class="page-url external"></a>
     </div>
 </div>`;
 
@@ -20,15 +20,15 @@ const TPL = `
  */
 export default class NotePropertiesWidget extends NoteContextAwareWidget {
     isEnabled() {
-        return this.note && !!this.note.getLabelValue('pageUrl');
+        return this.note && !!this.note.getLabelValue("pageUrl");
     }
 
     getTitle() {
         return {
             show: this.isEnabled(),
             activate: true,
-            title: t('note_properties.info'),
-            icon: 'bx bx-info-square'
+            title: t("note_properties.info"),
+            icon: "bx bx-info-square"
         };
     }
 
@@ -36,15 +36,12 @@ export default class NotePropertiesWidget extends NoteContextAwareWidget {
         this.$widget = $(TPL);
         this.contentSized();
 
-        this.$pageUrl = this.$widget.find('.page-url');
+        this.$pageUrl = this.$widget.find(".page-url");
     }
 
     async refreshWithNote(note) {
-        const pageUrl = note.getLabelValue('pageUrl');
+        const pageUrl = note.getLabelValue("pageUrl");
 
-        this.$pageUrl
-            .attr('href', pageUrl)
-            .attr('title', pageUrl)
-            .text(pageUrl);
+        this.$pageUrl.attr("href", pageUrl).attr("title", pageUrl).text(pageUrl);
     }
 }

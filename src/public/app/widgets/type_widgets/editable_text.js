@@ -1,7 +1,7 @@
 import { t } from "../../services/i18n.js";
 import libraryLoader from "../../services/library_loader.js";
-import noteAutocompleteService from '../../services/note_autocomplete.js';
-import mimeTypesService from '../../services/mime_types.js';
+import noteAutocompleteService from "../../services/note_autocomplete.js";
+import mimeTypesService from "../../services/mime_types.js";
 import utils from "../../services/utils.js";
 import keyboardActionService from "../../services/keyboard_actions.js";
 import froca from "../../services/froca.js";
@@ -14,16 +14,17 @@ import { initSyntaxHighlighting } from "./ckeditor/syntax_highlight.js";
 import options from "../../services/options.js";
 import toast from "../../services/toast.js";
 import { getMermaidConfig } from "../mermaid.js";
+import { normalizeMimeTypeForCKEditor } from "../../services/mime_type_definitions.js";
 
 const ENABLE_INSPECTOR = false;
 
 const mentionSetup = {
     feeds: [
         {
-            marker: '@',
-            feed: queryText => noteAutocompleteService.autocompleteSourceForCKEditor(queryText),
-            itemRenderer: item => {
-                const itemElement = document.createElement('button');
+            marker: "@",
+            feed: (queryText) => noteAutocompleteService.autocompleteSourceForCKEditor(queryText),
+            itemRenderer: (item) => {
+                const itemElement = document.createElement("button");
 
                 itemElement.innerHTML = `${item.highlightedNotePathTitle} `;
 
@@ -87,17 +88,18 @@ const TPL = `
     }
     </style>
 
-    <div class="note-detail-editable-text-editor" tabindex="300"></div>
+    <div class="note-detail-editable-text-editor use-tn-links" tabindex="300"></div>
 </div>
 `;
 
 function buildListOfLanguages() {
-    const userLanguages = (mimeTypesService.getMimeTypes())
-        .filter(mt => mt.enabled)
-        .map(mt => ({
-                language: mimeTypesService.normalizeMimeTypeForCKEditor(mt.mime),
-                label: mt.title
-            }));
+    const userLanguages = mimeTypesService
+        .getMimeTypes()
+        .filter((mt) => mt.enabled)
+        .map((mt) => ({
+            language: normalizeMimeTypeForCKEditor(mt.mime),
+            label: mt.title
+        }));
 
     return [
         {
@@ -115,15 +117,17 @@ function buildListOfLanguages() {
  * - Decoupled mode, in which the editing toolbar is actually added on the client side (in {@link ClassicEditorToolbar}), see https://ckeditor.com/docs/ckeditor5/latest/examples/framework/bottom-toolbar-editor.html for an example on how the decoupled editor works.
  */
 export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
-    static getType() { return "editableText"; }
+    static getType() {
+        return "editableText";
+    }
 
     doRender() {
         this.$widget = $(TPL);
-        this.$editor = this.$widget.find('.note-detail-editable-text-editor');
+        this.$editor = this.$widget.find(".note-detail-editable-text-editor");
 
         this.initialized = this.initEditor();
 
-        keyboardActionService.setupActionsForElement('text-detail', this.$widget, this);
+        keyboardActionService.setupActionsForElement("text-detail", this.$widget, this);
 
         this.setupImageOpening(false);
 
@@ -132,8 +136,8 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
 
     async initEditor() {
         await libraryLoader.requireLibrary(libraryLoader.CKEDITOR);
-        const isClassicEditor = (options.get("textNoteEditorType") === "ckeditor-classic")
-        const editorClass = (isClassicEditor ? CKEditor.DecoupledEditor : CKEditor.BalloonEditor);
+        const isClassicEditor = utils.isMobile() || options.get("textNoteEditorType") === "ckeditor-classic";
+        const editorClass = isClassicEditor ? CKEditor.DecoupledEditor : CKEditor.BalloonEditor;
 
         const codeBlockLanguages = buildListOfLanguages();
 
@@ -159,29 +163,30 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
             saveInterval: 5000
         });
 
-        this.watchdog.on('stateChange', () => {
+        this.watchdog.on("stateChange", () => {
             const currentState = this.watchdog.state;
+            logInfo(`CKEditor state changed to ${currentState}`);
 
-            if (!['crashed', 'crashedPermanently'].includes(currentState)) {
+            if (!["crashed", "crashedPermanently"].includes(currentState)) {
                 return;
             }
 
-            console.log(`CKEditor changed to ${currentState}`);
+            logInfo(`CKEditor crash logs: ${JSON.stringify(this.watchdog.crashes)}`);
+            this.watchdog.crashes.forEach((crashInfo) => console.log(crashInfo));
 
-            this.watchdog.crashes.forEach(crashInfo => console.log(crashInfo));
-
-            if (currentState === 'crashedPermanently') {
+            if (currentState === "crashedPermanently") {
                 dialogService.info(`Editing component keeps crashing. Please try restarting Trilium. If problem persists, consider creating a bug report.`);
 
-                this.watchdog.editor.enableReadOnlyMode('crashed-editor');
+                this.watchdog.editor.enableReadOnlyMode("crashed-editor");
             }
         });
 
         this.watchdog.setCreator(async (elementOrData, editorConfig) => {
+            logInfo("Creating new CKEditor");
             const extraOpts = {};
             if (isClassicEditor) {
                 extraOpts.toolbar = {
-                    shouldNotGroupWhenFull: options.get("textNoteEditorMultilineToolbar") === "true"
+                    shouldNotGroupWhenFull: utils.isDesktop() && options.get("textNoteEditorMultilineToolbar") === "true"
                 };
             }
 
@@ -225,21 +230,14 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
                 $classicToolbarWidget[0].appendChild(editor.ui.view.toolbar.element);
 
                 if (utils.isMobile()) {
-                    this.$editor.on("focus", (e) => {
-                        $classicToolbarWidget.addClass("visible");
-                    });
-
-                    // Hide the formatting toolbar
-                    this.$editor.on("focusout", (e) => {
-                        this.$editor[0].focus();
-                    });
+                    $classicToolbarWidget.addClass("visible");
                 }
             }
 
-            editor.model.document.on('change:data', () => this.spacedUpdate.scheduleUpdate());
+            editor.model.document.on("change:data", () => this.spacedUpdate.scheduleUpdate());
 
             if (glob.isDev && ENABLE_INSPECTOR) {
-                await import(/* webpackIgnore: true */'../../../libraries/ckeditor/inspector.js');
+                await import(/* webpackIgnore: true */ "../../../libraries/ckeditor/inspector.js");
                 CKEditorInspector.attach(editor);
             }
 
@@ -247,14 +245,14 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         });
 
         await this.watchdog.create(this.$editor[0], {
-            placeholder: t('editable_text.placeholder'),
+            placeholder: t("editable_text.placeholder"),
             mention: mentionSetup,
             codeBlock: {
                 languages: codeBlockLanguages
             },
             math: {
-                engine: 'katex',
-                outputType: 'span', // or script
+                engine: "katex",
+                outputType: "span", // or script
                 lazyLoad: async () => await libraryLoader.requireLibrary(libraryLoader.KATEX),
                 forceOutputType: false, // forces output to use outputType
                 enablePreview: true // Enable preview view
@@ -269,8 +267,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async doRefresh(note) {
         const blob = await note.getBlob();
 
-        await this.spacedUpdate.allowUpdateWithoutChange(() =>
-            this.watchdog.editor.setData(blob.content || ""));
+        await this.spacedUpdate.allowUpdateWithoutChange(() => this.watchdog.editor.setData(blob.content || ""));
     }
 
     getData() {
@@ -279,17 +276,17 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         // if content is only tags/whitespace (typically <p>&nbsp;</p>), then just make it empty,
         // this is important when setting a new note to code
         return {
-            content: utils.isHtmlEmpty(content) ? '' : content
+            content: utils.isHtmlEmpty(content) ? "" : content
         };
     }
 
     focus() {
-        this.$editor.trigger('focus');
+        this.$editor.trigger("focus");
     }
 
     scrollToEnd() {
-        this.watchdog?.editor.model.change(writer => {
-            writer.setSelection(writer.createPositionAt(this.watchdog?.editor.model.document.getRoot(), 'end'));
+        this.watchdog?.editor.model.change((writer) => {
+            writer.setSelection(writer.createPositionAt(this.watchdog?.editor.model.document.getRoot(), "end"));
         });
 
         this.watchdog?.editor.editing.view.focus();
@@ -304,7 +301,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     cleanup() {
         if (this.watchdog?.editor) {
             this.spacedUpdate.allowUpdateWithoutChange(() => {
-                this.watchdog.editor.setData('');
+                this.watchdog.editor.setData("");
             });
         }
     }
@@ -319,22 +316,22 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     async addLinkToEditor(linkHref, linkTitle) {
         await this.initialized;
 
-        this.watchdog.editor.model.change(writer => {
+        this.watchdog.editor.model.change((writer) => {
             const insertPosition = this.watchdog.editor.model.document.selection.getFirstPosition();
-            writer.insertText(linkTitle, {linkHref: linkHref}, insertPosition);
+            writer.insertText(linkTitle, { linkHref: linkHref }, insertPosition);
         });
     }
 
     async addTextToEditor(text) {
         await this.initialized;
 
-        this.watchdog.editor.model.change(writer => {
+        this.watchdog.editor.model.change((writer) => {
             const insertPosition = this.watchdog.editor.model.document.selection.getLastPosition();
             writer.insertText(text, insertPosition);
         });
     }
 
-    addTextToActiveEditorEvent({text}) {
+    addTextToActiveEditorEvent({ text }) {
         if (!this.isActive()) {
             return;
         }
@@ -347,13 +344,12 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
 
         if (linkTitle) {
             if (this.hasSelection()) {
-                this.watchdog.editor.execute('link', `#${notePath}`);
+                this.watchdog.editor.execute("link", `#${notePath}`);
             } else {
                 await this.addLinkToEditor(`#${notePath}`, linkTitle);
             }
-        }
-        else {
-            this.watchdog.editor.execute('referenceLink', { href: '#' + notePath });
+        } else {
+            this.watchdog.editor.execute("referenceLink", { href: "#" + notePath });
         }
 
         this.watchdog.editor.editing.view.focus();
@@ -367,7 +363,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         return !selection.isCollapsed;
     }
 
-    async executeWithTextEditorEvent({callback, resolve, ntxId}) {
+    async executeWithTextEditorEvent({ callback, resolve, ntxId }) {
         if (!this.isNoteContext(ntxId)) {
             return;
         }
@@ -384,12 +380,12 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
     addLinkToTextCommand() {
         const selectedText = this.getSelectedText();
 
-        this.triggerCommand('showAddLinkDialog', {textTypeWidget: this, text: selectedText})
+        this.triggerCommand("showAddLinkDialog", { textTypeWidget: this, text: selectedText });
     }
 
     getSelectedText() {
         const range = this.watchdog.editor.model.document.selection.getFirstRange();
-        let text = '';
+        let text = "";
 
         for (const item of range.getItems()) {
             if (item.data) {
@@ -406,9 +402,9 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         const selection = this.watchdog.editor.model.document.selection;
         const selectedElement = selection.getSelectedElement();
 
-        if (selectedElement?.name === 'reference') {
+        if (selectedElement?.name === "reference") {
             // reference link
-            const notePath = selectedElement.getAttribute('notePath');
+            const notePath = selectedElement.getAttribute("notePath");
 
             if (notePath) {
                 await appContext.tabManager.getActiveContext().setNote(notePath);
@@ -416,44 +412,46 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
             }
         }
 
-        if (!selection.hasAttribute('linkHref')) {
+        if (!selection.hasAttribute("linkHref")) {
             return;
         }
 
-        const selectedLinkUrl = selection.getAttribute('linkHref');
+        const selectedLinkUrl = selection.getAttribute("linkHref");
         const notePath = link.getNotePathFromUrl(selectedLinkUrl);
 
         if (notePath) {
             await appContext.tabManager.getActiveContext().setNote(notePath);
         } else {
-            window.open(selectedLinkUrl, '_blank');
+            window.open(selectedLinkUrl, "_blank");
         }
     }
 
     addIncludeNoteToTextCommand() {
-        this.triggerCommand("showIncludeNoteDialog", {textTypeWidget: this});
+        this.triggerCommand("showIncludeNoteDialog", { textTypeWidget: this });
     }
 
     addIncludeNote(noteId, boxSize) {
-        this.watchdog.editor.model.change( writer => {
+        this.watchdog.editor.model.change((writer) => {
             // Insert <includeNote>*</includeNote> at the current selection position
             // in a way that will result in creating a valid model structure
-            this.watchdog.editor.model.insertContent(writer.createElement('includeNote', {
-                noteId: noteId,
-                boxSize: boxSize
-            }));
-        } );
+            this.watchdog.editor.model.insertContent(
+                writer.createElement("includeNote", {
+                    noteId: noteId,
+                    boxSize: boxSize
+                })
+            );
+        });
     }
 
     async addImage(noteId) {
         const note = await froca.getNote(noteId);
 
-        this.watchdog.editor.model.change( writer => {
+        this.watchdog.editor.model.change((writer) => {
             const encodedTitle = encodeURIComponent(note.title);
             const src = `api/images/${note.noteId}/${encodedTitle}`;
 
-            this.watchdog.editor.execute( 'insertImage', { source: src } );
-        } );
+            this.watchdog.editor.execute("insertImage", { source: src });
+        });
     }
 
     async createNoteForReferenceLink(title) {
@@ -469,7 +467,7 @@ export default class EditableTextTypeWidget extends AbstractTextTypeWidget {
         return resp.note.getBestNotePathString();
     }
 
-    async refreshIncludedNoteEvent({noteId}) {
+    async refreshIncludedNoteEvent({ noteId }) {
         this.refreshIncludedNote(this.$editor, noteId);
     }
 }

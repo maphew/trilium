@@ -5,7 +5,7 @@ import imageService from "../../services/image.js";
 import noteService from "../../services/notes.js";
 import sanitizeAttributeName from "../../services/sanitize_attribute_name.js";
 import specialNotesService from "../../services/special_notes.js";
-import { Request } from 'express';
+import type { Request } from "express";
 
 async function uploadImage(req: Request) {
     const file = req.file;
@@ -34,11 +34,11 @@ async function uploadImage(req: Request) {
         return [400, "Invalid local date"];
     }
 
-    const parentNote = specialNotesService.getInboxNote(req.headers['x-local-date']);
+    const parentNote = specialNotesService.getInboxNote(req.headers["x-local-date"]);
 
     const { note, noteId } = imageService.saveImage(parentNote.noteId, file.buffer, originalName, true);
 
-    const labelsStr = req.headers['x-labels'];
+    const labelsStr = req.headers["x-labels"];
 
     if (labelsStr?.trim()) {
         const labels = JSON.parse(labelsStr);
@@ -60,15 +60,15 @@ function saveNote(req: Request) {
         return [400, "Invalid local date"];
     }
 
-    const parentNote = specialNotesService.getInboxNote(req.headers['x-local-date']);
+    const parentNote = specialNotesService.getInboxNote(req.headers["x-local-date"]);
 
     const { note, branch } = noteService.createNewNote({
         parentNoteId: parentNote.noteId,
         title: req.body.title,
         content: req.body.content,
         isProtected: false,
-        type: 'text',
-        mime: 'text/html'
+        type: "text",
+        mime: "text/html"
     });
 
     if (req.body.labels) {

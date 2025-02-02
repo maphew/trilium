@@ -7,7 +7,6 @@ import utils from "../services/utils.js";
 const TPL = `<div class="spacer"></div>`;
 
 export default class SpacerWidget extends BasicWidget {
-
     private baseSize: number;
     private growthFactor: number;
 
@@ -24,16 +23,14 @@ export default class SpacerWidget extends BasicWidget {
         this.$widget.css("flex-grow", this.growthFactor);
         this.$widget.css("flex-shrink", 1000);
 
-        this.$widget.on("contextmenu", e => {
+        this.$widget.on("contextmenu", (e) => {
             this.$widget.tooltip("hide");
 
             contextMenu.show({
                 x: e.pageX,
                 y: e.pageY,
-                items: [
-                    {title: t("spacer.configure_launchbar"), command: "showLaunchBarSubtree", uiIcon: "bx " + (utils.isMobile() ? "bx-mobile" : "bx-sidebar")}
-                ],
-                selectMenuItemHandler: ({command}) => {
+                items: [{ title: t("spacer.configure_launchbar"), command: "showLaunchBarSubtree", uiIcon: "bx " + (utils.isMobile() ? "bx-mobile" : "bx-sidebar") }],
+                selectMenuItemHandler: ({ command }) => {
                     if (command) {
                         appContext.triggerCommand(command);
                     }

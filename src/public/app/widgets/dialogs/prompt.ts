@@ -9,7 +9,7 @@ const TPL = `
             <form class="prompt-dialog-form">
                 <div class="modal-header">
                     <h5 class="prompt-title modal-title">${t("prompt.title")}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t('prompt.close')}"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t("prompt.close")}"></button>
                 </div>
                 <div class="modal-body"></div>
                 <div class="modal-footer">
@@ -31,17 +31,16 @@ export interface PromptDialogOptions {
     title?: string;
     message?: string;
     defaultValue?: string;
-    shown: PromptShownDialogCallback;
-    callback: (value: unknown) => void;
+    shown?: PromptShownDialogCallback;
+    callback?: (value: string | null) => void;
 }
 
 export type PromptShownDialogCallback = ((callback: ShownCallbackData) => void) | null;
 
 export default class PromptDialog extends BasicWidget {
+    private resolve?: ((value: string | null) => void) | undefined | null;
+    private shownCb?: PromptShownDialogCallback | null;
 
-    private resolve: ((val: string | null) => void) | null;
-    private shownCb: PromptShownDialogCallback;
-    
     private modal!: bootstrap.Modal;
     private $dialogBody!: JQuery<HTMLElement>;
     private $question!: JQuery<HTMLElement> | null;
@@ -65,7 +64,7 @@ export default class PromptDialog extends BasicWidget {
         this.$question = null;
         this.$answer = null;
 
-        this.$widget.on('shown.bs.modal', () => {
+        this.$widget.on("shown.bs.modal", () => {
             if (this.shownCb) {
                 this.shownCb({
                     $dialog: this.$widget,
@@ -75,7 +74,7 @@ export default class PromptDialog extends BasicWidget {
                 });
             }
 
-            this.$answer?.trigger('focus').select();
+            this.$answer?.trigger("focus").select();
         });
 
         this.$widget.on("hidden.bs.modal", () => {
@@ -84,7 +83,7 @@ export default class PromptDialog extends BasicWidget {
             }
         });
 
-        this.$form.on('submit', e => {
+        this.$form.on("submit", (e) => {
             e.preventDefault();
             if (this.resolve) {
                 this.resolve(this.$answer?.val() as string);
@@ -110,11 +109,7 @@ export default class PromptDialog extends BasicWidget {
             .addClass("form-control")
             .val(defaultValue || "");
 
-        this.$dialogBody.empty().append(
-            $("<div>")
-                .addClass("form-group")
-                .append(this.$question)
-                .append(this.$answer));
+        this.$dialogBody.empty().append($("<div>").addClass("form-group").append(this.$question).append(this.$answer));
 
         utils.openDialog(this.$widget, false);
     }

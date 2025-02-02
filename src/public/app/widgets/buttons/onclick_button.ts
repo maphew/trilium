@@ -1,4 +1,4 @@
-import AbstractButtonWidget, { AbstractButtonWidgetSettings } from "./abstract_button.js";
+import AbstractButtonWidget, { type AbstractButtonWidgetSettings } from "./abstract_button.js";
 import { t } from "../../services/i18n.js";
 
 export type ClickHandler = (widget: OnClickButtonWidget, e: JQuery.ClickEvent<any, any, any, any>) => void;
@@ -10,11 +10,10 @@ interface OnClickButtonWidgetSettings extends AbstractButtonWidgetSettings {
 }
 
 export default class OnClickButtonWidget extends AbstractButtonWidget<OnClickButtonWidgetSettings> {
-
     constructor() {
         super();
         this.settings = {
-            titlePlacement: 'right',
+            titlePlacement: "right",
             title: null,
             icon: null,
             onContextMenu: null
@@ -25,7 +24,7 @@ export default class OnClickButtonWidget extends AbstractButtonWidget<OnClickBut
         super.doRender();
 
         if (this.settings.onClick) {
-            this.$widget.on("click", e => {
+            this.$widget.on("click", (e) => {
                 this.$widget.tooltip("hide");
 
                 if (this.settings.onClick) {
@@ -37,7 +36,7 @@ export default class OnClickButtonWidget extends AbstractButtonWidget<OnClickBut
         }
 
         if (this.settings.onAuxClick) {
-            this.$widget.on("auxclick", e => {
+            this.$widget.on("auxclick", (e) => {
                 this.$widget.tooltip("hide");
 
                 if (this.settings.onAuxClick) {

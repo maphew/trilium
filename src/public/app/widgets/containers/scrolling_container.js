@@ -5,35 +5,32 @@ export default class ScrollingContainer extends Container {
         super();
 
         this.class("scrolling-container");
-        this.css('overflow', 'auto');
-        this.css('scroll-behavior', 'smooth');
-        this.css('position', 'relative');
+        this.css("overflow", "auto");
+        this.css("scroll-behavior", "smooth");
+        this.css("position", "relative");
     }
 
-    setNoteContextEvent({noteContext}) {
+    setNoteContextEvent({ noteContext }) {
         /** @var {NoteContext} */
         this.noteContext = noteContext;
     }
 
-    async noteSwitchedEvent({noteContext, notePath}) {
+    async noteSwitchedEvent({ noteContext, notePath }) {
         this.$widget.scrollTop(0);
     }
 
-    async noteSwitchedAndActivatedEvent({noteContext, notePath}) {
+    async noteSwitchedAndActivatedEvent({ noteContext, notePath }) {
         this.noteContext = noteContext;
 
         this.$widget.scrollTop(0);
     }
 
-    async activeContextChangedEvent({noteContext}) {
+    async activeContextChangedEvent({ noteContext }) {
         this.noteContext = noteContext;
     }
 
     handleEventInChildren(name, data) {
-        if (name === 'readOnlyTemporarilyDisabled'
-                && this.noteContext
-                && this.noteContext.ntxId === data.noteContext.ntxId) {
-
+        if (name === "readOnlyTemporarilyDisabled" && this.noteContext && this.noteContext.ntxId === data.noteContext.ntxId) {
             const scrollTop = this.$widget.scrollTop();
 
             const promise = super.handleEventInChildren(name, data);
@@ -42,13 +39,12 @@ export default class ScrollingContainer extends Container {
             promise.then(() => setTimeout(() => this.$widget.scrollTop(scrollTop), 500));
 
             return promise;
-        }
-        else {
+        } else {
             return super.handleEventInChildren(name, data);
         }
     }
 
-    scrollContainerToCommand({position}) {
+    scrollContainerToCommand({ position }) {
         this.$widget.scrollTop(position);
     }
 }

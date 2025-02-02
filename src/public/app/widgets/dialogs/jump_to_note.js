@@ -1,5 +1,5 @@
 import { t } from "../../services/i18n.js";
-import noteAutocompleteService from '../../services/note_autocomplete.js';
+import noteAutocompleteService from "../../services/note_autocomplete.js";
 import utils from "../../services/utils.js";
 import appContext from "../../components/app_context.js";
 import BasicWidget from "../basic_widget.js";
@@ -10,15 +10,15 @@ const TPL = `<div class="jump-to-note-dialog modal mx-auto" tabindex="-1" role="
         <div class="modal-content">
             <div class="modal-header">
                 <div class="input-group">
-                    <input class="jump-to-note-autocomplete form-control" placeholder="${t('jump_to_note.search_placeholder')}">
+                    <input class="jump-to-note-autocomplete form-control" placeholder="${t("jump_to_note.search_placeholder")}">
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t('jump_to_note.close')}"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="${t("jump_to_note.close")}"></button>
             </div>
             <div class="modal-body">
                 <div class="algolia-autocomplete-container jump-to-note-results"></div>
             </div>
             <div class="modal-footer">
-                <button class="show-in-full-text-button btn btn-sm">${t('jump_to_note.search_button')}</button>
+                <button class="show-in-full-text-button btn btn-sm">${t("jump_to_note.search_button")}</button>
             </div>
         </div>
     </div>
@@ -40,13 +40,13 @@ export default class JumpToNoteDialog extends BasicWidget {
         this.$autoComplete = this.$widget.find(".jump-to-note-autocomplete");
         this.$results = this.$widget.find(".jump-to-note-results");
         this.$showInFullTextButton = this.$widget.find(".show-in-full-text-button");
-        this.$showInFullTextButton.on('click', e => this.showInFullText(e));
+        this.$showInFullTextButton.on("click", (e) => this.showInFullText(e));
 
-        shortcutService.bindElShortcut(this.$widget, 'ctrl+return', e => this.showInFullText(e));
+        shortcutService.bindElShortcut(this.$widget, "ctrl+return", (e) => this.showInFullText(e));
     }
 
     async jumpToNoteEvent() {
-        const dialogPromise = utils.openDialog(this.$widget)
+        const dialogPromise = utils.openDialog(this.$widget);
         if (utils.isMobile()) {
             dialogPromise.then(($dialog) => {
                 const el = $dialog.find(">.modal-dialog")[0];
@@ -78,15 +78,16 @@ export default class JumpToNoteDialog extends BasicWidget {
     }
 
     async refresh() {
-        noteAutocompleteService.initNoteAutocomplete(this.$autoComplete, {
-            allowCreatingNotes: true,
-            hideGoToSelectedNoteButton: true,
-            allowJumpToSearchNotes: true,
-            container: this.$results
-        })
+        noteAutocompleteService
+            .initNoteAutocomplete(this.$autoComplete, {
+                allowCreatingNotes: true,
+                hideGoToSelectedNoteButton: true,
+                allowJumpToSearchNotes: true,
+                container: this.$results
+            })
             // clear any event listener added in previous invocation of this function
-            .off('autocomplete:noteselected')
-            .on('autocomplete:noteselected', function (event, suggestion, dataset) {
+            .off("autocomplete:noteselected")
+            .on("autocomplete:noteselected", function (event, suggestion, dataset) {
                 if (!suggestion.notePath) {
                     return false;
                 }
@@ -105,8 +106,8 @@ export default class JumpToNoteDialog extends BasicWidget {
                 // hack, the actual search value is stored in <pre> element next to the search input
                 // this is important because the search input value is replaced with the suggestion note's title
                 .autocomplete("val", this.$autoComplete.next().text())
-                .trigger('focus')
-                .trigger('select');
+                .trigger("focus")
+                .trigger("select");
         }
     }
 
@@ -117,7 +118,7 @@ export default class JumpToNoteDialog extends BasicWidget {
 
         const searchString = this.$autoComplete.val();
 
-        this.triggerCommand('searchNotes', { searchString });
+        this.triggerCommand("searchNotes", { searchString });
 
         this.modal.hide();
     }

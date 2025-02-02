@@ -86,7 +86,7 @@ const TPL = `
         position: relative;
         top: 3px;
         font-size: 120%;
-        margin-right: 5px;
+        margin-right: 6px;
     }
 
     body.mobile .global-menu .dropdown-submenu .dropdown-menu {
@@ -108,13 +108,13 @@ const TPL = `
     <ul class="dropdown-menu dropdown-menu-right">
         <li class="dropdown-item" data-trigger-command="openNewWindow">
             <span class="bx bx-window-open"></span>
-            ${t('global_menu.open_new_window')}
+            ${t("global_menu.open_new_window")}
             <kbd data-command="openNewWindow"></kbd>
         </li>
 
         <li class="dropdown-item" data-trigger-command="showShareSubtree">
             <span class="bx bx-share-alt"></span>
-            ${t('global_menu.show_shared_notes_subtree')}
+            ${t("global_menu.show_shared_notes_subtree")}
         </li>
 
         <div class="dropdown-divider"></div>
@@ -122,92 +122,91 @@ const TPL = `
         <span class="zoom-container dropdown-item dropdown-item-container">
             <div>
                 <span class="bx bx-empty"></span>
-                ${t('global_menu.zoom')}
+                ${t("global_menu.zoom")}
             </div>
 
             <div class="zoom-buttons">
-                <a data-trigger-command="toggleFullscreen" title="${t('global_menu.toggle_fullscreen')}" class="bx bx-expand-alt"></a>
+                <a data-trigger-command="toggleFullscreen" title="${t("global_menu.toggle_fullscreen")}" class="bx bx-expand-alt"></a>
 
                 &nbsp;
 
-                <a data-trigger-command="zoomOut" title="${t('global_menu.zoom_out')}" class="bx bx-minus"></a>
+                <a data-trigger-command="zoomOut" title="${t("global_menu.zoom_out")}" class="bx bx-minus"></a>
 
-                <span data-trigger-command="zoomReset" title="${t('global_menu.reset_zoom_level')}" class="zoom-state"></span>
+                <span data-trigger-command="zoomReset" title="${t("global_menu.reset_zoom_level")}" class="zoom-state"></span>
 
-                <a data-trigger-command="zoomIn" title="${t('global_menu.zoom_in')}" class="bx bx-plus"></a>
+                <a data-trigger-command="zoomIn" title="${t("global_menu.zoom_in")}" class="bx bx-plus"></a>
             </div>
         </span>
 
         <li class="dropdown-item toggle-pin">
             <span class="bx bx-pin"></span>
-            ${t('title_bar_buttons.window-on-top')}
+            ${t("title_bar_buttons.window-on-top")}
         </li>
 
         <div class="dropdown-divider zoom-container-separator"></div>
 
         <li class="dropdown-item switch-to-mobile-version-button" data-trigger-command="switchToMobileVersion">
             <span class="bx bx-mobile"></span>
-            ${t('global_menu.switch_to_mobile_version')}
+            ${t("global_menu.switch_to_mobile_version")}
         </li>
 
         <li class="dropdown-item switch-to-desktop-version-button" data-trigger-command="switchToDesktopVersion">
             <span class="bx bx-desktop"></span>
-            ${t('global_menu.switch_to_desktop_version')}
+            ${t("global_menu.switch_to_desktop_version")}
         </li>
 
         <li class="dropdown-item" data-trigger-command="showLaunchBarSubtree">
             <span class="bx ${utils.isMobile() ? "bx-mobile" : "bx-sidebar"}"></span>
-            ${t('global_menu.configure_launchbar')}
+            ${t("global_menu.configure_launchbar")}
         </li>
 
         <li class="dropdown-item dropdown-submenu">
             <span class="dropdown-toggle">
-                <span class="bx bx-chip"></span>
-                ${t('global_menu.advanced')}
+                <span class="bx bx-chip"></span>${t("global_menu.advanced")}
             </span>
 
             <ul class="dropdown-menu">
                 <li class="dropdown-item" data-trigger-command="showHiddenSubtree">
                     <span class="bx bx-hide"></span>
-                    ${t('global_menu.show_hidden_subtree')}
+                    ${t("global_menu.show_hidden_subtree")}
                 </li>
 
                 <li class="dropdown-item" data-trigger-command="showSearchHistory">
                     <span class="bx bx-search-alt"></span>
-                    ${t('global_menu.open_search_history')}
+                    ${t("global_menu.open_search_history")}
                 </li>
 
                 <div class="dropdown-divider"></div>
 
                 <li class="dropdown-item" data-trigger-command="showBackendLog">
                     <span class="bx bx-detail"></span>
-                    ${t('global_menu.show_backend_log')}
+                    ${t("global_menu.show_backend_log")}
                     <kbd data-command="showBackendLog"></kbd>
                 </li>
 
                 <li class="dropdown-item" data-trigger-command="showSQLConsole">
                     <span class="bx bx-data"></span>
-                    ${t('global_menu.open_sql_console')}
+                    ${t("global_menu.open_sql_console")}
                     <kbd data-command="showSQLConsole"></kbd>
                 </li>
 
                 <li class="dropdown-item" data-trigger-command="showSQLConsoleHistory">
                     <span class="bx bx-data"></span>
-                    ${t('global_menu.open_sql_console_history')}
+                    ${t("global_menu.open_sql_console_history")}
                 </li>
 
                 <div class="dropdown-divider"></div>
 
                 <li class="dropdown-item open-dev-tools-button" data-trigger-command="openDevTools">
                     <span class="bx bx-bug-alt"></span>
-                    ${t('global_menu.open_dev_tools')}
+                    ${t("global_menu.open_dev_tools")}
                     <kbd data-command="openDevTools"></kbd>
                 </li>
 
                 <li class="dropdown-item" data-trigger-command="reloadFrontendApp"
-                    title="${t('global_menu.reload_hint')}">
+                    title="${t("global_menu.reload_hint")}">
                     <span class="bx bx-refresh"></span>
-                    ${t('global_menu.reload_frontend')}
+                    ${t("global_menu.reload_frontend")}
                     <kbd data-command="reloadFrontendApp"></kbd>
                 </li>
 
@@ -216,20 +215,20 @@ const TPL = `
 
         <li class="dropdown-item" data-trigger-command="showOptions">
             <span class="bx bx-cog"></span>
-            ${t('global_menu.options')}
+            ${t("global_menu.options")}
         </li>
 
         <div class="dropdown-divider desktop-only"></div>
 
         <li class="dropdown-item show-help-button" data-trigger-command="showHelp">
             <span class="bx bx-help-circle"></span>
-            ${t('global_menu.show_help')}
+            ${t("global_menu.show_help")}
             <kbd data-command="showHelp"></kbd>
         </li>
 
         <li class="dropdown-item show-about-dialog-button">
             <span class="bx bx-info-circle"></span>
-            ${t('global_menu.about')}
+            ${t("global_menu.about")}
         </li>
 
         <li class="dropdown-item update-to-latest-version-button" data-trigger-command="downloadLatestVersion">
@@ -242,14 +241,13 @@ const TPL = `
 
         <li class="dropdown-item logout-button" data-trigger-command="logout">
             <span class="bx bx-log-out"></span>
-            ${t('global_menu.logout')}
+            ${t("global_menu.logout")}
         </li>
     </ul>
 </div>
 `;
 
 export default class GlobalMenuWidget extends BasicWidget {
-
     private updateAvailableWidget: UpdateAvailableWidget;
     private isHorizontalLayout: boolean;
     private tooltip!: bootstrap.Tooltip;
@@ -272,10 +270,11 @@ export default class GlobalMenuWidget extends BasicWidget {
             this.$widget.addClass("dropend");
         }
 
-        const $globalMenuButton = this.$widget.find(".global-menu-button")
+        const $globalMenuButton = this.$widget.find(".global-menu-button");
         if (!this.isHorizontalLayout) {
-            $globalMenuButton.prepend($(`\
-                <svg viewBox="0 0 256 256" data-bs-toggle="tooltip" title="${t('global_menu.menu')}">
+            $globalMenuButton.prepend(
+                $(`\
+                <svg viewBox="0 0 256 256" data-bs-toggle="tooltip" title="${t("global_menu.menu")}">
                     <g>
                         <path class="st0" d="m202.9 112.7c-22.5 16.1-54.5 12.8-74.9 6.3l14.8-11.8 14.1-11.3 49.1-39.3-51.2 35.9-14.3 10-14.9 10.5c0.7-21.2 7-49.9 28.6-65.4 1.8-1.3 3.9-2.6 6.1-3.8 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.4 2.8-4.9 5.4-7.4 7.8-3.4 3.5-6.8 6.4-10.1 8.8z"/>
                         <path class="st1" d="m213.1 104c-22.2 12.6-51.4 9.3-70.3 3.2l14.1-11.3 49.1-39.3-51.2 35.9-14.3 10c0.5-18.1 4.9-42.1 19.7-58.6 2.7-1.5 5.7-2.9 8.8-4.1 27.1-11.1 68.5-15.3 85.2-9.5 0.1 16.2-15.9 45.4-33.9 65.9-2.3 2.8-4.8 5.4-7.2 7.8z"/>
@@ -289,7 +288,8 @@ export default class GlobalMenuWidget extends BasicWidget {
                         <path class="st7" d="m75.4 54.8c18.9 12 28.4 35.6 31.6 52.6l-14.5-6.3-50.6-22 48.7 24.9 13.6 6.9c-14.1 6.8-34.5 13-53.3 8.2-2.3-1.5-4.5-3.2-6.8-5.1-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3 3.1 0.8 6.2 1.6 9.1 2.6z"/>
                         <path class="st8" d="m66.3 52.2c15.3 12.8 23.3 33.6 26.1 48.9l-50.6-22 48.8 24.9c-12.2 6-29.6 11.8-46.5 10-19.8-16.4-40.2-46.4-42.6-61.5 12.4-6.5 41.5-5.8 64.8-0.3z"/>
                     </g>
-                </svg>`));
+                </svg>`)
+            );
             //TODO: Fix once bootstrap is imported via modules.
             //@ts-ignore
             this.tooltip = new bootstrap.Tooltip(this.$widget.find("[data-bs-toggle='tooltip']"), { trigger: "hover" });
@@ -303,7 +303,7 @@ export default class GlobalMenuWidget extends BasicWidget {
             alignment: "bottom"
         });
 
-        this.$widget.find(".show-about-dialog-button").on('click', () => this.triggerCommand("openAboutDialog"));
+        this.$widget.find(".show-about-dialog-button").on("click", () => this.triggerCommand("openAboutDialog"));
 
         const isElectron = utils.isElectron();
 
@@ -311,15 +311,15 @@ export default class GlobalMenuWidget extends BasicWidget {
         if (isElectron) {
             this.$widget.on("click", ".toggle-pin", (e) => {
                 const $el = $(e.target);
-                const remote = utils.dynamicRequire('@electron/remote');
+                const remote = utils.dynamicRequire("@electron/remote");
                 const focusedWindow = remote.BrowserWindow.getFocusedWindow();
-                const isAlwaysOnTop = focusedWindow.isAlwaysOnTop()
+                const isAlwaysOnTop = focusedWindow.isAlwaysOnTop();
                 if (isAlwaysOnTop) {
-                    focusedWindow.setAlwaysOnTop(false)
-                    $el.removeClass('active');
+                    focusedWindow.setAlwaysOnTop(false);
+                    $el.removeClass("active");
                 } else {
                     focusedWindow.setAlwaysOnTop(true);
-                    $el.addClass('active');
+                    $el.addClass("active");
                 }
             });
         }
@@ -331,22 +331,20 @@ export default class GlobalMenuWidget extends BasicWidget {
         this.$widget.find(".switch-to-mobile-version-button").toggle(!isElectron && utils.isDesktop());
         this.$widget.find(".switch-to-desktop-version-button").toggle(!isElectron && utils.isMobile());
 
-        this.$widget.on('click', '.dropdown-item', e => {
+        this.$widget.on("click", ".dropdown-item", (e) => {
             if ($(e.target).parent(".zoom-buttons")) {
                 return;
             }
 
             this.dropdown.toggle();
         });
-        this.$widget.on('click', '.dropdown-submenu', e => {
-            if ($(e.target).children(".dropdown-menu").length === 1 || $(e.target).hasClass('dropdown-toggle')) {
+        this.$widget.on("click", ".dropdown-submenu", (e) => {
+            if ($(e.target).children(".dropdown-menu").length === 1 || $(e.target).hasClass("dropdown-toggle")) {
                 e.stopPropagation();
             }
-        })
+        });
 
-        this.$widget.find(".global-menu-button-update-available").append(
-            this.updateAvailableWidget.render()
-        );
+        this.$widget.find(".global-menu-button-update-available").append(this.updateAvailableWidget.render());
 
         this.$updateToLatestVersionButton = this.$widget.find(".update-to-latest-version-button");
 
@@ -356,7 +354,7 @@ export default class GlobalMenuWidget extends BasicWidget {
         }
 
         this.$zoomState = this.$widget.find(".zoom-state");
-        this.$widget.on('show.bs.dropdown', () => {
+        this.$widget.on("show.bs.dropdown", () => {
             this.updateZoomState();
             if (this.tooltip) {
                 this.tooltip.hide();
@@ -364,10 +362,11 @@ export default class GlobalMenuWidget extends BasicWidget {
             }
         });
         if (this.tooltip) {
-            this.$widget.on('hide.bs.dropdown', () => this.tooltip.enable());
+            this.$widget.on("hide.bs.dropdown", () => this.tooltip.enable());
         }
 
-        this.$widget.find(".zoom-buttons").on("click",
+        this.$widget.find(".zoom-buttons").on(
+            "click",
             // delay to wait for the actual zoom change
             () => setTimeout(() => this.updateZoomState(), 300)
         );
@@ -382,7 +381,7 @@ export default class GlobalMenuWidget extends BasicWidget {
             return;
         }
 
-        const zoomFactor = utils.dynamicRequire('electron').webFrame.getZoomFactor();
+        const zoomFactor = utils.dynamicRequire("electron").webFrame.getZoomFactor();
         const zoomPercent = Math.round(zoomFactor * 100);
 
         this.$zoomState.text(`${zoomPercent}%`);
@@ -391,7 +390,7 @@ export default class GlobalMenuWidget extends BasicWidget {
     async updateVersionStatus() {
         await options.initializedPromise;
 
-        if (options.get("checkForUpdates") !== 'true') {
+        if (options.get("checkForUpdates") !== "true") {
             return;
         }
 

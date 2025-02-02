@@ -18,24 +18,26 @@ const TPL = `<div class="note-detail-doc note-detail-printable">
 </div>`;
 
 export default class DocTypeWidget extends TypeWidget {
-    static getType() { return "doc"; }
+    static getType() {
+        return "doc";
+    }
 
     doRender() {
         this.$widget = $(TPL);
-        this.$content = this.$widget.find('.note-detail-doc-content');
+        this.$content = this.$widget.find(".note-detail-doc-content");
 
         super.doRender();
     }
 
     async doRefresh(note) {
-        const docName = note.getLabelValue('docName');
+        const docName = note.getLabelValue("docName");
 
         if (docName) {
             // find doc based on language
             const lng = i18next.language;
             this.$content.load(`${window.glob.appPath}/doc_notes/${lng}/${docName}.html`, (response, status) => {
                 // fallback to english doc if no translation available
-                if (status === 'error') {
+                if (status === "error") {
                     this.$content.load(`${window.glob.appPath}/doc_notes/en/${docName}.html`);
                 }
             });

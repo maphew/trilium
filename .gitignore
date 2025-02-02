@@ -2,6 +2,7 @@
 node_modules/
 dist/
 build/
+coverage/
 src/public/app-dist/
 npm-debug.log
 yarn-error.log
@@ -9,12 +10,12 @@ po-*/
 
 *.db
 !integration-tests/db/document.db
+!integration-tests/db/config.ini
 integration-tests/db/log
 integration-tests/db/sessions
 integration-tests/db/backup
 integration-tests/db/session_secret.txt
 
-config.ini
 cert.key
 cert.crt
 server-package.json

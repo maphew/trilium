@@ -4,7 +4,7 @@ import sqlInit from "../../services/sql_init.js";
 import setupService from "../../services/setup.js";
 import log from "../../services/log.js";
 import appInfo from "../../services/app_info.js";
-import { Request } from 'express';
+import type { Request } from "express";
 
 function getStatus() {
     return {
@@ -32,9 +32,12 @@ function saveSyncSeed(req: Request) {
 
         log.error(message);
 
-        return [400, {
-            error: message
-        }]
+        return [
+            400,
+            {
+                error: message
+            }
+        ];
     }
 
     log.info("Saved sync seed.");

@@ -7,7 +7,7 @@ function getHost() {
         return envHost;
     }
 
-    return config['Network']['host'] || '0.0.0.0';
+    return config["Network"]["host"] || "0.0.0.0";
 }
 
 export default getHost();

@@ -53,7 +53,7 @@ export default class BookPropertiesWidget extends NoteContextAwareWidget {
     }
 
     isEnabled() {
-        return this.note && this.note.type === 'book';
+        return this.note && this.note.type === "book";
     }
 
     getTitle() {
@@ -61,7 +61,7 @@ export default class BookPropertiesWidget extends NoteContextAwareWidget {
             show: this.isEnabled(),
             activate: true,
             title: t("book_properties.book_properties"),
-            icon: 'bx bx-book'
+            icon: "bx bx-book"
         };
     }
 
@@ -69,48 +69,48 @@ export default class BookPropertiesWidget extends NoteContextAwareWidget {
         this.$widget = $(TPL);
         this.contentSized();
 
-        this.$viewTypeSelect = this.$widget.find('.view-type-select');
-        this.$viewTypeSelect.on('change', () => this.toggleViewType(this.$viewTypeSelect.val()));
+        this.$viewTypeSelect = this.$widget.find(".view-type-select");
+        this.$viewTypeSelect.on("change", () => this.toggleViewType(this.$viewTypeSelect.val()));
 
-        this.$expandChildrenButton = this.$widget.find('.expand-children-button');
-        this.$expandChildrenButton.on('click', async () => {
-            if (!this.note.isLabelTruthy('expanded')) {
-                await attributeService.addLabel(this.noteId, 'expanded');
+        this.$expandChildrenButton = this.$widget.find(".expand-children-button");
+        this.$expandChildrenButton.on("click", async () => {
+            if (!this.note.isLabelTruthy("expanded")) {
+                await attributeService.addLabel(this.noteId, "expanded");
             }
 
-            this.triggerCommand('refreshNoteList', {noteId: this.noteId});
+            this.triggerCommand("refreshNoteList", { noteId: this.noteId });
         });
 
-        this.$collapseAllButton = this.$widget.find('.collapse-all-button');
-        this.$collapseAllButton.on('click', async () => {
+        this.$collapseAllButton = this.$widget.find(".collapse-all-button");
+        this.$collapseAllButton.on("click", async () => {
             // owned is important - we shouldn't remove inherited expanded labels
-            for (const expandedAttr of this.note.getOwnedLabels('expanded')) {
+            for (const expandedAttr of this.note.getOwnedLabels("expanded")) {
                 await attributeService.removeAttributeById(this.noteId, expandedAttr.attributeId);
             }
 
-            this.triggerCommand('refreshNoteList', {noteId: this.noteId});
+            this.triggerCommand("refreshNoteList", { noteId: this.noteId });
         });
     }
 
     async refreshWithNote(note) {
-        const viewType = this.note.getLabelValue('viewType') || 'grid';
+        const viewType = this.note.getLabelValue("viewType") || "grid";
 
         this.$viewTypeSelect.val(viewType);
 
-        this.$expandChildrenButton.toggle(viewType === 'list');
-        this.$collapseAllButton.toggle(viewType === 'list');
+        this.$expandChildrenButton.toggle(viewType === "list");
+        this.$collapseAllButton.toggle(viewType === "list");
     }
 
     async toggleViewType(type) {
-        if (type !== 'list' && type !== 'grid') {
+        if (type !== "list" && type !== "grid") {
             throw new Error(t("book_properties.invalid_view_type", { type }));
         }
 
-        await attributeService.setLabel(this.noteId, 'viewType', type);
+        await attributeService.setLabel(this.noteId, "viewType", type);
     }
 
-    entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributeRows().find(attr => attr.noteId === this.noteId && attr.name === 'viewType')) {
+    entitiesReloadedEvent({ loadResults }) {
+        if (loadResults.getAttributeRows().find((attr) => attr.noteId === this.noteId && attr.name === "viewType")) {
             this.refresh();
         }
     }

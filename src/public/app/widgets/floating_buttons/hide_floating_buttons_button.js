@@ -28,7 +28,7 @@ const TPL = `
 
     <button type="button"
             class="close-floating-buttons-button btn bx bx-chevrons-right"
-            title="${t('hide_floating_buttons_button.button_title')}"></button>
+            title="${t("hide_floating_buttons_button.button_title")}"></button>
 </div>
 `;
 
@@ -37,7 +37,7 @@ export default class HideFloatingButtonsButton extends NoteContextAwareWidget {
         super.doRender();
 
         this.$widget = $(TPL);
-        this.$widget.on('click', () => this.triggerCommand('hideFloatingButtons'));
+        this.$widget.on("click", () => this.triggerCommand("hideFloatingButtons"));
         this.contentSized();
     }
 }

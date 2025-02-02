@@ -5,19 +5,21 @@ import { t } from "../services/i18n.js";
 
 export default class BookmarkSwitchWidget extends SwitchWidget {
     isEnabled() {
-        return super.isEnabled()
+        return (
+            super.isEnabled() &&
             // it's not possible to bookmark root because that would clone it under bookmarks and thus create a cycle
-            && !['root', '_hidden'].includes(this.noteId);
+            !["root", "_hidden"].includes(this.noteId)
+        );
     }
 
     doRender() {
         super.doRender();
 
-        this.$switchOnName.text(t("bookmark_switch.bookmark"));
-        this.$switchOnButton.attr("title", t("bookmark_switch.bookmark_this_note"));
+        this.switchOnName = t("bookmark_switch.bookmark");
+        this.switchOnTooltip = t("bookmark_switch.bookmark_this_note");
 
-        this.$switchOffName.text(t("bookmark_switch.bookmark"));
-        this.$switchOffButton.attr("title", t("bookmark_switch.remove_bookmark"));
+        this.switchOffName = t("bookmark_switch.bookmark");
+        this.switchOffTooltip = t("bookmark_switch.remove_bookmark");
     }
 
     async toggle(state) {
@@ -29,14 +31,13 @@ export default class BookmarkSwitchWidget extends SwitchWidget {
     }
 
     async refreshWithNote(note) {
-        const isBookmarked = !!note.getParentBranches().find(b => b.parentNoteId === '_lbBookmarks');
+        const isBookmarked = !!note.getParentBranches().find((b) => b.parentNoteId === "_lbBookmarks");
 
-        this.$switchOn.toggle(!isBookmarked);
-        this.$switchOff.toggle(isBookmarked);
+        this.isToggled = isBookmarked;
     }
 
-    entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getBranchRows().find(b => b.noteId === this.noteId)) {
+    entitiesReloadedEvent({ loadResults }) {
+        if (loadResults.getBranchRows().find((b) => b.noteId === this.noteId)) {
             this.refresh();
         }
     }

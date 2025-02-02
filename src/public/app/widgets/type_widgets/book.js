@@ -14,16 +14,18 @@ const TPL = `
     </style>
 
     <div class="note-detail-book-empty-help alert alert-warning" style="margin: 50px; padding: 20px;">
-        ${t('book.no_children_help')}
+        ${t("book.no_children_help")}
     </div>
 </div>`;
 
 export default class BookTypeWidget extends TypeWidget {
-    static getType() { return "book"; }
+    static getType() {
+        return "book";
+    }
 
     doRender() {
         this.$widget = $(TPL);
-        this.$helpNoChildren = this.$widget.find('.note-detail-book-empty-help');
+        this.$helpNoChildren = this.$widget.find(".note-detail-book-empty-help");
 
         super.doRender();
     }

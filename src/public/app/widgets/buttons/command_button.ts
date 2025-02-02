@@ -1,14 +1,14 @@
-import { CommandNames } from "../../components/app_context.js";
-import keyboardActionsService, { Action } from "../../services/keyboard_actions.js";
-import AbstractButtonWidget, { AbstractButtonWidgetSettings } from "./abstract_button.js";
+import type { CommandNames } from "../../components/app_context.js";
+import keyboardActionsService, { type Action } from "../../services/keyboard_actions.js";
+import AbstractButtonWidget, { type AbstractButtonWidgetSettings } from "./abstract_button.js";
 
 let actions: Action[];
 
-keyboardActionsService.getActions().then(as => actions = as);
+keyboardActionsService.getActions().then((as) => (actions = as));
 
 // TODO: Is this actually used?
 export type ClickHandler = (widget: CommandButtonWidget, e: JQuery.ClickEvent<any, any, any, any>) => void;
-type CommandOrCallback = (CommandNames | (() => CommandNames));
+type CommandOrCallback = CommandNames | (() => CommandNames);
 
 interface CommandButtonWidgetSettings extends AbstractButtonWidgetSettings {
     command?: CommandOrCallback;
@@ -16,11 +16,10 @@ interface CommandButtonWidgetSettings extends AbstractButtonWidgetSettings {
 }
 
 export default class CommandButtonWidget extends AbstractButtonWidget<CommandButtonWidgetSettings> {
-
     constructor() {
         super();
         this.settings = {
-            titlePlacement: 'right',
+            titlePlacement: "right",
             title: null,
             icon: null,
             onContextMenu: null
@@ -46,7 +45,7 @@ export default class CommandButtonWidget extends AbstractButtonWidget<CommandBut
     getTitle() {
         const title = super.getTitle();
 
-        const action = actions.find(act => act.actionName === this._command);
+        const action = actions.find((act) => act.actionName === this._command);
 
         if (action && action.effectiveShortcuts.length > 0) {
             return `${title} (${action.effectiveShortcuts.join(", ")})`;
@@ -66,8 +65,6 @@ export default class CommandButtonWidget extends AbstractButtonWidget<CommandBut
     }
 
     get _command() {
-        return typeof this.settings.command === "function"
-            ? this.settings.command()
-            : this.settings.command;
+        return typeof this.settings.command === "function" ? this.settings.command() : this.settings.command;
     }
 }

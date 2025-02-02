@@ -14,8 +14,8 @@
 
 import becca from "../becca/becca.js";
 import BOption from "../becca/entities/boption.js";
-import { OptionRow } from '../becca/entities/rows.js';
-import { FilterOptionsByType, OptionDefinitions, OptionMap, OptionNames } from "./options_interface.js";
+import type { OptionRow } from "../becca/entities/rows.js";
+import type { FilterOptionsByType, OptionDefinitions, OptionMap, OptionNames } from "./options_interface.js";
 import sql from "./sql.js";
 
 function getOptionOrNull(name: OptionNames): string | null {
@@ -60,11 +60,11 @@ function getOptionInt(name: FilterOptionsByType<number>, defaultValue?: number):
 function getOptionBool(name: FilterOptionsByType<boolean>): boolean {
     const val = getOption(name);
 
-    if (typeof val !== "string" || !['true', 'false'].includes(val)) {
+    if (typeof val !== "string" || !["true", "false"].includes(val)) {
         throw new Error(`Could not parse '${val}' into boolean for option '${name}'`);
     }
 
-    return val === 'true';
+    return val === "true";
 }
 
 function setOption<T extends OptionNames>(name: T, value: string | OptionDefinitions[T]) {
@@ -74,8 +74,7 @@ function setOption<T extends OptionNames>(name: T, value: string | OptionDefinit
         option.value = value as string;
 
         option.save();
-    }
-    else {
+    } else {
         createOption(name, value, false);
     }
 }

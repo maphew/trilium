@@ -2,10 +2,11 @@
  * USER INTERFACE
  */
 
- @keyframes fade-in {
+@keyframes fade-in {
     from {
         opacity: 0;
-    } to {
+    }
+    to {
         opacity: 1;
     }
 }
@@ -46,7 +47,7 @@ body.background-effects.platform-win32 {
     --tab-background-color: transparent;
     --new-tab-button-background: transparent;
     --active-tab-background-color: var(--launcher-pane-background-color);
-    --background-material: tabbed;    
+    --background-material: tabbed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,7 +67,7 @@ body.background-effects.platform-win32.layout-vertical {
 body.background-effects.platform-win32,
 body.background-effects.platform-win32 #root-widget,
 body.background-effects.platform-win32 #launcher-pane .launcher-button {
-    background: transparent !important;   
+    background: transparent !important;
 }
 
 body.background-effects.platform-win32.layout-horizontal #horizontal-main-container,
@@ -111,8 +112,8 @@ body.layout-horizontal > .horizontal {
 }
 
 #launcher-pane.horizontal {
-    height: var(--launcher-pane-size) !important;    
-    align-items: center;    
+    height: var(--launcher-pane-size) !important;
+    align-items: center;
 }
 
 @media (max-width: 991px) {
@@ -139,12 +140,13 @@ body.layout-horizontal > .horizontal {
     margin: var(--launcher-pane-button-gap) var(--launcher-pane-button-margin);
 }
 
-#launcher-pane .launcher-button {    
+#launcher-pane .launcher-button {
     padding: 0 !important;
     border-radius: 8px;
-    transition: background-color 300ms ease-out,
-                color 300ms ease-out,
-                box-shadow 300ms ease-out;
+    transition:
+        background-color 300ms ease-out,
+        color 300ms ease-out,
+        box-shadow 300ms ease-out;
     cursor: default;
 }
 
@@ -165,9 +167,10 @@ body.layout-horizontal > .horizontal {
     background: var(--launcher-pane-button-hover-background) !important;
     color: var(--launcher-pane-button-hover-color);
     box-shadow: var(--launcher-pane-button-hover-shadow);
-    transition: background-color 100ms ease-in,
-                color 80ms ease-in,
-                box-shadow 100ms ease-in;
+    transition:
+        background-color 100ms ease-in,
+        color 80ms ease-in,
+        box-shadow 100ms ease-in;
 }
 
 #launcher-pane div.launcher-button {
@@ -204,8 +207,9 @@ body.layout-horizontal > .horizontal {
 
 @keyframes sync-status-pulse {
     from {
-        color: currentColor
-    } to {
+        color: currentColor;
+    }
+    to {
         color: var(--pulse-color);
     }
 }
@@ -229,15 +233,16 @@ body.layout-horizontal > .horizontal {
 
 .tooltip .tooltip-inner {
     padding: 6px 10px !important;
-    box-shadow: -1px -1px 2px var(--tooltip-shadow-color),
-                2px 2px 8px var(--tooltip-shadow-color) !important;
+    box-shadow:
+        -1px -1px 2px var(--tooltip-shadow-color),
+        2px 2px 8px var(--tooltip-shadow-color) !important;
     border: unset !important;
     border-radius: 6px;
     backdrop-filter: blur(5px);
     color: var(--tooltip-foreground-color) !important;
 }
 
- /* 
+/* 
   * Search Box
   */
 
@@ -253,6 +258,12 @@ div.quick-search {
     height: unset;
     contain: unset;
     padding: var(--padding-top) var(--padding-right) var(--padding-bottom) var(--padding-left);
+}
+
+div.quick-search, div.quick-search:hover, div.quick-search:focus-within {
+    /* Prevent changes to background and outline when the state of the input group changes */
+    background: transparent;
+    outline: none;
 }
 
 div.quick-search::before {
@@ -311,7 +322,7 @@ div.quick-search .search-button {
 }
 
 div.quick-search .search-button:active {
-    transform: scale(.85);
+    transform: scale(0.85);
 }
 
 div.quick-search:focus-within:has(input:not(:placeholder-shown)) .search-button {
@@ -322,7 +333,7 @@ div.quick-search:focus-within:has(input:not(:placeholder-shown)) .search-button 
 }
 
 html body .quick-search:focus-within .search-button:hover,
-div.quick-search .search-button.show  {
+div.quick-search .search-button.show {
     /* Hover state */
     background: var(--left-pane-item-action-button-hover-background) !important;
     color: var(--left-pane-item-action-button-color) !important;
@@ -337,7 +348,6 @@ div.quick-search .search-button.show  {
 .quick-search .dropdown-menu *.dropdown-item {
     padding: 8px 12px !important;
 }
-
 
 /* Note icon */
 .quick-search .dropdown-menu .dropdown-item > .bx {
@@ -355,12 +365,11 @@ div.quick-search .search-button.show  {
     text-decoration: underline;
 }
 
-
 /* Note path */
 .quick-search .dropdown-menu small {
     display: block;
-    opacity: .5;
-    font-size: .75em;
+    opacity: 0.5;
+    font-size: 0.75em;
     overflow: hidden;
 }
 
@@ -405,7 +414,8 @@ div.quick-search .search-button.show  {
 @keyframes left-pane-item-select {
     from {
         opacity: 0;
-    } to {
+    }
+    to {
         opacity: 1;
     }
 }
@@ -435,7 +445,7 @@ div.quick-search .search-button.show  {
     right: 0;
     font-size: 14px;
     content: "\eb4a";
-    font-family: "boxicons";   
+    font-family: "boxicons";
     transform: translateX(25%);
     background: var(--left-pane-background-color);
     border-radius: 50%;
@@ -460,7 +470,7 @@ body.mobile .fancytree-node > span {
 }
 
 #left-pane .fancytree-expander {
-    opacity: .65;
+    opacity: 0.65;
     transition: opacity 150ms ease-in;
 }
 
@@ -474,7 +484,7 @@ body.mobile .fancytree-node > span {
 }
 
 #left-pane span .fancytree-title {
-    margin-top: -5px;    
+    margin-top: -5px;
 }
 
 #left-pane span.fancytree-active .fancytree-title {
@@ -486,7 +496,7 @@ body.mobile .fancytree-node > span {
 }
 
 #left-pane span.fancytree-node.shared .fancytree-title::after {
-    opacity: .5;
+    opacity: 0.5;
 }
 
 #left-pane .tree-item-button {
@@ -495,15 +505,17 @@ body.mobile .fancytree-node > span {
     border-radius: 50%;
     background: var(--left-pane-item-action-button-background);
     color: var(--left-pane-item-action-button-color);
-    transition: background-color 200ms ease-out,
-                box-shadow 200ms ease-out;
+    transition:
+        background-color 200ms ease-out,
+        box-shadow 200ms ease-out;
 }
 
 #left-pane .tree-item-button:hover {
     background: var(--left-pane-item-action-button-hover-background);
     box-shadow: var(--left-pane-item-action-button-hover-shadow);
-    transition: background-color 100ms ease-in,
-                box-shadow 100ms ease-in;
+    transition:
+        background-color 100ms ease-in,
+        box-shadow 100ms ease-in;
 }
 
 #left-pane span.fancytree-node.fancytree-active .tree-item-button:hover {
@@ -512,7 +524,7 @@ body.mobile .fancytree-node > span {
 
 #context-menu-container {
     /* The context menu of the tree */
-    --menu-item-icon-vert-offset: 1.5px;
+    --menu-item-icon-vert-offset: -1px;
 }
 
 /* Tree actions toolbar */
@@ -527,9 +539,10 @@ body.mobile .fancytree-node > span {
     padding: var(--tree-actions-toolbar-padding-size);
     padding-right: var(--tree-actions-toolbar-collapsed-width);
     background: transparent;
-    transition: max-width 400ms ease-out,
-                background-color 400ms ease-out,
-                border-color 400ms ease-out;
+    transition:
+        max-width 400ms ease-out,
+        background-color 400ms ease-out,
+        border-color 400ms ease-out;
 }
 
 /* Toolbar container (expanded state) */
@@ -605,7 +618,7 @@ body.mobile .fancytree-node > span {
 }
 
 #left-pane .tree-settings-popup h4 {
-    margin-bottom: .75em;
+    margin-bottom: 0.75em;
     font-size: 1.5em;
     line-height: 1;
 }
@@ -654,7 +667,7 @@ body.layout-horizontal .tab-row-container .note-tab[active] {
     overflow: visible !important;
 }
 
-body.layout-horizontal .tab-row-container .note-tab[active]:before {    
+body.layout-horizontal .tab-row-container .note-tab[active]:before {
     content: "";
     position: absolute;
     bottom: 0;
@@ -665,7 +678,7 @@ body.layout-horizontal .tab-row-container .note-tab[active]:before {
     border-bottom: 1px solid var(--launcher-pane-horizontal-border-color);
 }
 
-body.layout-horizontal .tab-row-container .note-tab[active]:after {    
+body.layout-horizontal .tab-row-container .note-tab[active]:after {
     content: "";
     position: absolute;
     bottom: 0;
@@ -684,11 +697,11 @@ body.layout-vertical.electron.platform-darwin .tab-row-container {
 
 .tab-row-widget-container {
     margin-top: calc((var(--tab-bar-height) - var(--tab-height)) / 2);
-    height: var(--tab-height) !important;    
+    height: var(--tab-height) !important;
 }
 
 body.layout-horizontal .tab-row-container {
-    padding-top: calc((var(--tab-bar-height) - var(--tab-height)));    
+    padding-top: calc((var(--tab-bar-height) - var(--tab-height)));
 }
 
 body.layout-horizontal .tab-row-widget-container {
@@ -697,7 +710,7 @@ body.layout-horizontal .tab-row-widget-container {
     overflow: hidden;
 }
 
-body.desktop #root-widget.horizontal-layout {
+body.desktop:not(.background-effects.platform-win32) #root-widget.horizontal-layout {
     background-color: var(--root-background) !important;
 }
 
@@ -714,8 +727,9 @@ body.desktop #root-widget.horizontal-layout {
 
 .tab-row-widget .note-tab .note-tab-wrapper {
     height: var(--tab-height) !important;
-    transition: background 75ms ease-in,
-                box-shadow 75ms ease-in;
+    transition:
+        background 75ms ease-in,
+        box-shadow 75ms ease-in;
 }
 
 .tab-row-widget .note-tab .note-tab-wrapper:hover {
@@ -728,7 +742,7 @@ body.desktop #root-widget.horizontal-layout {
 
 body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
     border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;   
+    border-bottom-right-radius: 0;
 }
 
 .note-tab .note-tab-wrapper {
@@ -754,15 +768,16 @@ body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
 }
 
 .tab-row-widget-is-sorting .note-tab[active] .note-tab-wrapper {
-    transform: scale(.85);
+    transform: scale(0.85);
     box-shadow: var(--active-tab-dragging-shadow) !important;
 }
 
 .tab-row-widget .note-tab[active] .note-tab-wrapper {
     box-shadow: var(--active-tab-shadow);
     font-weight: unset !important;
-    transition: background 150ms ease-out,
-                box-shadow 300ms ease-out;
+    transition:
+        background 150ms ease-out,
+        box-shadow 300ms ease-out;
 }
 
 .tab-row-widget-is-sorting .note-tab-drag-handle {
@@ -773,9 +788,9 @@ body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
     display: flex;
     justify-content: center;
     align-items: center;
-    transition: background-color 75ms ease-out,
-                color 75ms ease-out;
-    
+    transition:
+        background-color 75ms ease-out,
+        color 75ms ease-out;
 }
 
 .tab-row-widget .note-tab-close:hover {
@@ -804,17 +819,19 @@ body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
     height: var(--new-tab-button-size);
     background: var(--new-tab-button-background);
     border-radius: 50%;
-    transition: background-color 200ms ease-out,
-                box-shadow 200ms ease-out,
-                transform 300ms ease-in;
+    transition:
+        background-color 200ms ease-out,
+        box-shadow 200ms ease-out,
+        transform 300ms ease-in;
     will-change: transform;
 }
 
 .tab-row-widget .note-new-tab:hover::before {
     background: var(--new-tab-button-hover-background);
     box-shadow: var(--new-tab-button-shadow);
-    transition: background-color 100ms ease-in,
-                box-shadow 100ms ease-in;
+    transition:
+        background-color 100ms ease-in,
+        box-shadow 100ms ease-in;
 }
 
 .tab-row-widget .note-new-tab::after {
@@ -829,21 +846,22 @@ body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
     align-items: center;
     justify-content: center;
     font-family: boxicons;
-    font-size: calc(var(--new-tab-button-size) * .75);
+    font-size: calc(var(--new-tab-button-size) * 0.75);
     color: var(--new-tab-button-color);
-    transition: color 300ms ease-out,
-                transform 300ms ease-in;
+    transition:
+        color 300ms ease-out,
+        transform 300ms ease-in;
     will-change: transform;
 }
 
 .tab-row-widget .note-new-tab:hover::after {
     color: var(--new-tab-button-hover-color);
-    transition: color 100ms ease-in,
+    transition: color 100ms ease-in;
 }
 
 .tab-row-widget .note-new-tab:active:before,
 .tab-row-widget .note-new-tab:active:after {
-    transform: scale(.85);
+    transform: scale(0.85);
     transition: transform 75ms ease-out;
 }
 
@@ -856,8 +874,8 @@ body.layout-horizontal .tab-row-widget .note-tab .note-tab-wrapper {
  */
 
 #center-pane {
-   padding-top: 2px;
-   background: var(--main-background-color);
+    padding-top: 2px;
+    background: var(--main-background-color);
 }
 
 .vertical-layout #center-pane {
@@ -887,13 +905,18 @@ body.mobile .note-title {
     background: var(--main-background-color);
 }
 
+#right-pane .card-header-buttons {
+    align-items: center;
+}
+
 #right-pane .toc li,
 #right-pane .highlights-list li {
     padding: 2px 8px;
     border-radius: 4px;
     text-align: unset;
-    transition: background-color 150ms ease-in,
-                color 150ms ease-in;
+    transition:
+        background-color 150ms ease-in,
+        color 150ms ease-in;
 }
 
 #right-pane .highlights-list li {
@@ -911,8 +934,7 @@ body.mobile .note-title {
     background: var(--right-pane-item-hover-background);
     color: var(--right-pane-item-hover-color);
     font-weight: normal;
-    transition: background-color 300ms ease-out
-                color 300ms ease-out;
+    transition: background-color 300ms ease-out color 300ms ease-out;
 }
 
 #right-pane .toc li:active,
@@ -928,7 +950,7 @@ body.mobile .note-title {
 .dropdown-menu {
     border-radius: var(--dropdown-border-radius);
     padding: var(--menu-padding-size) !important;
-    font-size: .90rem !important;    
+    font-size: 0.9rem !important;
 }
 
 body.mobile .dropdown-menu {
@@ -1009,6 +1031,7 @@ html body .dropdown-item.disabled {
     font-family: unset !important;
     font-size: unset !important;
     color: var(--menu-item-keyboard-shortcut-color) !important;
+    padding-top: 0;
 }
 
 .dropdown-divider {
@@ -1074,8 +1097,8 @@ body.mobile .dropdown-menu .dropdown-item.submenu-open .dropdown-toggle::after {
 
 .calendar-dropdown-widget .calendar-header input[type="number"]::-webkit-outer-spin-button,
 .calendar-dropdown-widget .calendar-header input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .calendar-dropdown-widget .calendar-header input,
@@ -1093,13 +1116,13 @@ body.mobile .dropdown-menu .dropdown-item.submenu-open .dropdown-toggle::after {
 }
 
 .calendar-dropdown-widget .calendar-week span {
-    font-size: .85em;
+    font-size: 0.85em;
     font-weight: 500;
     color: var(--calendar-weekday-labels-color);
 }
 
 .calendar-dropdown-widget .calendar-body {
-    font-size: .9em;
+    font-size: 0.9em;
 }
 
 .calendar-dropdown-widget .calendar-body a {
@@ -1142,25 +1165,24 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 
 .note-tooltip-content {
     padding: 8px;
- }
+}
 
 .note-tooltip-content .note-title-with-path {
     display: flex;
     flex-direction: column-reverse;
     border-bottom: 2px solid currentColor;
     padding-bottom: 6px;
-
 }
 
 .note-tooltip-content .note-path {
     display: block;
     color: var(--muted-text-color);
-    font-size: .75em;
+    font-size: 0.75em;
 }
 
 .note-tooltip-content .note-tooltip-attributes {
     margin-top: -4px;
-    font-size: .75em;
+    font-size: 0.75em;
 }
 
 .note-tooltip-content .rendered-content {
@@ -1198,10 +1220,6 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 /* Search box wrapper */
 .jump-to-note-dialog .input-group {
     margin-right: 16px;
-    background: var(--quick-search-background);
-    border: 2px solid transparent;
-    border-radius: 6px;
-    color: var(--quick-search-color);
 }
 
 .jump-to-note-dialog .input-group:hover {
@@ -1212,27 +1230,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 .jump-to-note-dialog .input-group:focus-within {
     border-color: var(--quick-search-focus-border);
     background: var(--quick-search-focus-background);
-    color: var(--quick-search-focus-color)
-}
-
-/* Search box input */
-.jump-to-note-dialog .input-group input {
-    --bs-border-width: 0;
-
-    box-shadow: unset;
-    background: transparent;
-    color: currentColor;
-}
-
-/* Search box buttons */
-.jump-to-note-dialog .input-group button {
-    --bs-border-width: 0;
-    --accented-background-color: transparent;
-    padding: 0 4px;
-}
-
-.jump-to-note-dialog .input-group button:last-child {
-    padding-right: .75em;
+    color: var(--quick-search-focus-color);
 }
 
 .jump-to-note-dialog .input-clearer-button {
@@ -1253,7 +1251,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 /* Selected list item */
-.jump-to-note-dialog  .aa-suggestions div.aa-cursor {
+.jump-to-note-dialog .aa-suggestions div.aa-cursor {
     background: var(--hover-item-background-color);
     color: var(--hover-item-text-color);
 }
@@ -1306,7 +1304,6 @@ body .calendar-dropdown-widget .calendar-body a:hover {
     content: "" !important;
 }
 
-
 .recent-changes-content ul li:not(.deleted-note):hover {
     border-radius: 8px;
     background: var(--hover-item-background-color);
@@ -1315,7 +1312,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 
 .recent-changes-content ul li .note-path {
     color: var(--muted-text-color);
-    font-size: .75em;
+    font-size: 0.75em;
 }
 
 /* Item time */
@@ -1342,16 +1339,15 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 /* Item title for deleted notes */
-.recent-changes-content ul li.deleted-note .note-title {
+.recent-changes-content ul li.deleted-note .note-title > .note-title {
     text-decoration: line-through;
 }
-
 
 /* Item path */
 .recent-changes-content ul li > span:nth-child(2) small {
     display: block;
     line-height: 1;
-    opacity: .75;
+    opacity: 0.75;
 }
 
 /* Timeline connector */
@@ -1383,7 +1379,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 /* The last item of the timeline */
-.recent-changes-content > div:last-child  li:last-child {
+.recent-changes-content > div:last-child li:last-child {
     --connector-bottom: 50%;
 }
 
@@ -1408,7 +1404,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 /*
  * Note list
  */
- .note-list .note-book-card {
+.note-list .note-book-card {
     --note-list-horizontal-padding: 22px;
     --note-list-vertical-padding: 15px;
     background-color: var(--card-background-color);
@@ -1444,11 +1440,11 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 .note-list-wrapper .note-book-card .note-book-header .note-icon {
-    font-size: 17px;                
+    font-size: 17px;
     vertical-align: text-bottom;
 }
 
-.note-list-wrapper .note-book-card .note-book-header .note-book-title {            
+.note-list-wrapper .note-book-card .note-book-header .note-book-title {
     font-size: 1em;
     color: var(--active-item-text-color);
     vertical-align: middle;
@@ -1484,7 +1480,7 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 .note-list-wrapper .note-book-card .note-book-content h5,
 .note-list-wrapper .note-book-card .note-book-content h6 {
     font-size: 1rem;
-    color: var(--active-item-text-color);   
+    color: var(--active-item-text-color);
 }
 
 .note-list-wrapper .note-book-card .note-book-content p:last-child {
@@ -1544,9 +1540,9 @@ body .calendar-dropdown-widget .calendar-body a:hover {
     /* Replace the path delimiters with arrows */
     display: inline-block;
     content: "\ed3b";
-    padding: 0 .25em;
+    padding: 0 0.25em;
     font-family: boxicons;
-    opacity: .75;
+    opacity: 0.75;
     transform: translateY(4%);
 }
 
@@ -1557,6 +1553,106 @@ body .calendar-dropdown-widget .calendar-body a:hover {
 }
 
 .search-result-widget-content .note-path {
-    opacity: .75;
+    opacity: 0.75;
     font-weight: normal;
+}
+
+/* Help */
+
+.help-dialog .modal-content {
+    --modal-background-color: var(--help-background-color);
+    backdrop-filter: blur(var(--help-backdrop-blur));
+}
+
+.help-dialog .help-cards {
+    display: block;
+    columns: 3;
+    column-gap: 20px;
+}
+
+.help-dialog .card {
+    margin: 0;
+    width: auto;
+    border: none;
+    background: unset;
+    padding: 16px 8px;
+    break-inside: avoid-column;
+}
+
+.help-dialog .card-body {
+    box-shadow: var(--help-card-shadow);
+    border-radius: 6px;
+    background: var(--help-card-background);
+}
+
+.help-dialog .card-body h5,
+.help-dialog .card-body h6 {
+    color: var(--help-card-heading-color);
+    font-weight: 600;
+}
+
+.help-dialog .card-body h5 {
+    font-size: 20px;
+}
+
+.help-dialog .card-body h6 {
+    font-size: 15px;
+    padding-bottom: 0.5em;
+}
+
+/* Help card item */
+.help-dialog .help-cards ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.help-dialog .help-cards li + li {
+    margin-top: 0.4em;
+}
+
+/* Keyboard shortcut */
+.help-dialog .help-cards kbd {
+    box-shadow: var(--help-kbd-shortcut-shadow);
+    margin: 0 4px;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 10px;
+    background: var(--help-kbd-shortcut-background);
+    color: var(--help-kbd-shortcut-color);
+    font-weight: 500;
+    letter-spacing: 0.5pt;
+}
+
+.help-dialog .help-cards kbd:first-child {
+    margin-left: 0;
+}
+
+/* Inline code - used for Markdown samples */
+.help-dialog .help-cards code {
+    border-radius: 4px;
+    background: var(--help-code-background);
+    padding: 0 8px;
+    color: var(--help-code-color);
+}
+
+/* Note area */
+
+.title-row > *:first-child {
+    margin-right: 0;
+}
+
+.title-row > *:nth-child(2) {
+    margin-left: 0;
+}
+
+.title-row {
+    /* Aligns the "Create new split" button with the note menu button (the three dots button) */
+    padding-right: 3px;
+}
+
+.note-title-widget input {
+    --input-background-color: transparent;
+    
+    border-radius: 8px;
+    padding-left: 12px;
 }

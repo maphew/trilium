@@ -32,7 +32,7 @@ export default class ProtectedSessionPasswordDialog extends BasicWidget {
 
         this.$passwordForm = this.$widget.find(".protected-session-password-form");
         this.$passwordInput = this.$widget.find(".protected-session-password");
-        this.$passwordForm.on('submit', () => {
+        this.$passwordForm.on("submit", () => {
             const password = this.$passwordInput.val();
             this.$passwordInput.val("");
 
@@ -45,7 +45,7 @@ export default class ProtectedSessionPasswordDialog extends BasicWidget {
     showProtectedSessionPasswordDialogEvent() {
         utils.openDialog(this.$widget);
 
-        this.$passwordInput.trigger('focus');
+        this.$passwordInput.trigger("focus");
     }
 
     closeProtectedSessionPasswordDialogEvent() {

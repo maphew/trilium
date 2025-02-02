@@ -10,9 +10,9 @@ import attributeService from "../services/attributes.js";
 import RightPanelWidget from "./right_panel_widget.js";
 import options from "../services/options.js";
 import OnClickButtonWidget from "./buttons/onclick_button.js";
-import appContext, { EventData } from "../components/app_context.js";
+import appContext, { type EventData } from "../components/app_context.js";
 import libraryLoader from "../services/library_loader.js";
-import FNote from "../entities/fnote.js";
+import type FNote from "../entities/fnote.js";
 
 const TPL = `<div class="highlights-list-widget">
     <style>
@@ -44,7 +44,6 @@ const TPL = `<div class="highlights-list-widget">
 </div>`;
 
 export default class HighlightsListWidget extends RightPanelWidget {
-
     private $highlightsList!: JQuery<HTMLElement>;
 
     get widgetTitle() {
@@ -57,7 +56,7 @@ export default class HighlightsListWidget extends RightPanelWidget {
                 .icon("bx-cog")
                 .title(t("highlights_list_2.options"))
                 .titlePlacement("left")
-                .onClick(() => appContext.tabManager.openContextWithNote('_optionsTextNotes', { activate: true }))
+                .onClick(() => appContext.tabManager.openContextWithNote("_optionsTextNotes", { activate: true }))
                 .class("icon-action"),
             new OnClickButtonWidget()
                 .icon("bx-x")
@@ -68,15 +67,14 @@ export default class HighlightsListWidget extends RightPanelWidget {
     }
 
     isEnabled() {
-        return super.isEnabled()
-            && this.note != null && this.note.type === 'text'
-            && !this.noteContext?.viewScope?.highlightsListTemporarilyHidden
-            && this.noteContext?.viewScope?.viewMode === 'default';
+        return (
+            super.isEnabled() && this.note != null && this.note.type === "text" && !this.noteContext?.viewScope?.highlightsListTemporarilyHidden && this.noteContext?.viewScope?.viewMode === "default"
+        );
     }
 
     async doRenderBody() {
         this.$body.empty().append($(TPL));
-        this.$highlightsList = this.$body.find('.highlights-list');
+        this.$highlightsList = this.$body.find(".highlights-list");
     }
 
     async refreshWithNote(note: FNote | null | undefined) {
@@ -91,9 +89,9 @@ export default class HighlightsListWidget extends RightPanelWidget {
             this.toggleInt(false);
         }
 
-        const optionsHighlightsList = JSON.parse(options.get('highlightsList'));
+        const optionsHighlightsList = JSON.parse(options.get("highlightsList"));
 
-        if (note?.isLabelTruthy('hideHighlightWidget') || !optionsHighlightsList.length) {
+        if (note?.isLabelTruthy("hideHighlightWidget") || !optionsHighlightsList.length) {
             this.toggleInt(false);
             this.triggerCommand("reEvaluateRightPaneVisibility");
             return;
@@ -102,7 +100,7 @@ export default class HighlightsListWidget extends RightPanelWidget {
         let $highlightsList: JQuery<HTMLElement> | null = null;
         let hlLiCount = -1;
         // Check for type text unconditionally in case alwaysShowWidget is set
-        if (note && this.note?.type === 'text') {
+        if (note && this.note?.type === "text") {
             const noteComplement = await note.getNoteComplement();
             if (noteComplement && "content" in noteComplement) {
                 ({ $highlightsList, hlLiCount } = await this.getHighlightList(noteComplement.content, optionsHighlightsList));
@@ -129,7 +127,7 @@ export default class HighlightsListWidget extends RightPanelWidget {
 
     extractOuterTag(htmlStr: string | null) {
         if (htmlStr === null) {
-            return null
+            return null;
         }
         // Regular expressions that match only the outermost tag
         const regex = /^<([a-zA-Z]+)([^>]*)>/;
@@ -175,7 +173,7 @@ export default class HighlightsListWidget extends RightPanelWidget {
                         throwOnError: false
                     });
                 } catch (e) {
-                    if (e instanceof ReferenceError && e.message.includes('katex is not defined')) {
+                    if (e instanceof ReferenceError && e.message.includes("katex is not defined")) {
                         // Load KaTeX if it is not already loaded
                         await libraryLoader.requireLibrary(libraryLoader.KATEX);
                         try {
@@ -212,7 +210,8 @@ export default class HighlightsListWidget extends RightPanelWidget {
         const regex5 = /<u>[\s\S]*?<\/u>/g;
         // Possible values in optionsHighlightsList： '["bold","italic","underline","color","bgColor"]'
         // element priority： span>i>strong>u
-        let findSubStr = "", combinedRegexStr = "";
+        let findSubStr = "",
+            combinedRegexStr = "";
         if (optionsHighlightsList.includes("bgColor")) {
             findSubStr += `,span[style*="background-color"]:not(section.include-note span[style*="background-color"])`;
             combinedRegexStr += `|${regex1.source}`;
@@ -234,16 +233,17 @@ export default class HighlightsListWidget extends RightPanelWidget {
             combinedRegexStr += `|${regex5.source}`;
         }
 
-        findSubStr = findSubStr.substring(1)
+        findSubStr = findSubStr.substring(1);
         combinedRegexStr = `(` + combinedRegexStr.substring(1) + `)`;
-        const combinedRegex = new RegExp(combinedRegexStr, 'gi');
+        const combinedRegex = new RegExp(combinedRegexStr, "gi");
         const $highlightsList = $("<ol>");
-        let prevEndIndex = -1, hlLiCount = 0;
+        let prevEndIndex = -1,
+            hlLiCount = 0;
         let prevSubHtml: string | null = null;
         // Used to determine if a string is only a formula
         const onlyMathRegex = /^<span class="math-tex">\\\([^\)]*?\)<\/span>(?:<span class="math-tex">\\\([^\)]*?\)<\/span>)*$/;
 
-        for (let match = null, hltIndex = 0; ((match = combinedRegex.exec(content)) !== null); hltIndex++) {
+        for (let match = null, hltIndex = 0; (match = combinedRegex.exec(content)) !== null; hltIndex++) {
             const subHtml = match[0];
             const startIndex = match.index;
             const endIndex = combinedRegex.lastIndex;
@@ -266,12 +266,12 @@ export default class HighlightsListWidget extends RightPanelWidget {
                     const substring = content.substring(prevEndIndex, startIndex);
                     //If the two elements have the same style and there are only formulas in between, append the formulas and the current element to the end of the previous element.
                     if (this.areOuterTagsConsistent(prevSubHtml, subHtml) && onlyMathRegex.test(substring)) {
-                        const $lastLi = $highlightsList.children('li').last();
+                        const $lastLi = $highlightsList.children("li").last();
                         $lastLi.append(await this.replaceMathTextWithKatax(substring));
                         $lastLi.append(subHtml);
                     } else {
                         $highlightsList.append(
-                            $('<li>')
+                            $("<li>")
                                 .html(subHtml)
                                 .on("click", () => this.jumpToHighlightsList(findSubStr, hltIndex))
                         );
@@ -301,48 +301,59 @@ export default class HighlightsListWidget extends RightPanelWidget {
         let targetElement;
         if (isReadOnly) {
             const $container = await this.noteContext.getContentElement();
-            targetElement = $container.find(findSubStr).filter(function () {
-                if (findSubStr.indexOf("color") >= 0 && findSubStr.indexOf("background-color") < 0) {
-                    let color = this.style.color;
-                    const $el = $(this as HTMLElement);
-                    return !($el.prop('tagName') === "SPAN" && color === "");
-                } else {
-                    return true;
-                }
-            }).filter(function () {
-                const $el = $(this as HTMLElement);
-                return $el.parent(findSubStr).length === 0
-                    && $el.parent().parent(findSubStr).length === 0
-                    && $el.parent().parent().parent(findSubStr).length === 0
-                    && $el.parent().parent().parent().parent(findSubStr).length === 0;
-            })
-        } else {
-            const textEditor = await this.noteContext.getTextEditor();
-            if (textEditor) {
-                targetElement = $(textEditor.editing.view.domRoots.values().next().value).find(findSubStr).filter(function () {
-                    // When finding span[style*="color"] but not looking for span[style*="background-color"],
-                    // the background-color error will be regarded as color, so it needs to be filtered
-                    const $el = $(this as HTMLElement);
+            targetElement = $container
+                .find(findSubStr)
+                .filter(function () {
                     if (findSubStr.indexOf("color") >= 0 && findSubStr.indexOf("background-color") < 0) {
                         let color = this.style.color;
-                        return !($el.prop('tagName') === "SPAN" && color === "");
+                        const $el = $(this as HTMLElement);
+                        return !($el.prop("tagName") === "SPAN" && color === "");
                     } else {
                         return true;
                     }
-                }).filter(function () {
-                    // Need to filter out the child elements of the element that has been found
-                    const $el = $(this as HTMLElement);
-                    return $el.parent(findSubStr).length === 0
-                        && $el.parent().parent(findSubStr).length === 0
-                        && $el.parent().parent().parent(findSubStr).length === 0
-                        && $el.parent().parent().parent().parent(findSubStr).length === 0;
                 })
+                .filter(function () {
+                    const $el = $(this as HTMLElement);
+                    return (
+                        $el.parent(findSubStr).length === 0 &&
+                        $el.parent().parent(findSubStr).length === 0 &&
+                        $el.parent().parent().parent(findSubStr).length === 0 &&
+                        $el.parent().parent().parent().parent(findSubStr).length === 0
+                    );
+                });
+        } else {
+            const textEditor = await this.noteContext.getTextEditor();
+            if (textEditor) {
+                targetElement = $(textEditor.editing.view.domRoots.values().next().value)
+                    .find(findSubStr)
+                    .filter(function () {
+                        // When finding span[style*="color"] but not looking for span[style*="background-color"],
+                        // the background-color error will be regarded as color, so it needs to be filtered
+                        const $el = $(this as HTMLElement);
+                        if (findSubStr.indexOf("color") >= 0 && findSubStr.indexOf("background-color") < 0) {
+                            let color = this.style.color;
+                            return !($el.prop("tagName") === "SPAN" && color === "");
+                        } else {
+                            return true;
+                        }
+                    })
+                    .filter(function () {
+                        // Need to filter out the child elements of the element that has been found
+                        const $el = $(this as HTMLElement);
+                        return (
+                            $el.parent(findSubStr).length === 0 &&
+                            $el.parent().parent(findSubStr).length === 0 &&
+                            $el.parent().parent().parent(findSubStr).length === 0 &&
+                            $el.parent().parent().parent().parent(findSubStr).length === 0
+                        );
+                    });
             }
         }
 
         if (targetElement) {
             targetElement[itemIndex].scrollIntoView({
-                behavior: "smooth", block: "center"
+                behavior: "smooth",
+                block: "center"
             });
         }
     }
@@ -352,23 +363,25 @@ export default class HighlightsListWidget extends RightPanelWidget {
             this.noteContext.viewScope.highlightsListTemporarilyHidden = true;
         }
         await this.refresh();
-        this.triggerCommand('reEvaluateRightPaneVisibility');
+        this.triggerCommand("reEvaluateRightPaneVisibility");
         appContext.triggerEvent("reEvaluateHighlightsListWidgetVisibility", { noteId: this.noteId });
     }
 
     async showHighlightsListWidgetEvent({ noteId }: EventData<"showHighlightsListWidget">) {
         if (this.noteId === noteId) {
             await this.refresh();
-            this.triggerCommand('reEvaluateRightPaneVisibility');
+            this.triggerCommand("reEvaluateRightPaneVisibility");
         }
     }
 
     async entitiesReloadedEvent({ loadResults }: EventData<"entitiesReloaded">) {
         if (this.noteId && loadResults.isNoteContentReloaded(this.noteId)) {
             await this.refresh();
-        } else if (loadResults.getAttributeRows().find(attr => attr.type === 'label'
-            && (attr.name?.toLowerCase().includes('readonly') || attr.name === 'hideHighlightWidget')
-            && attributeService.isAffecting(attr, this.note))) {
+        } else if (
+            loadResults
+                .getAttributeRows()
+                .find((attr) => attr.type === "label" && (attr.name?.toLowerCase().includes("readonly") || attr.name === "hideHighlightWidget") && attributeService.isAffecting(attr, this.note))
+        ) {
             await this.refresh();
         }
     }

@@ -6,7 +6,7 @@ import imageService from "../../services/image.js";
 const TPL = `
 <button type="button"
         class="copy-image-reference-button"
-        title="${t('copy_image_reference_button.button_title')}">
+        title="${t("copy_image_reference_button.button_title")}">
         <span class="bx bx-copy"></span>
         
         <div class="hidden-image-copy"></div>
@@ -14,10 +14,7 @@ const TPL = `
 
 export default class CopyImageReferenceButton extends NoteContextAwareWidget {
     isEnabled() {
-        return super.isEnabled()
-            && ['mermaid', 'canvas', 'mindMap'].includes(this.note?.type)
-            && this.note.isContentAvailable()
-            && this.noteContext?.viewScope.viewMode === 'default';
+        return super.isEnabled() && ["mermaid", "canvas", "mindMap"].includes(this.note?.type) && this.note.isContentAvailable() && this.noteContext?.viewScope.viewMode === "default";
     }
 
     doRender() {
@@ -26,11 +23,8 @@ export default class CopyImageReferenceButton extends NoteContextAwareWidget {
         this.$widget = $(TPL);
         this.$hiddenImageCopy = this.$widget.find(".hidden-image-copy");
 
-        this.$widget.on('click', () => {
-            this.$hiddenImageCopy.empty().append(
-                $("<img>")
-                    .attr("src", utils.createImageSrcUrl(this.note))
-            );
+        this.$widget.on("click", () => {
+            this.$hiddenImageCopy.empty().append($("<img>").attr("src", utils.createImageSrcUrl(this.note)));
 
             imageService.copyImageReferenceToClipboard(this.$hiddenImageCopy);
 

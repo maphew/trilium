@@ -1,7 +1,7 @@
-import { EventData } from "../../components/app_context.js";
-import { Screen } from "../../components/mobile_screen_switcher.js";
-import BasicWidget from "../basic_widget.js";
-import FlexContainer, { FlexDirection } from "../containers/flex_container.js";
+import type { EventData } from "../../components/app_context.js";
+import type { Screen } from "../../components/mobile_screen_switcher.js";
+import type BasicWidget from "../basic_widget.js";
+import FlexContainer, { type FlexDirection } from "../containers/flex_container.js";
 
 const DRAG_STATE_NONE = 0;
 const DRAG_STATE_INITIAL_DRAG = 1;
@@ -16,7 +16,6 @@ const DRAG_CLOSED_START_THRESHOLD = 10;
 const DRAG_OPENED_START_THRESHOLD = 80;
 
 export default class SidebarContainer extends FlexContainer<BasicWidget> {
-
     private screenName: Screen;
     /** The screen name that is currently active, according to the screen changed event. */
     private activeScreenName?: Screen;
@@ -89,7 +88,7 @@ export default class SidebarContainer extends FlexContainer<BasicWidget> {
             const translatePercentage = Math.min(0, Math.max(this.currentTranslate + (deltaX / width) * 100, -100));
             this.translatePercentage = translatePercentage;
             this.sidebarEl.style.transform = `translateX(${translatePercentage}%)`;
-            this.backdropEl.style.opacity = String(Math.max(0, 1 + (translatePercentage / 100)));
+            this.backdropEl.style.opacity = String(Math.max(0, 1 + translatePercentage / 100));
         }
 
         // Consume the event to prevent the user from doing the back to previous page gesture on iOS.
@@ -108,8 +107,8 @@ export default class SidebarContainer extends FlexContainer<BasicWidget> {
 
         // If the sidebar is closed, snap the sidebar open only if the user swiped over a threshold.
         // When the sidebar is open, always close for a smooth experience.
-        const isOpen = (this.currentTranslate === -100 && this.translatePercentage > -(100 - DRAG_OPEN_THRESHOLD));
-        const screen = (isOpen ? "tree" : "detail");
+        const isOpen = this.currentTranslate === -100 && this.translatePercentage > -(100 - DRAG_OPEN_THRESHOLD);
+        const screen = isOpen ? "tree" : "detail";
 
         if (this.activeScreenName !== screen) {
             // Trigger the set active screen command for the rest of the UI to know whether the sidebar is active or not.
@@ -131,7 +130,7 @@ export default class SidebarContainer extends FlexContainer<BasicWidget> {
         const sidebarEl = document.getElementById("mobile-sidebar-wrapper");
         const backdropEl = document.getElementById("mobile-sidebar-container");
         backdropEl?.addEventListener("click", () => {
-            this.triggerCommand('setActiveScreen', { screen: "detail" });
+            this.triggerCommand("setActiveScreen", { screen: "detail" });
         });
 
         if (!sidebarEl || !backdropEl) {
@@ -150,7 +149,7 @@ export default class SidebarContainer extends FlexContainer<BasicWidget> {
         }
 
         this.sidebarEl.classList.toggle("show", isOpen);
-        this.sidebarEl.style.transform = isOpen ? 'translateX(0)' : 'translateX(-100%)';
+        this.sidebarEl.style.transform = isOpen ? "translateX(0)" : "translateX(-100%)";
         this.sidebarEl.style.transition = this.originalSidebarTransition;
 
         this.backdropEl.classList.toggle("show", isOpen);
@@ -161,10 +160,9 @@ export default class SidebarContainer extends FlexContainer<BasicWidget> {
         this.dragState = DRAG_STATE_NONE;
     }
 
-    activeScreenChangedEvent({activeScreen}: EventData<"activeScreenChanged">) {
+    activeScreenChangedEvent({ activeScreen }: EventData<"activeScreenChanged">) {
         this.activeScreenName = activeScreen;
         this.#setInitialState();
         this.#setSidebarOpen(activeScreen === this.screenName);
     }
-
 }

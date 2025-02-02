@@ -1,4 +1,4 @@
-import { Froca } from "../services/froca-interface.js";
+import type { Froca } from "../services/froca-interface.js";
 
 export interface FAttachmentRow {
     attachmentId: string;
@@ -23,12 +23,12 @@ class FAttachment {
     role!: string;
     mime!: string;
     title!: string;
-    isProtected!: boolean;  // TODO: Is this used?
+    isProtected!: boolean; // TODO: Is this used?
     private dateModified!: string;
     utcDateModified!: string;
     private utcDateScheduledForErasureSince!: string;
     /**
-     * optionally added to the entity 
+     * optionally added to the entity
      */
     private contentLength!: number;
 
@@ -58,7 +58,7 @@ class FAttachment {
     }
 
     async getBlob() {
-        return await this.froca.getBlob('attachments', this.attachmentId);
+        return await this.froca.getBlob("attachments", this.attachmentId);
     }
 }
 

@@ -1,30 +1,31 @@
-import server from '../services/server.js';
-import mimeTypesService from '../services/mime_types.js';
+import server from "../services/server.js";
+import mimeTypesService from "../services/mime_types.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
 import dialogService from "../services/dialog.js";
-import { t } from '../services/i18n.js';
+import { t } from "../services/i18n.js";
 
 const NOTE_TYPES = [
     { type: "file", title: t("note_types.file"), selectable: false },
     { type: "image", title: t("note_types.image"), selectable: false },
     { type: "search", title: t("note_types.saved-search"), selectable: false },
-    { type: "noteMap", mime: '', title: t("note_types.note-map"), selectable: false },
-    { type: "launcher", mime: '', title: t("note_types.launcher"), selectable: false },
-    { type: "doc", mime: '', title: t("note_types.doc"), selectable: false },
-    { type: "contentWidget", mime: '', title: t("note_types.widget"), selectable: false },
+    { type: "noteMap", mime: "", title: t("note_types.note-map"), selectable: false },
+    { type: "launcher", mime: "", title: t("note_types.launcher"), selectable: false },
+    { type: "doc", mime: "", title: t("note_types.doc"), selectable: false },
+    { type: "contentWidget", mime: "", title: t("note_types.widget"), selectable: false },
 
     { type: "text", mime: "text/html", title: t("note_types.text"), selectable: true },
     { type: "relationMap", mime: "application/json", title: t("note_types.relation-map"), selectable: true },
-    { type: "mindMap", mime: "application/json", "title": t("note_types.mind-map"), selectable: true },
-    { type: "render", mime: '', title: t("note_types.render-note"), selectable: true },
-    { type: "canvas", mime: 'application/json', title: t("note_types.canvas"), selectable: true },
-    { type: "mermaid", mime: 'text/mermaid', title: t("note_types.mermaid-diagram"), selectable: true },
-    { type: "book", mime: '', title: t("note_types.book"), selectable: true },
-    { type: "webView", mime: '', title: t("note_types.web-view"), selectable: true },
-    { type: "code", mime: 'text/plain', title: t("note_types.code"), selectable: true }
+    { type: "mindMap", mime: "application/json", title: t("note_types.mind-map"), selectable: true },
+    { type: "render", mime: "", title: t("note_types.render-note"), selectable: true },
+    { type: "canvas", mime: "application/json", title: t("note_types.canvas"), selectable: true },
+    { type: "mermaid", mime: "text/mermaid", title: t("note_types.mermaid-diagram"), selectable: true },
+    { type: "book", mime: "", title: t("note_types.book"), selectable: true },
+    { type: "webView", mime: "", title: t("note_types.web-view"), selectable: true },
+    { type: "geoMap", mime: "application/json", title: t("note_types.geo-map"), selectable: true },
+    { type: "code", mime: "text/plain", title: t("note_types.code"), selectable: true }
 ];
 
-const NOT_SELECTABLE_NOTE_TYPES = NOTE_TYPES.filter(nt => !nt.selectable).map(nt => nt.type);
+const NOT_SELECTABLE_NOTE_TYPES = NOTE_TYPES.filter((nt) => !nt.selectable).map((nt) => nt.type);
 
 const TPL = `
 <div class="dropdown note-type-widget">
@@ -35,7 +36,7 @@ const TPL = `
         overflow-x: hidden;
     }
     </style>
-    <button type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" class="btn btn-sm dropdown-toggle note-type-button">
+    <button type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" class="btn btn-sm dropdown-toggle select-button note-type-button">
         <span class="note-type-desc"></span>
         <span class="caret"></span>
     </button>
@@ -49,18 +50,17 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
 
         this.dropdown = bootstrap.Dropdown.getOrCreateInstance(this.$widget.find("[data-bs-toggle='dropdown']"));
 
-        this.$widget.on('show.bs.dropdown', () => this.renderDropdown());
+        this.$widget.on("show.bs.dropdown", () => this.renderDropdown());
 
         this.$noteTypeDropdown = this.$widget.find(".note-type-dropdown");
         this.$noteTypeButton = this.$widget.find(".note-type-button");
         this.$noteTypeDesc = this.$widget.find(".note-type-desc");
 
-        this.$widget.on('click', '.dropdown-item', () => this.dropdown.toggle());
+        this.$widget.on("click", ".dropdown-item", () => this.dropdown.toggle());
     }
 
     async refreshWithNote(note) {
-        this.$noteTypeButton.prop("disabled",
-            () => NOT_SELECTABLE_NOTE_TYPES.includes(note.type));
+        this.$noteTypeButton.prop("disabled", () => NOT_SELECTABLE_NOTE_TYPES.includes(note.type));
 
         this.$noteTypeDesc.text(await this.findTypeTitle(note.type, note.mime));
 
@@ -71,27 +71,23 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
     async renderDropdown() {
         this.$noteTypeDropdown.empty();
 
-        for (const noteType of NOTE_TYPES.filter(nt => nt.selectable)) {
+        for (const noteType of NOTE_TYPES.filter((nt) => nt.selectable)) {
             let $typeLink;
 
             if (noteType.type !== "code") {
                 $typeLink = $('<a class="dropdown-item">')
                     .attr("data-note-type", noteType.type)
                     .append('<span class="check">&check;</span> ')
-                    .append($('<span>').text(noteType.title))
-                    .on('click', e => {
-                        const type = $typeLink.attr('data-note-type');
-                        const noteType = NOTE_TYPES.find(nt => nt.type === type);
+                    .append($("<span>").text(noteType.title))
+                    .on("click", (e) => {
+                        const type = $typeLink.attr("data-note-type");
+                        const noteType = NOTE_TYPES.find((nt) => nt.type === type);
 
                         this.save(noteType.type, noteType.mime);
                     });
             } else {
-                this.$noteTypeDropdown
-                    .append('<div class="dropdown-divider"></div>');
-                $typeLink = $('<a class="dropdown-item disabled">')
-                    .attr("data-note-type", noteType.type)
-                    .append('<span class="check">&check;</span> ')
-                    .append($('<strong>').text(noteType.title));
+                this.$noteTypeDropdown.append('<div class="dropdown-divider"></div>');
+                $typeLink = $('<a class="dropdown-item disabled">').attr("data-note-type", noteType.type).append('<span class="check">&check;</span> ').append($("<strong>").text(noteType.title));
             }
 
             if (this.note.type === noteType.type) {
@@ -109,14 +105,14 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
             const $mimeLink = $('<a class="dropdown-item">')
                 .attr("data-mime-type", mimeType.mime)
                 .append('<span class="check">&check;</span> ')
-                .append($('<span>').text(mimeType.title))
-                .on('click', e => {
-                    const $link = $(e.target).closest('.dropdown-item');
+                .append($("<span>").text(mimeType.title))
+                .on("click", (e) => {
+                    const $link = $(e.target).closest(".dropdown-item");
 
-                    this.save('code', $link.attr('data-mime-type'));
+                    this.save("code", $link.attr("data-mime-type"));
                 });
 
-            if (this.note.type === 'code' && this.note.mime === mimeType.mime) {
+            if (this.note.type === "code" && this.note.mime === mimeType.mime) {
                 $mimeLink.addClass("selected");
 
                 this.$noteTypeDesc.text(mimeType.title);
@@ -127,14 +123,13 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
     }
 
     async findTypeTitle(type, mime) {
-        if (type === 'code') {
+        if (type === "code") {
             const mimeTypes = mimeTypesService.getMimeTypes();
-            const found = mimeTypes.find(mt => mt.mime === mime);
+            const found = mimeTypes.find((mt) => mt.mime === mime);
 
             return found ? found.title : mime;
-        }
-        else {
-            const noteType = NOTE_TYPES.find(nt => nt.type === type);
+        } else {
+            const noteType = NOTE_TYPES.find((nt) => nt.type === type);
 
             return noteType ? noteType.title : type;
         }
@@ -145,7 +140,7 @@ export default class NoteTypeWidget extends NoteContextAwareWidget {
             return;
         }
 
-        if (type !== this.note.type && !await this.confirmChangeIfContent()) {
+        if (type !== this.note.type && !(await this.confirmChangeIfContent())) {
             return;
         }
 

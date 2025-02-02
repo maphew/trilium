@@ -193,5 +193,9 @@
   "test_sync": {
     "not-configured": "Der Synchronisations-Server-Host ist nicht konfiguriert. Bitte konfiguriere zuerst die Synchronisation.",
     "successful": "Die Server-Verbindung wurde erfolgreich hergestellt, die Synchronisation wurde gestartet."
+  },
+  "backend_log": {
+    "log-does-not-exist": "Die Backend-Log-Datei '{{ fileName }}' existiert (noch) nicht.",
+    "reading-log-failed": "Das Lesen der Backend-Log-Datei '{{ fileName }}' ist fehlgeschlagen."
   }
 }

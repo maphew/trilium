@@ -599,8 +599,8 @@
   "help": {
     "activateNextTab": "activează următorul tab",
     "activatePreviousTab": "activează tabul anterior",
-    "blockQuote": "începeți un rând cu <kbd>></kbd> urmat de spațiu pentru un bloc de citat",
-    "bulletList": "<kbd>*</kbd> sau <kbd>-</kbd> urmat de spațiu pentru o listă punctată",
+    "blockQuote": "începeți un rând cu <code>></code> urmat de spațiu pentru un bloc de citat",
+    "bulletList": "<code>*</code> sau <code>-</code> urmat de spațiu pentru o listă punctată",
     "close": "Închide",
     "closeActiveTab": "închide tabul activ",
     "collapseExpand": "<kbd>LEFT</kbd>, <kbd>RIGHT</kbd> - minimizează/expandează nodul",
@@ -621,7 +621,7 @@
     "fullDocumentation": "Instrucțiuni (documentația completă se regăsește <a class=\"external\" href=\"https://triliumnext.github.io/Docs/\">online</a>)",
     "goBackForwards": "mergi înapoi/înainte în istoric",
     "goUpDown": "<kbd>UP</kbd>, <kbd>DOWN</kbd> - mergi sus/jos în lista de notițe",
-    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  etc. urmat de spațiu pentru titluri",
+    "headings": "<code>##</code>, <code>###</code>, <code>####</code>  etc. urmat de spațiu pentru titluri",
     "inPageSearch": "caută în interiorul paginii",
     "insertDateTime": "inserează data și timpul curente la poziția cursorului",
     "jumpToParentNote": "<kbd>Backspace</kbd> - sari la pagina părinte",
@@ -634,7 +634,7 @@
     "newTabNoteLink": "<kbd>CTRL+clic</kbd> - (sau clic mijlociu) pe o legătură către o notiță va deschide notița într-un tab nou",
     "notSet": "nesetat",
     "noteNavigation": "Navigarea printre notițe",
-    "numberedList": "<kbd>1.</kbd> sau <kbd>1)</kbd> urmat de spațiu pentru o listă numerotată",
+    "numberedList": "<kbd>1.</code> sau <code>1)</code> urmat de spațiu pentru o listă numerotată",
     "onlyInDesktop": "Doar pentru desktop (aplicația Electron)",
     "openEmptyTab": "deschide un tab nou",
     "other": "Altele",
@@ -824,7 +824,8 @@
     "search_in_note": "Caută în notiță",
     "convert_into_attachment_failed": "Nu s-a putut converti notița „{{title}}”.",
     "convert_into_attachment_successful": "Notița „{{title}}” a fost convertită în atașament.",
-    "convert_into_attachment_prompt": "Doriți convertirea notiței „{{title}}” într-un atașament al notiței părinte?"
+    "convert_into_attachment_prompt": "Doriți convertirea notiței „{{title}}” într-un atașament al notiței părinte?",
+    "print_pdf": "Exportare ca PDF..."
   },
   "note_erasure_timeout": {
     "deleted_notes_erased": "Notițele șterse au fost eliminate permanent.",
@@ -851,7 +852,9 @@
   "note_map": {
     "collapse": "Micșorează la dimensiunea normală",
     "open_full": "Expandează la maximum",
-    "title": "Harta notițelor"
+    "title": "Harta notițelor",
+    "fix-nodes": "Fixează nodurile",
+    "link-distance": "Distanța dintre legături"
   },
   "note_paths": {
     "archived": "Arhivat",
@@ -1365,7 +1368,7 @@
     "canvas": "Schiță",
     "code": "Cod sursă",
     "mermaid-diagram": "Diagramă Mermaid",
-    "mind-map": "Hartă mentală (beta)",
+    "mind-map": "Hartă mentală",
     "note-map": "Hartă notițe",
     "relation-map": "Hartă relații",
     "render-note": "Randare notiță",
@@ -1377,7 +1380,8 @@
     "image": "Imagine",
     "launcher": "Scurtătură",
     "widget": "Widget",
-    "confirm-change": "Nu se recomandă schimbarea tipului notiței atunci când ea are un conținut. Procedați oricum?"
+    "confirm-change": "Nu se recomandă schimbarea tipului notiței atunci când ea are un conținut. Procedați oricum?",
+    "geo-map": "Hartă geografică (beta)"
   },
   "protect_note": {
     "toggle-off": "Deprotejează notița",
@@ -1449,7 +1453,11 @@
     "scroll-active-title": "Mergi la notița activă",
     "tree-settings-title": "Setări ale ierarhiei notițelor",
     "auto-collapsing-notes-after-inactivity": "Se minimizează notițele după inactivitate...",
-    "saved-search-note-refreshed": "Notița de căutare salvată a fost reîmprospătată."
+    "saved-search-note-refreshed": "Notița de căutare salvată a fost reîmprospătată.",
+    "create-child-note": "Crează subnotiță",
+    "hoist-this-note-workspace": "Focalizează spațiul de lucru",
+    "refresh-saved-search-results": "Reîmprospătează căutarea salvată",
+    "unhoist": "Defocalizează notița"
   },
   "title_bar_buttons": {
     "window-on-top": "Menține fereastra mereu vizibilă"
@@ -1623,5 +1631,17 @@
   },
   "note_tooltip": {
     "note-has-been-deleted": "Notița a fost ștearsă."
+  },
+  "notes": {
+    "duplicate-note-suffix": "(dupl.)",
+    "duplicate-note-title": "{{ noteTitle }} {{ duplicateNoteSuffix }}"
+  },
+  "geo-map-context": {
+    "open-location": "Deschide locația",
+    "remove-from-map": "Înlătură de pe hartă"
+  },
+  "geo-map": {
+    "create-child-note-title": "Crează o notiță nouă și adaug-o pe hartă",
+    "unable-to-load-map": "Nu s-a putut încărca harta."
   }
 }

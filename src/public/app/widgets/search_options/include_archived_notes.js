@@ -5,7 +5,7 @@ const TPL = `
 <tr data-search-option-conf="includeArchivedNotes">
     <td colspan="2">
         <span class="bx bx-archive"></span>
-        ${t('include_archived_notes.include_archived_notes')}
+        ${t("include_archived_notes.include_archived_notes")}
     </td>
     <td class="button-column">
         <span class="bx bx-x icon-action search-option-del"></span>
@@ -13,11 +13,15 @@ const TPL = `
 </tr>`;
 
 export default class IncludeArchivedNotes extends AbstractSearchOption {
-    static get optionName() { return "includeArchivedNotes" };
-    static get attributeType() { return "label" };
+    static get optionName() {
+        return "includeArchivedNotes";
+    }
+    static get attributeType() {
+        return "label";
+    }
 
     static async create(noteId) {
-        await AbstractSearchOption.setAttribute(noteId,'label', 'includeArchivedNotes');
+        await AbstractSearchOption.setAttribute(noteId, "label", "includeArchivedNotes");
     }
 
     doRender() {

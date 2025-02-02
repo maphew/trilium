@@ -20,11 +20,15 @@ const TPL = `
 </tr>`;
 
 export default class Debug extends AbstractSearchOption {
-    static get optionName() { return "debug" };
-    static get attributeType() { return "label" };
+    static get optionName() {
+        return "debug";
+    }
+    static get attributeType() {
+        return "label";
+    }
 
     static async create(noteId) {
-        await AbstractSearchOption.setAttribute(noteId,'label', 'debug');
+        await AbstractSearchOption.setAttribute(noteId, "label", "debug");
     }
 
     doRender() {

@@ -28,25 +28,21 @@ export default class ButtonFromNoteWidget extends CommandButtonWidget {
             return;
         }
 
-        froca.getNote(buttonNoteId).then(note => {
+        froca.getNote(buttonNoteId).then((note) => {
             this.settings.icon = note.getIcon();
 
             this.refreshIcon();
         });
     }
 
-    entitiesReloadedEvent({loadResults}) {
+    entitiesReloadedEvent({ loadResults }) {
         const buttonNote = froca.getNoteFromCache(this.buttonNoteIdProvider());
 
         if (!buttonNote) {
             return;
         }
 
-        if (loadResults.getAttributeRows(this.componentId).find(attr =>
-            attr.type === 'label'
-            && attr.name === 'iconClass'
-            && attributeService.isAffecting(attr, buttonNote))) {
-
+        if (loadResults.getAttributeRows(this.componentId).find((attr) => attr.type === "label" && attr.name === "iconClass" && attributeService.isAffecting(attr, buttonNote))) {
             this.updateIcon();
         }
     }

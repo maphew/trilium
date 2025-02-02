@@ -1,8 +1,7 @@
-import Component, { TypedComponent } from "../../components/component.js";
+import type { default as Component, TypedComponent } from "../../components/component.js";
 import BasicWidget, { TypedBasicWidget } from "../basic_widget.js";
 
 export default class Container<T extends TypedComponent<any>> extends TypedBasicWidget<T> {
-
     doRender() {
         this.$widget = $(`<div>`);
         this.renderChildren();
@@ -20,11 +19,9 @@ export default class Container<T extends TypedComponent<any>> extends TypedBasic
                 if ("render" in widget) {
                     this.$widget.append(typedWidget.render());
                 }
-
             } catch (e: any) {
                 typedWidget.logRenderingError(e);
             }
         }
     }
-
 }

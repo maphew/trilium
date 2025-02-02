@@ -66,17 +66,19 @@ const TPL = `
     }
     </style>
 
-    <div class="note-detail-readonly-text-content ck-content"></div>
+    <div class="note-detail-readonly-text-content ck-content use-tn-links"></div>
 </div>
 `;
 
 export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
-    static getType() { return "readOnlyText"; }
+    static getType() {
+        return "readOnlyText";
+    }
 
     doRender() {
         this.$widget = $(TPL);
 
-        this.$content = this.$widget.find('.note-detail-readonly-text-content');
+        this.$content = this.$widget.find(".note-detail-readonly-text-content");
 
         this.setupImageOpening(true);
 
@@ -84,7 +86,7 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
     }
 
     cleanup() {
-        this.$content.html('');
+        this.$content.html("");
     }
 
     async doRefresh(note) {
@@ -102,15 +104,15 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
         });
 
         this.$content.find("section").each(async (_, el) => {
-            const noteId = $(el).attr('data-note-id');
+            const noteId = $(el).attr("data-note-id");
 
             this.loadIncludedNote(noteId, $(el));
         });
 
-        if (this.$content.find('span.math-tex').length > 0) {
+        if (this.$content.find("span.math-tex").length > 0) {
             await libraryLoader.requireLibrary(libraryLoader.KATEX);
 
-            renderMathInElement(this.$content[0], {trust: true});
+            renderMathInElement(this.$content[0], { trust: true });
         }
 
         await this.#applyInlineMermaid();
@@ -133,11 +135,11 @@ export default class ReadOnlyTextTypeWidget extends AbstractTextTypeWidget {
         mermaid.init(getMermaidConfig(), this.$content.find(".mermaid-diagram"));
     }
 
-    async refreshIncludedNoteEvent({noteId}) {
+    async refreshIncludedNoteEvent({ noteId }) {
         this.refreshIncludedNote(this.$content, noteId);
     }
 
-    async executeWithContentElementEvent({resolve, ntxId}) {
+    async executeWithContentElementEvent({ resolve, ntxId }) {
         if (!this.isNoteContext(ntxId)) {
             return;
         }

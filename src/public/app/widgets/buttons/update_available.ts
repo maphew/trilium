@@ -25,7 +25,7 @@ const TPL = `
         }
     </style>
 
-    <span class="bx bx-sync global-menu-button-update-available-button" title="${t('update_available.update_available')}"></span>
+    <span class="bx bx-sync global-menu-button-update-available-button" title="${t("update_available.update_available")}"></span>
 </div>
 `;
 

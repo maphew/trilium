@@ -1,5 +1,5 @@
-import utils from '../services/utils.js';
-import { CommandMappings, CommandNames } from './app_context.js';
+import utils from "../services/utils.js";
+import type { CommandMappings, CommandNames, EventData, EventNames } from "./app_context.js";
 
 /**
  * Abstract class for all components in the Trilium's frontend.
@@ -28,7 +28,7 @@ export class TypedComponent<ChildT extends TypedComponent<ChildT>> {
 
     get sanitizedClassName() {
         // webpack mangles names and sometimes uses unsafe characters
-        return this.constructor.name.replace(/[^A-Z0-9]/ig, "_");
+        return this.constructor.name.replace(/[^A-Z0-9]/gi, "_");
     }
 
     setParent(parent: TypedComponent<any>) {
@@ -46,35 +46,30 @@ export class TypedComponent<ChildT extends TypedComponent<ChildT>> {
         return this;
     }
 
-    handleEvent(name: string, data: unknown): Promise<unknown> | null {
+    handleEvent<T extends EventNames>(name: T, data: EventData<T>): Promise<unknown[] | unknown> | null | undefined {
         try {
-            const callMethodPromise = this.initialized
-                ? this.initialized.then(() => this.callMethod((this as any)[`${name}Event`], data))
-                : this.callMethod((this as any)[`${name}Event`], data);
+            const callMethodPromise = this.initialized ? this.initialized.then(() => this.callMethod((this as any)[`${name}Event`], data)) : this.callMethod((this as any)[`${name}Event`], data);
 
             const childrenPromise = this.handleEventInChildren(name, data);
 
             // don't create promises if not needed (optimization)
-            return callMethodPromise && childrenPromise
-                ? Promise.all([callMethodPromise, childrenPromise])
-                : (callMethodPromise || childrenPromise);
-        }
-        catch (e: any) {
+            return callMethodPromise && childrenPromise ? Promise.all([callMethodPromise, childrenPromise]) : callMethodPromise || childrenPromise;
+        } catch (e: any) {
             console.error(`Handling of event '${name}' failed in ${this.constructor.name} with error ${e.message} ${e.stack}`);
 
             return null;
         }
     }
 
-    triggerEvent(name: string, data = {}): Promise<unknown> | undefined | null {
+    triggerEvent<T extends EventNames>(name: T, data: EventData<T>): Promise<unknown> | undefined | null {
         return this.parent?.triggerEvent(name, data);
     }
 
-    handleEventInChildren(name: string, data: unknown = {}) {
-        const promises = [];
+    handleEventInChildren<T extends EventNames>(name: T, data: EventData<T>): Promise<unknown[] | unknown> | null {
+        const promises: Promise<unknown>[] = [];
 
         for (const child of this.children) {
-            const ret = child.handleEvent(name, data);
+            const ret = child.handleEvent(name, data) as Promise<void>;
 
             if (ret) {
                 promises.push(ret);
@@ -101,7 +96,7 @@ export class TypedComponent<ChildT extends TypedComponent<ChildT>> {
     }
 
     callMethod(fun: (arg: unknown) => Promise<unknown>, data: unknown) {
-        if (typeof fun !== 'function') {
+        if (typeof fun !== "function") {
             return;
         }
 
@@ -111,7 +106,8 @@ export class TypedComponent<ChildT extends TypedComponent<ChildT>> {
 
         const took = Date.now() - startTime;
 
-        if (glob.isDev && took > 20) { // measuring only sync handlers
+        if (glob.isDev && took > 20) {
+            // measuring only sync handlers
             console.log(`Call to ${fun.name} in ${this.componentId} took ${took}ms`);
         }
 

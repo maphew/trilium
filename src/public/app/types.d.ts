@@ -43,6 +43,7 @@ interface CustomGlobals {
     appCssNoteIds: string[];
     triliumVersion: string;
     TRILIUM_SAFE_MODE: boolean;
+    platform?: typeof process.platform;
 }
 
 type RequireMethod = (moduleName: string) => any;
@@ -155,13 +156,12 @@ declare global {
         registerLayoutLoaders(loader: MermaidLoader);
         parse(content: string, opts: {
             suppressErrors: true
-        }): {
+        }): Promise<{
             config: {
                 layout: string;
             }
-        }
+        }>
     };
-    var MERMAID_ELK: MermaidLoader;
 
     var CKEditor: {
         BalloonEditor: {

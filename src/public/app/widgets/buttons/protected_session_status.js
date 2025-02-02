@@ -8,17 +8,11 @@ export default class ProtectedSessionStatusWidget extends CommandButtonWidget {
 
         this.class("launcher-button");
 
-        this.settings.icon = () => protectedSessionHolder.isProtectedSessionAvailable()
-            ? "bx-check-shield"
-            : "bx-shield-quarter";
+        this.settings.icon = () => (protectedSessionHolder.isProtectedSessionAvailable() ? "bx-check-shield" : "bx-shield-quarter");
 
-        this.settings.title = () => protectedSessionHolder.isProtectedSessionAvailable()
-            ? t("protected_session_status.active")
-            : t("protected_session_status.inactive");
+        this.settings.title = () => (protectedSessionHolder.isProtectedSessionAvailable() ? t("protected_session_status.active") : t("protected_session_status.inactive"));
 
-        this.settings.command = () => protectedSessionHolder.isProtectedSessionAvailable()
-            ? "leaveProtectedSession"
-            : "enterProtectedSession";
+        this.settings.command = () => (protectedSessionHolder.isProtectedSessionAvailable() ? "leaveProtectedSession" : "enterProtectedSession");
     }
 
     protectedSessionStartedEvent() {

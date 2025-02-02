@@ -1,5 +1,5 @@
-import BasicWidget from "./basic_widget.js";
-import AbstractButtonWidget from "./buttons/abstract_button.js";
+import type BasicWidget from "./basic_widget.js";
+import type AbstractButtonWidget from "./buttons/abstract_button.js";
 import NoteContextAwareWidget from "./note_context_aware_widget.js";
 
 const WIDGET_TPL = `
@@ -18,18 +18,23 @@ const WIDGET_TPL = `
  * This widget manages rendering panels in the right-hand pane.
  */
 class RightPanelWidget extends NoteContextAwareWidget {
-
     private $bodyWrapper!: JQuery<HTMLElement>;
     $body!: JQuery<HTMLElement>;
     private $title!: JQuery<HTMLElement>;
     private $buttons!: JQuery<HTMLElement>;
 
     /** Title to show in the panel. */
-    get widgetTitle() { return "Untitled widget"; }
+    get widgetTitle() {
+        return "Untitled widget";
+    }
 
-    get widgetButtons(): AbstractButtonWidget<any>[] { return []; }
+    get widgetButtons(): AbstractButtonWidget<any>[] {
+        return [];
+    }
 
-    get help() { return {}; }
+    get help() {
+        return {};
+    }
 
     constructor() {
         super();
@@ -44,24 +49,24 @@ class RightPanelWidget extends NoteContextAwareWidget {
     doRender() {
         this.$widget = $(WIDGET_TPL);
         this.contentSized();
-        this.$widget.find('[data-target]').attr('data-target', `#${this.componentId}`);
+        this.$widget.find("[data-target]").attr("data-target", `#${this.componentId}`);
 
-        this.$bodyWrapper = this.$widget.find('.body-wrapper');
-        this.$bodyWrapper.attr('id', this.componentId); // for toggle to work we need id
+        this.$bodyWrapper = this.$widget.find(".body-wrapper");
+        this.$bodyWrapper.attr("id", this.componentId); // for toggle to work we need id
 
-        this.$body = this.$bodyWrapper.find('.card-body');
+        this.$body = this.$bodyWrapper.find(".card-body");
 
-        this.$title = this.$widget.find('.card-header .card-header-title');
+        this.$title = this.$widget.find(".card-header .card-header-title");
         this.$title.text(this.widgetTitle);
 
-        this.$buttons = this.$widget.find('.card-header .card-header-buttons');
+        this.$buttons = this.$widget.find(".card-header .card-header-buttons");
         this.$buttons.empty();
 
         for (const buttonWidget of this.children) {
             this.$buttons.append((buttonWidget as BasicWidget).render());
         }
 
-        this.initialized = this.doRenderBody().catch(e => {
+        this.initialized = this.doRenderBody().catch((e) => {
             this.logRenderingError(e);
         });
     }

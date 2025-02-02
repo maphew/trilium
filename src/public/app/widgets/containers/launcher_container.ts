@@ -1,6 +1,6 @@
 import FlexContainer from "./flex_container.js";
 import froca from "../../services/froca.js";
-import appContext, { EventData } from "../../components/app_context.js";
+import appContext, { type EventData } from "../../components/app_context.js";
 import LauncherWidget from "./launcher.js";
 import utils from "../../services/utils.js";
 
@@ -10,8 +10,8 @@ export default class LauncherContainer extends FlexContainer<LauncherWidget> {
     constructor(isHorizontalLayout: boolean) {
         super(isHorizontalLayout ? "row" : "column");
 
-        this.id('launcher-container');
-        this.css(isHorizontalLayout ? "width" : 'height', '100%');
+        this.id("launcher-container");
+        this.css(isHorizontalLayout ? "width" : "height", "100%");
         this.filling();
         this.isHorizontalLayout = isHorizontalLayout;
 
@@ -21,7 +21,7 @@ export default class LauncherContainer extends FlexContainer<LauncherWidget> {
     async load() {
         await froca.initializedPromise;
 
-        const visibleLaunchersRootId = utils.isMobile() ? '_lbMobileVisibleLaunchers' : '_lbVisibleLaunchers';
+        const visibleLaunchersRootId = utils.isMobile() ? "_lbMobileVisibleLaunchers" : "_lbVisibleLaunchers";
         const visibleLaunchersRoot = await froca.getNote(visibleLaunchersRootId, true);
 
         if (!visibleLaunchersRoot) {
@@ -40,8 +40,7 @@ export default class LauncherContainer extends FlexContainer<LauncherWidget> {
                 if (success) {
                     newChildren.push(launcherWidget);
                 }
-            }
-            catch (e) {
+            } catch (e) {
                 console.error(e);
             }
         }
@@ -52,17 +51,17 @@ export default class LauncherContainer extends FlexContainer<LauncherWidget> {
         this.$widget.empty();
         this.renderChildren();
 
-        await this.handleEventInChildren('initialRenderComplete');
+        await this.handleEventInChildren("initialRenderComplete", {});
 
         const activeContext = appContext.tabManager.getActiveContext();
 
         if (activeContext) {
-            await this.handleEvent('setNoteContext', {
+            await this.handleEvent("setNoteContext", {
                 noteContext: activeContext
             });
 
             if (activeContext.notePath) {
-                await this.handleEvent('noteSwitched', {
+                await this.handleEvent("noteSwitched", {
                     noteContext: activeContext,
                     notePath: activeContext.notePath
                 });
@@ -70,8 +69,8 @@ export default class LauncherContainer extends FlexContainer<LauncherWidget> {
         }
     }
 
-    entitiesReloadedEvent({loadResults}: EventData<"entitiesReloaded">) {
-        if (loadResults.getBranchRows().find(branch => branch.parentNoteId && froca.getNoteFromCache(branch.parentNoteId)?.isLaunchBarConfig())) {
+    entitiesReloadedEvent({ loadResults }: EventData<"entitiesReloaded">) {
+        if (loadResults.getBranchRows().find((branch) => branch.parentNoteId && froca.getNoteFromCache(branch.parentNoteId)?.isLaunchBarConfig())) {
             // changes in note placement require reload of all launchers, all other changes are handled by individual
             // launchers
             this.load();

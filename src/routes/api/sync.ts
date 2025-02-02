@@ -11,8 +11,8 @@ import log from "../../services/log.js";
 import syncOptions from "../../services/sync_options.js";
 import utils from "../../services/utils.js";
 import ws from "../../services/ws.js";
-import { Request } from 'express';
-import { EntityChange } from '../../services/entity_changes_interface.js';
+import type { Request } from "express";
+import type { EntityChange } from "../../services/entity_changes_interface.js";
 import ValidationError from "../../errors/validation_error.js";
 import consistencyChecksService from "../../services/consistency_checks.js";
 import { t } from "i18next";
@@ -30,8 +30,7 @@ async function testSync() {
         syncService.sync();
 
         return { success: true, message: t("test_sync.successful") };
-    }
-    catch (e: any) {
+    } catch (e: any) {
         return {
             success: false,
             message: e.message
@@ -46,7 +45,7 @@ function getStats() {
     }
 
     const stats = {
-        initialized: sql.getValue("SELECT value FROM options WHERE name = 'initialized'") === 'true',
+        initialized: sql.getValue("SELECT value FROM options WHERE name = 'initialized'") === "true",
         outstandingPullCount: syncService.getOutstandingPullCount()
     };
 
@@ -58,7 +57,7 @@ function getStats() {
 function checkSync() {
     return {
         entityHashes: contentHashService.getEntityHashes(),
-        maxEntityChangeId: sql.getValue('SELECT COALESCE(MAX(id), 0) FROM entity_changes WHERE isSynced = 1')
+        maxEntityChangeId: sql.getValue("SELECT COALESCE(MAX(id), 0) FROM entity_changes WHERE isSynced = 1")
     };
 }
 
@@ -78,8 +77,8 @@ function fillEntityChanges() {
 }
 
 function forceFullSync() {
-    optionService.setOption('lastSyncedPull', 0);
-    optionService.setOption('lastSyncedPush', 0);
+    optionService.setOption("lastSyncedPull", 0);
+    optionService.setOption("lastSyncedPush", 0);
 
     log.info("Forcing full sync.");
 
@@ -99,19 +98,22 @@ function getChanged(req: Request) {
     let filteredEntityChanges: EntityChange[] = [];
 
     do {
-        const entityChanges: EntityChange[] = sql.getRows<EntityChange>(`
+        const entityChanges: EntityChange[] = sql.getRows<EntityChange>(
+            `
             SELECT *
             FROM entity_changes
             WHERE isSynced = 1
             AND id > ?
             ORDER BY id
-            LIMIT 1000`, [lastEntityChangeId]);
+            LIMIT 1000`,
+            [lastEntityChangeId]
+        );
 
         if (entityChanges.length === 0) {
             break;
         }
 
-        filteredEntityChanges = entityChanges.filter(ec => ec.instanceId !== clientInstanceId);
+        filteredEntityChanges = entityChanges.filter((ec) => ec.instanceId !== clientInstanceId);
 
         if (filteredEntityChanges.length === 0) {
             lastEntityChangeId = entityChanges[entityChanges.length - 1].id;
@@ -129,28 +131,34 @@ function getChanged(req: Request) {
     return {
         entityChanges: entityChangeRecords,
         lastEntityChangeId,
-        outstandingPullCount: sql.getValue(`
+        outstandingPullCount: sql.getValue(
+            `
             SELECT COUNT(id)
             FROM entity_changes
             WHERE isSynced = 1
             AND instanceId != ?
-            AND id > ?`, [clientInstanceId, lastEntityChangeId])
+            AND id > ?`,
+            [clientInstanceId, lastEntityChangeId]
+        )
     };
 }
 
-const partialRequests: Record<string, {
-    createdAt: number,
-    payload: string
-}> = {};
+const partialRequests: Record<
+    string,
+    {
+        createdAt: number;
+        payload: string;
+    }
+> = {};
 
 function update(req: Request) {
     let { body } = req;
 
-    const pageCount = parseInt(req.get('pageCount') as string);
-    const pageIndex = parseInt(req.get('pageIndex') as string);
+    const pageCount = parseInt(req.get("pageCount") as string);
+    const pageIndex = parseInt(req.get("pageIndex") as string);
 
     if (pageCount !== 1) {
-        const requestId = req.get('requestId');
+        const requestId = req.get("requestId");
         if (!requestId) {
             throw new Error("Missing request ID.");
         }
@@ -158,7 +166,7 @@ function update(req: Request) {
         if (pageIndex === 0) {
             partialRequests[requestId] = {
                 createdAt: Date.now(),
-                payload: ''
+                payload: ""
             };
         }
 
@@ -172,8 +180,7 @@ function update(req: Request) {
 
         if (pageIndex !== pageCount - 1) {
             return;
-        }
-        else {
+        } else {
             body = JSON.parse(partialRequests[requestId].payload);
             delete partialRequests[requestId];
         }

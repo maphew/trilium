@@ -20,14 +20,16 @@ const TPL = `
 </div>`;
 
 export default class WebViewTypeWidget extends TypeWidget {
-    static getType() { return "webView"; }
+    static getType() {
+        return "webView";
+    }
 
     doRender() {
         this.$widget = $(TPL);
-        this.$noteDetailWebViewHelp = this.$widget.find('.note-detail-web-view-help');
-        this.$noteDetailWebViewContent = this.$widget.find('.note-detail-web-view-content');
+        this.$noteDetailWebViewHelp = this.$widget.find(".note-detail-web-view-help");
+        this.$noteDetailWebViewContent = this.$widget.find(".note-detail-web-view-content");
 
-        window.addEventListener('resize', () => this.setDimensions(), false);
+        window.addEventListener("resize", () => this.setDimensions(), false);
 
         super.doRender();
     }
@@ -37,12 +39,10 @@ export default class WebViewTypeWidget extends TypeWidget {
         this.$noteDetailWebViewHelp.hide();
         this.$noteDetailWebViewContent.hide();
 
-        const webViewSrc = this.note.getLabelValue('webViewSrc');
+        const webViewSrc = this.note.getLabelValue("webViewSrc");
 
         if (webViewSrc) {
-            this.$noteDetailWebViewContent
-                .show()
-                .attr("src", webViewSrc);
+            this.$noteDetailWebViewContent.show().attr("src", webViewSrc);
         } else {
             this.$noteDetailWebViewContent.hide();
             this.$noteDetailWebViewHelp.show();
@@ -60,13 +60,11 @@ export default class WebViewTypeWidget extends TypeWidget {
     setDimensions() {
         const $parent = this.$widget;
 
-        this.$noteDetailWebViewContent
-            .height($parent.height())
-            .width($parent.width());
+        this.$noteDetailWebViewContent.height($parent.height()).width($parent.width());
     }
 
-    entitiesReloadedEvent({loadResults}) {
-        if (loadResults.getAttributeRows().find(attr => attr.name === 'webViewSrc' && attributeService.isAffecting(attr, this.noteContext.note))) {
+    entitiesReloadedEvent({ loadResults }) {
+        if (loadResults.getAttributeRows().find((attr) => attr.name === "webViewSrc" && attributeService.isAffecting(attr, this.noteContext.note))) {
             this.refresh();
         }
     }

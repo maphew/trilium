@@ -1,5 +1,5 @@
-import { CommandNames } from "../../components/app_context.js";
-import { MenuCommandItem } from "../../menus/context_menu.js";
+import type { CommandNames } from "../../components/app_context.js";
+import type { MenuCommandItem } from "../../menus/context_menu.js";
 import { t } from "../../services/i18n.js";
 import noteTypesService from "../../services/note_types.js";
 import BasicWidget from "../basic_widget.js";
@@ -52,7 +52,6 @@ export interface ChooseNoteTypeResponse {
 type Callback = (data: ChooseNoteTypeResponse) => void;
 
 export default class NoteTypeChooserDialog extends BasicWidget {
-
     private resolve: Callback | null;
     private dropdown!: bootstrap.Dropdown;
     private modal!: JQuery<HTMLElement>;
@@ -85,30 +84,30 @@ export default class NoteTypeChooserDialog extends BasicWidget {
             }
 
             if (this.$originalFocused) {
-                this.$originalFocused.trigger('focus');
+                this.$originalFocused.trigger("focus");
                 this.$originalFocused = null;
             }
 
             glob.activeDialog = this.$originalDialog;
         });
 
-        this.$noteTypeDropdown.on('click', '.dropdown-item', e => this.doResolve(e));
+        this.$noteTypeDropdown.on("click", ".dropdown-item", (e) => this.doResolve(e));
 
-        this.$noteTypeDropdown.on('focus', '.dropdown-item', e => {
-            this.$noteTypeDropdown.find('.dropdown-item').each((i, el) => {
-                $(el).toggleClass('active', el === e.target);
+        this.$noteTypeDropdown.on("focus", ".dropdown-item", (e) => {
+            this.$noteTypeDropdown.find(".dropdown-item").each((i, el) => {
+                $(el).toggleClass("active", el === e.target);
             });
         });
 
-        this.$noteTypeDropdown.on('keydown', '.dropdown-item', e => {
-            if (e.key === 'Enter') {
+        this.$noteTypeDropdown.on("keydown", ".dropdown-item", (e) => {
+            if (e.key === "Enter") {
                 this.doResolve(e);
                 e.preventDefault();
                 return false;
             }
         });
 
-        this.$noteTypeDropdown.parent().on('hide.bs.dropdown', e => {
+        this.$noteTypeDropdown.parent().on("hide.bs.dropdown", (e) => {
             // prevent closing dropdown by clicking outside
             // TODO: Check if this actually works.
             //@ts-ignore
@@ -119,17 +118,17 @@ export default class NoteTypeChooserDialog extends BasicWidget {
     }
 
     async chooseNoteTypeEvent({ callback }: { callback: Callback }) {
-        this.$originalFocused = $(':focus');
+        this.$originalFocused = $(":focus");
 
         const noteTypes = await noteTypesService.getNoteTypeItems();
 
         this.$noteTypeDropdown.empty();
 
         for (const noteType of noteTypes) {
-            if (noteType.title === '----') {
+            if (noteType.title === "----") {
                 this.$noteTypeDropdown.append($('<h6 class="dropdown-header">').append(t("note_type_chooser.templates")));
             } else {
-                const commandItem = (noteType as MenuCommandItem<CommandNames>)
+                const commandItem = noteType as MenuCommandItem<CommandNames>;
                 this.$noteTypeDropdown.append(
                     $('<a class="dropdown-item" tabindex="0">')
                         .attr("data-note-type", commandItem.type || "")

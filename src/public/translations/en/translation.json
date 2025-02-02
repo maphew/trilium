@@ -109,7 +109,8 @@
     "choose_export_type": "Choose export type first please",
     "export_status": "Export status",
     "export_in_progress": "Export in progress: {{progressCount}}",
-    "export_finished_successfully": "Export finished successfully."
+    "export_finished_successfully": "Export finished successfully.",
+    "format_pdf": "PDF - for printing or sharing purposes."
   },
   "help": {
     "fullDocumentation": "Help (full documentation is available <a class=\"external\" href=\"https://triliumnext.github.io/Docs/\">online</a>)",
@@ -153,10 +154,10 @@
     "insertDateTime": "insert current date and time at caret position",
     "jumpToTreePane": "jump away to the tree pane and scroll to active note",
     "markdownAutoformat": "Markdown-like autoformatting",
-    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  etc. followed by space for headings",
-    "bulletList": "<kbd>*</kbd> or <kbd>-</kbd> followed by space for bullet list",
-    "numberedList": "<kbd>1.</kbd> or <kbd>1)</kbd> followed by space for numbered list",
-    "blockQuote": "start a line with <kbd>></kbd> followed by space for block quote",
+    "headings": "<code>##</code>, <code>###</code>, <code>####</code>  etc. followed by space for headings",
+    "bulletList": "<code>*</code> or <code>-</code> followed by space for bullet list",
+    "numberedList": "<code>1.</code> or <code>1)</code> followed by space for numbered list",
+    "blockQuote": "start a line with <code>></code> followed by space for block quote",
     "troubleshooting": "Troubleshooting",
     "reloadFrontend": "reload Trilium frontend",
     "showDevTools": "show developer tools",
@@ -437,7 +438,9 @@
     "share_favicon": "Favicon note to be set in the shared page. Typically you want to set it to share root and make it inheritable. Favicon note must be in the shared sub-tree as well. Consider using 'share_hidden_from_tree'.",
     "is_owned_by_note": "is owned by note",
     "other_notes_with_name": "Other notes with {{attributeType}} name \"{{attributeName}}\"",
-    "and_more": "... and {{count}} more."
+    "and_more": "... and {{count}} more.",
+    "print_landscape": "When exporting to PDF, changes the orientation of the page to landscape instead of portrait.",
+    "print_page_size": "When exporting to PDF, changes the size of the page. Supported values: <code>A0</code>, <code>A1</code>, <code>A2</code>, <code>A3</code>, <code>A4</code>, <code>A5</code>, <code>A6</code>, <code>Legal</code>, <code>Letter</code>, <code>Tabloid</code>, <code>Ledger</code>."
   },
   "attribute_editor": {
     "help_text_body1": "To add label, just type e.g. <code>#rock</code> or if you want to add also value then e.g. <code>#year = 2020</code>",
@@ -672,7 +675,8 @@
     "save_revision": "Save revision",
     "convert_into_attachment_failed": "Converting note '{{title}}' failed.",
     "convert_into_attachment_successful": "Note '{{title}}' has been converted to attachment.",
-    "convert_into_attachment_prompt": "Are you sure you want to convert note '{{title}}' into an attachment of the parent note?"
+    "convert_into_attachment_prompt": "Are you sure you want to convert note '{{title}}' into an attachment of the parent note?",
+    "print_pdf": "Export as PDF..."
   },
   "onclick_button": {
     "no_click_handler": "Button widget '{{componentId}}' has no defined click handler"
@@ -795,7 +799,9 @@
   "note_map": {
     "open_full": "Expand to full",
     "collapse": "Collapse to normal size",
-    "title": "Note Map"
+    "title": "Note Map",
+    "fix-nodes": "Fix nodes",
+    "link-distance": "Link distance"
   },
   "note_paths": {
     "title": "Note Paths",
@@ -1401,13 +1407,14 @@
     "mermaid-diagram": "Mermaid Diagram",
     "canvas": "Canvas",
     "web-view": "Web View",
-    "mind-map": "Mind Map (Beta)",
+    "mind-map": "Mind Map",
     "file": "File",
     "image": "Image",
     "launcher": "Launcher",
     "doc": "Doc",
     "widget": "Widget",
-    "confirm-change": "It is not recommended to change note type when note content is not empty. Do you want to continue anyway?"
+    "confirm-change": "It is not recommended to change note type when note content is not empty. Do you want to continue anyway?",
+    "geo-map": "Geo Map (beta)"
   },
   "protect_note": {
     "toggle-on": "Protect the note",
@@ -1459,7 +1466,11 @@
     "automatically-collapse-notes-title": "Notes will be collapsed after period of inactivity to declutter the tree.",
     "save-changes": "Save & apply changes",
     "auto-collapsing-notes-after-inactivity": "Auto collapsing notes after inactivity...",
-    "saved-search-note-refreshed": "Saved search note refreshed."
+    "saved-search-note-refreshed": "Saved search note refreshed.",
+    "hoist-this-note-workspace": "Hoist this note (workspace)",
+    "refresh-saved-search-results": "Refresh saved search results",
+    "create-child-note": "Create child note",
+    "unhoist": "Unhoist"
   },
   "title_bar_buttons": {
     "window-on-top": "Keep Window on Top"
@@ -1623,5 +1634,14 @@
   },
   "note_tooltip": {
     "note-has-been-deleted": "Note has been deleted."
+  },
+  "geo-map": {
+    "create-child-note-title": "Create a new child note and add it to the map",
+    "create-child-note-instruction": "Click on the map to create a new note at that location or press Escape to dismiss.",
+    "unable-to-load-map": "Unable to load map."
+  },
+  "geo-map-context": {
+    "open-location": "Open location",
+    "remove-from-map": "Remove from map"
   }
 }

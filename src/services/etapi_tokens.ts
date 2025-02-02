@@ -8,7 +8,7 @@ function getTokens() {
 }
 
 function getTokenHash(token: crypto.BinaryLike) {
-    return crypto.createHash('sha256').update(token).digest('base64');
+    return crypto.createHash("sha256").update(token).digest("base64");
 }
 
 function createToken(tokenName: string) {
@@ -52,14 +52,12 @@ function parseAuthToken(auth: string | undefined) {
 
     if (chunks.length === 1) {
         return { token: auth }; // legacy format without etapiTokenId
-    }
-    else if (chunks.length === 2) {
+    } else if (chunks.length === 2) {
         return {
             etapiTokenId: chunks[0],
             token: chunks[1]
-        }
-    }
-    else {
+        };
+    } else {
         return null; // wrong format
     }
 }
@@ -81,8 +79,7 @@ function isValidAuthHeader(auth: string | undefined) {
         }
 
         return etapiToken.tokenHash === authTokenHash;
-    }
-    else {
+    } else {
         for (const etapiToken of becca.getEtapiTokens()) {
             if (etapiToken.tokenHash === authTokenHash) {
                 return true;

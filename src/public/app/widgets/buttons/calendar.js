@@ -40,7 +40,9 @@ const DROPDOWN_TPL = `
                 aria-expanded="false"
                 data-calendar-input="month"></button>
             <ul class="dropdown-menu" data-calendar-input="month-list">
-                ${Object.entries(MONTHS).map(([i, month]) => `<li><button class="dropdown-item" data-value=${i}>${month}</button></li>`).join("")}
+                ${Object.entries(MONTHS)
+                    .map(([i, month]) => `<li><button class="dropdown-item" data-value=${i}>${month}</button></li>`)
+                    .join("")}
             </ul>
 
             <button class="calendar-btn bx bx-chevron-right" data-calendar-toggle="next"></button>
@@ -61,15 +63,7 @@ const DROPDOWN_TPL = `
     <div class="calendar-body" data-calendar-area="month"></div>
 </div>`;
 
-const DAYS_OF_WEEK = [
-    t("calendar.sun"),
-    t("calendar.mon"),
-    t("calendar.tue"),
-    t("calendar.wed"),
-    t("calendar.thu"),
-    t("calendar.fri"),
-    t("calendar.sat")
-];
+const DAYS_OF_WEEK = [t("calendar.sun"), t("calendar.mon"), t("calendar.tue"), t("calendar.wed"), t("calendar.thu"), t("calendar.fri"), t("calendar.sat")];
 
 export default class CalendarWidget extends RightDropdownButtonWidget {
     constructor(title, icon) {
@@ -91,18 +85,18 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
             e.stopPropagation();
         });
         this.monthDropdown = bootstrap.Dropdown.getOrCreateInstance(this.$monthSelect);
-        this.$dropdownContent.find('[data-calendar-input="month-list"] button').on("click", (e) => {            
+        this.$dropdownContent.find('[data-calendar-input="month-list"] button').on("click", (e) => {
             this.date.setMonth(e.target.dataset.value);
             this.createMonth();
             this.monthDropdown.hide();
         });
         this.$next = this.$dropdownContent.find('[data-calendar-toggle="next"]');
-        this.$next.on('click', () => {
+        this.$next.on("click", () => {
             this.date.setMonth(this.date.getMonth() + 1);
             this.createMonth();
         });
         this.$previous = this.$dropdownContent.find('[data-calendar-toggle="previous"]');
-        this.$previous.on('click', e => {
+        this.$previous.on("click", (e) => {
             this.date.setMonth(this.date.getMonth() - 1);
             this.createMonth();
         });
@@ -114,34 +108,33 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
             this.createMonth();
         });
         this.$nextYear = this.$dropdownContent.find('[data-calendar-toggle="nextYear"]');
-        this.$nextYear.on('click', () => {
+        this.$nextYear.on("click", () => {
             this.date.setFullYear(this.date.getFullYear() + 1);
             this.createMonth();
         });
         this.$previousYear = this.$dropdownContent.find('[data-calendar-toggle="previousYear"]');
-        this.$previousYear.on('click', e => {
+        this.$previousYear.on("click", (e) => {
             this.date.setFullYear(this.date.getFullYear() - 1);
             this.createMonth();
         });
 
-        this.$dropdownContent.find('.calendar-header').on("click", e => e.stopPropagation());
+        this.$dropdownContent.find(".calendar-header").on("click", (e) => e.stopPropagation());
 
-        this.$dropdownContent.on('click', '.calendar-date', async ev => {
-            const date = $(ev.target).closest('.calendar-date').attr('data-calendar-date');
+        this.$dropdownContent.on("click", ".calendar-date", async (ev) => {
+            const date = $(ev.target).closest(".calendar-date").attr("data-calendar-date");
 
             const note = await dateNoteService.getDayNote(date);
 
             if (note) {
                 appContext.tabManager.getActiveContext().setNote(note.noteId);
                 this.dropdown.hide();
-            }
-            else {
+            } else {
                 toastService.showError(t("calendar.cannot_find_day_note"));
             }
 
             ev.stopPropagation();
-        });  
-        
+        });
+
         // Prevent dismissing the calendar popup by clicking on an empty space inside it.
         this.$dropdownContent.on("click", (e) => e.stopPropagation());
     }
@@ -175,10 +168,8 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
     }
 
     createDay(dateNotesForMonth, num, day) {
-        const $newDay = $('<a>')
-            .addClass("calendar-date")
-            .attr('data-calendar-date', utils.formatDateISO(this.date));
-        const $date = $('<span>').html(num);
+        const $newDay = $("<a>").addClass("calendar-date").attr("data-calendar-date", utils.formatDateISO(this.date));
+        const $date = $("<span>").html(num);
 
         // if it's the first day of the month
         if (num === 1) {
@@ -187,24 +178,23 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
             // 1  2  3  4  5  6  0
             // Mo Tu We Th Fr Sa Su
             let dayOffset = day - this.firstDayOfWeek;
-            if (dayOffset < 0)
-                dayOffset = 7 + dayOffset;
-            $newDay.css("marginLeft", (dayOffset * 14.28) + '%');
+            if (dayOffset < 0) dayOffset = 7 + dayOffset;
+            $newDay.css("marginLeft", dayOffset * 14.28 + "%");
         }
 
         const dateNoteId = dateNotesForMonth[utils.formatDateISO(this.date)];
 
         if (dateNoteId) {
-            $newDay.addClass('calendar-date-exists');
+            $newDay.addClass("calendar-date-exists");
             $newDay.attr("data-href", `#root/${dateNoteId}`);
         }
 
         if (this.isEqual(this.date, this.activeDate)) {
-            $newDay.addClass('calendar-date-active');
+            $newDay.addClass("calendar-date-active");
         }
 
         if (this.isEqual(this.date, this.todaysDate)) {
-            $newDay.addClass('calendar-date-today');
+            $newDay.addClass("calendar-date-today");
         }
 
         $newDay.append($date);
@@ -212,13 +202,11 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
     }
 
     isEqual(a, b) {
-        if (!a && b || a && !b) {
+        if ((!a && b) || (a && !b)) {
             return false;
         }
 
-        return a.getFullYear() === b.getFullYear()
-            && a.getMonth() === b.getMonth()
-            && a.getDate() === b.getDate();
+        return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
     }
 
     async createMonth() {
@@ -229,12 +217,7 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
 
         const currentMonth = this.date.getMonth();
         while (this.date.getMonth() === currentMonth) {
-            const $day = this.createDay(
-                dateNotesForMonth,
-                this.date.getDate(),
-                this.date.getDay(),
-                this.date.getFullYear()
-            );
+            const $day = this.createDay(dateNotesForMonth, this.date.getDate(), this.date.getDay(), this.date.getFullYear());
 
             this.$month.append($day);
 
@@ -256,5 +239,4 @@ export default class CalendarWidget extends RightDropdownButtonWidget {
         this.manageFirstDayOfWeek();
         this.createMonth();
     }
-
 }

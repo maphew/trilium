@@ -64,57 +64,55 @@ export default class TocWidget extends RightPanelWidget {
                 .icon("bx-cog")
                 .title(t("toc.options"))
                 .titlePlacement("left")
-                .onClick(() => appContext.tabManager.openContextWithNote('_optionsTextNotes', {activate: true}))
+                .onClick(() => appContext.tabManager.openContextWithNote("_optionsTextNotes", { activate: true }))
                 .class("icon-action"),
             new OnClickButtonWidget()
                 .icon("bx-x")
                 .titlePlacement("left")
-                .onClick(widget => widget.triggerCommand("closeToc"))
+                .onClick((widget) => widget.triggerCommand("closeToc"))
                 .class("icon-action")
         ];
     }
 
     isEnabled() {
-        return super.isEnabled()
-            && this.note.type === 'text'
-            && !this.noteContext.viewScope.tocTemporarilyHidden
-            && this.noteContext.viewScope.viewMode === 'default';
+        return super.isEnabled() && this.note.type === "text" && !this.noteContext.viewScope.tocTemporarilyHidden && this.noteContext.viewScope.viewMode === "default";
     }
 
     async doRenderBody() {
         this.$body.empty().append($(TPL));
-        this.$toc = this.$body.find('.toc');
+        this.$toc = this.$body.find(".toc");
     }
 
     async refreshWithNote(note) {
         /*The reason for adding tocPreviousVisible is to record whether the previous state of the toc is hidden or displayed,
-        * and then let it be displayed/hidden at the initial time. If there is no such value,
-        * when the right panel needs to display highlighttext but not toc, every time the note content is changed,
-        * toc will appear and then close immediately, because getToc(html) function will consume time*/
+         * and then let it be displayed/hidden at the initial time. If there is no such value,
+         * when the right panel needs to display highlighttext but not toc, every time the note content is changed,
+         * toc will appear and then close immediately, because getToc(html) function will consume time*/
         this.toggleInt(!!this.noteContext.viewScope.tocPreviousVisible);
 
-        const tocLabel = note.getLabel('toc');
+        const tocLabel = note.getLabel("toc");
 
-        if (tocLabel?.value === 'hide') {
+        if (tocLabel?.value === "hide") {
             this.toggleInt(false);
             this.triggerCommand("reEvaluateRightPaneVisibility");
             return;
         }
 
-        let $toc = "", headingCount = 0;
+        let $toc = "",
+            headingCount = 0;
         // Check for type text unconditionally in case alwaysShowWidget is set
-        if (this.note.type === 'text') {
+        if (this.note.type === "text") {
             const { content } = await note.getBlob();
-            ({$toc, headingCount} = await this.getToc(content));
+            ({ $toc, headingCount } = await this.getToc(content));
         }
 
         this.$toc.html($toc);
-        if (["", "show"].includes(tocLabel?.value) || headingCount >= options.getInt('minTocHeadings')){
+        if (["", "show"].includes(tocLabel?.value) || headingCount >= options.getInt("minTocHeadings")) {
             this.toggleInt(true);
-            this.noteContext.viewScope.tocPreviousVisible=true;
-        }else{
+            this.noteContext.viewScope.tocPreviousVisible = true;
+        } else {
             this.toggleInt(false);
-            this.noteContext.viewScope.tocPreviousVisible=false;
+            this.noteContext.viewScope.tocPreviousVisible = false;
         }
 
         this.triggerCommand("reEvaluateRightPaneVisibility");
@@ -142,7 +140,7 @@ export default class TocWidget extends RightPanelWidget {
                         throwOnError: false
                     });
                 } catch (e) {
-                    if (e instanceof ReferenceError && e.message.includes('katex is not defined')) {
+                    if (e instanceof ReferenceError && e.message.includes("katex is not defined")) {
                         // Load KaTeX if it is not already loaded
                         await libraryLoader.requireLibrary(libraryLoader.KATEX);
                         try {
@@ -187,7 +185,7 @@ export default class TocWidget extends RightPanelWidget {
         let curLevel = 2;
         const $ols = [$toc];
         let headingCount;
-        for (let m = null, headingIndex = 0; ((m = headingTagsRegex.exec(html)) !== null); headingIndex++) {
+        for (let m = null, headingIndex = 0; (m = headingTagsRegex.exec(html)) !== null; headingIndex++) {
             //
             // Nest/unnest whatever necessary number of ordered lists
             //
@@ -213,8 +211,8 @@ export default class TocWidget extends RightPanelWidget {
             // Create the list item and set up the click callback
             //
 
-            const headingText = await this.replaceMathTextWithKatax(m[2])
-            const $li = $('<li>').html(headingText);
+            const headingText = await this.replaceMathTextWithKatax(m[2]);
+            const $li = $("<li>").html(headingText);
             $li.on("click", () => this.jumpToHeading(headingIndex));
             $ols[$ols.length - 1].append($li);
             headingCount = headingIndex;
@@ -241,7 +239,7 @@ export default class TocWidget extends RightPanelWidget {
 
             const $first = $toc.children(":first");
 
-            if ($first[0].tagName !== 'OL') {
+            if ($first[0].tagName !== "OL") {
                 break;
             }
 
@@ -273,24 +271,25 @@ export default class TocWidget extends RightPanelWidget {
     async closeTocCommand() {
         this.noteContext.viewScope.tocTemporarilyHidden = true;
         await this.refresh();
-        this.triggerCommand('reEvaluateRightPaneVisibility');
+        this.triggerCommand("reEvaluateRightPaneVisibility");
         appContext.triggerEvent("reEvaluateTocWidgetVisibility", { noteId: this.noteId });
     }
 
     async showTocWidgetEvent({ noteId }) {
         if (this.noteId === noteId) {
             await this.refresh();
-            this.triggerCommand('reEvaluateRightPaneVisibility');
+            this.triggerCommand("reEvaluateRightPaneVisibility");
         }
     }
 
     async entitiesReloadedEvent({ loadResults }) {
         if (loadResults.isNoteContentReloaded(this.noteId)) {
             await this.refresh();
-        } else if (loadResults.getAttributeRows().find(attr => attr.type === 'label'
-            && (attr.name.toLowerCase().includes('readonly') || attr.name === 'toc')
-            && attributeService.isAffecting(attr, this.note))) {
-
+        } else if (
+            loadResults
+                .getAttributeRows()
+                .find((attr) => attr.type === "label" && (attr.name.toLowerCase().includes("readonly") || attr.name === "toc") && attributeService.isAffecting(attr, this.note))
+        ) {
             await this.refresh();
         }
     }

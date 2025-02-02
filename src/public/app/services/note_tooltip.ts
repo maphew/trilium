@@ -5,29 +5,29 @@ import utils from "./utils.js";
 import attributeRenderer from "./attribute_renderer.js";
 import contentRenderer from "./content_renderer.js";
 import appContext from "../components/app_context.js";
-import FNote from "../entities/fnote.js";
+import type FNote from "../entities/fnote.js";
 import { t } from "./i18n.js";
 
 function setupGlobalTooltip() {
     $(document).on("mouseenter", "a", mouseEnterHandler);
 
     // close any note tooltip after click, this fixes the problem that sometimes tooltips remained on the screen
-    $(document).on("click", e => {
+    $(document).on("click", (e) => {
         if ($(e.target).closest(".note-tooltip").length) {
             // click within the tooltip shouldn't close it
             return;
         }
 
-        cleanUpTooltips();
+        dismissAllTooltips();
     });
 }
 
-function cleanUpTooltips() {
-    $('.note-tooltip').remove();
+function dismissAllTooltips() {
+    $(".note-tooltip").remove();
 }
 
 function setupElementTooltip($el: JQuery<HTMLElement>) {
-    $el.on('mouseenter', mouseEnterHandler);
+    $el.on("mouseenter", mouseEnterHandler);
 }
 
 async function mouseEnterHandler(this: HTMLElement) {
@@ -51,7 +51,7 @@ async function mouseEnterHandler(this: HTMLElement) {
         return;
     }
 
-    if (!notePath || !noteId || viewScope?.viewMode !== 'default') {
+    if (!notePath || !noteId || viewScope?.viewMode !== "default") {
         return;
     }
 
@@ -67,13 +67,13 @@ async function mouseEnterHandler(this: HTMLElement) {
     if (url?.startsWith("#fn")) {
         renderPromise = renderFootnote($link, url);
     } else {
-        renderPromise = renderTooltip(await froca.getNote(noteId))
+        renderPromise = renderTooltip(await froca.getNote(noteId));
     }
 
     const [content] = await Promise.all([
         renderPromise,
         // to reduce flicker due to accidental mouseover, cursor must stay for a bit over the link for tooltip to appear
-        new Promise(res => setTimeout(res, 500))
+        new Promise((res) => setTimeout(res, 500))
     ]);
 
     if (!content || utils.isHtmlEmpty(content)) {
@@ -81,18 +81,18 @@ async function mouseEnterHandler(this: HTMLElement) {
     }
 
     const html = `<div class="note-tooltip-content">${content}</div>`;
-    const tooltipClass = 'tooltip-' + Math.floor(Math.random() * 999_999_999);
+    const tooltipClass = "tooltip-" + Math.floor(Math.random() * 999_999_999);
 
     // we need to check if we're still hovering over the element
     // since the operation to get tooltip content was async, it is possible that
     // we now create tooltip which won't close because it won't receive mouseleave event
     if ($(this).filter(":hover").length > 0) {
         $(this).tooltip({
-            container: 'body',
+            container: "body",
             // https://github.com/zadam/trilium/issues/2794 https://github.com/zadam/trilium/issues/2988
             // with bottom this flickering happens a bit less
-            placement: 'bottom',
-            trigger: 'manual',
+            placement: "bottom",
+            trigger: "manual",
             //TODO: boundary No longer applicable?
             //boundary: 'window',
             title: html,
@@ -102,12 +102,12 @@ async function mouseEnterHandler(this: HTMLElement) {
             customClass: linkId
         });
 
-        cleanUpTooltips();
-        $(this).tooltip('show');
+        dismissAllTooltips();
+        $(this).tooltip("show");
 
         // Dismiss the tooltip immediately if a link was clicked inside the tooltip.
         $(`.${tooltipClass} a`).on("click", (e) => {
-            cleanUpTooltips();
+            dismissAllTooltips();
         });
 
         // the purpose of the code below is to:
@@ -117,11 +117,11 @@ async function mouseEnterHandler(this: HTMLElement) {
         const checkTooltip = () => {
             if (!$(this).filter(":hover").length && !$(`.${linkId}:hover`).length) {
                 // cursor is neither over the link nor over the tooltip, user likely is not interested
-                cleanUpTooltips();
+                dismissAllTooltips();
             } else {
                 setTimeout(checkTooltip, 1000);
             }
-        }
+        };
 
         setTimeout(checkTooltip, 1000);
     }
@@ -142,12 +142,12 @@ async function renderTooltip(note: FNote | null) {
     const noteTitleWithPathAsSuffix = await treeService.getNoteTitleWithPathAsSuffix(bestNotePath);
     let content = "";
     if (noteTitleWithPathAsSuffix) {
-        content = `<h5 class="note-tooltip-title">${noteTitleWithPathAsSuffix.prop('outerHTML')}</h5>`;
+        content = `<h5 class="note-tooltip-title">${noteTitleWithPathAsSuffix.prop("outerHTML")}</h5>`;
     }
 
-    const {$renderedAttributes} = await attributeRenderer.renderNormalAttributes(note);
+    const { $renderedAttributes } = await attributeRenderer.renderNormalAttributes(note);
 
-    const {$renderedContent} = await contentRenderer.getRenderedContent(note, {
+    const { $renderedContent } = await contentRenderer.getRenderedContent(note, {
         tooltip: true,
         trim: true
     });
@@ -161,16 +161,17 @@ function renderFootnote($link: JQuery<HTMLElement>, url: string) {
     // A footnote text reference
     const footnoteRef = url.substring(3);
     const $footnoteContent = $link
-        .closest(".ck-content")           // find the parent CK content
-        .find("> .footnote-section")                // find the footnote section
-        .find(`a[href="#fnref${footnoteRef}"]`)     // find the footnote link
-        .closest(".footnote-item")        // find the parent container of the footnote
-        .find(".footnote-content");                 // find the actual text content of the footnote
+        .closest(".ck-content") // find the parent CK content
+        .find("> .footnote-section") // find the footnote section
+        .find(`a[href="#fnref${footnoteRef}"]`) // find the footnote link
+        .closest(".footnote-item") // find the parent container of the footnote
+        .find(".footnote-content"); // find the actual text content of the footnote
 
     return $footnoteContent.html() || "";
 }
 
 export default {
     setupGlobalTooltip,
-    setupElementTooltip
-}
+    setupElementTooltip,
+    dismissAllTooltips
+};

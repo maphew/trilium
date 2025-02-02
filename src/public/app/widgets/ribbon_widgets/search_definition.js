@@ -74,54 +74,54 @@ const TPL = `
     <div class="search-settings">
         <table class="search-setting-table">
             <tr>
-                <td class="title-column">${t('search_definition.add_search_option')}</td>
+                <td class="title-column">${t("search_definition.add_search_option")}</td>
                 <td colspan="2" class="add-search-option">
                     <button type="button" class="btn btn-sm" data-search-option-add="searchString">
                         <span class="bx bx-text"></span> 
-                        ${t('search_definition.search_string')}
+                        ${t("search_definition.search_string")}
                     </button>
                     
                     <button type="button" class="btn btn-sm" data-search-option-add="searchScript">
                         <span class="bx bx-code"></span> 
-                        ${t('search_definition.search_script')}
+                        ${t("search_definition.search_script")}
                     </button>
                     
                     <button type="button" class="btn btn-sm" data-search-option-add="ancestor">
                         <span class="bx bx-filter-alt"></span> 
-                        ${t('search_definition.ancestor')}
+                        ${t("search_definition.ancestor")}
                     </button>
                     
                     <button type="button" class="btn btn-sm" data-search-option-add="fastSearch"
-                        title="${t('search_definition.fast_search_description')}">
+                        title="${t("search_definition.fast_search_description")}">
                         <span class="bx bx-run"></span>
-                        ${t('search_definition.fast_search')}
+                        ${t("search_definition.fast_search")}
                     </button>
                     
                     <button type="button" class="btn btn-sm" data-search-option-add="includeArchivedNotes"
-                        title="${t('search_definition.include_archived_notes_description')}">
+                        title="${t("search_definition.include_archived_notes_description")}">
                         <span class="bx bx-archive"></span>
-                        ${t('search_definition.include_archived')}
+                        ${t("search_definition.include_archived")}
                     </button>
                     
                     <button type="button" class="btn btn-sm" data-search-option-add="orderBy">
                         <span class="bx bx-arrow-from-top"></span>
-                        ${t('search_definition.order_by')}
+                        ${t("search_definition.order_by")}
                     </button>
                     
-                    <button type="button" class="btn btn-sm" data-search-option-add="limit" title="${t('search_definition.limit_description')}">
+                    <button type="button" class="btn btn-sm" data-search-option-add="limit" title="${t("search_definition.limit_description")}">
                         <span class="bx bx-stop"></span>
-                        ${t('search_definition.limit')}
+                        ${t("search_definition.limit")}
                     </button>
                     
-                    <button type="button" class="btn btn-sm" data-search-option-add="debug" title="${t('search_definition.debug_description')}">
+                    <button type="button" class="btn btn-sm" data-search-option-add="debug" title="${t("search_definition.debug_description")}">
                         <span class="bx bx-bug"></span>
-                        ${t('search_definition.debug')}
+                        ${t("search_definition.debug")}
                     </button>
                     
                     <div class="dropdown" style="display: inline-block;">
                       <button class="btn btn-sm dropdown-toggle action-add-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="bx bxs-zap"></span>
-                        ${t('search_definition.action')}
+                        ${t("search_definition.action")}
                       </button>
                       <div class="dropdown-menu action-list"></div>
                     </div>
@@ -135,17 +135,17 @@ const TPL = `
                         <div style="display: flex; justify-content: space-evenly">
                             <button type="button" class="btn btn-sm search-button">
                                 <span class="bx bx-search"></span>
-                                ${t('search_definition.search_button')}
+                                ${t("search_definition.search_button")}
                             </button>
         
                             <button type="button" class="btn btn-sm search-and-execute-button">
                                 <span class="bx bxs-zap"></span>
-                                ${t('search_definition.search_execute')}
+                                ${t("search_definition.search_execute")}
                             </button>
                             
                             <button type="button" class="btn btn-sm save-to-note-button">
                                 <span class="bx bx-save"></span>
-                                ${t('search_definition.save_to_note')}
+                                ${t("search_definition.save_to_note")}
                             </button>
                         </div>
                     </td>
@@ -155,16 +155,7 @@ const TPL = `
     </div>
 </div>`;
 
-const OPTION_CLASSES = [
-    SearchString,
-    SearchScript,
-    Ancestor,
-    FastSearch,
-    IncludeArchivedNotes,
-    OrderBy,
-    Limit,
-    Debug
-];
+const OPTION_CLASSES = [SearchString, SearchScript, Ancestor, FastSearch, IncludeArchivedNotes, OrderBy, Limit, Debug];
 
 export default class SearchDefinitionWidget extends NoteContextAwareWidget {
     get name() {
@@ -172,95 +163,89 @@ export default class SearchDefinitionWidget extends NoteContextAwareWidget {
     }
 
     isEnabled() {
-        return this.note && this.note.type === 'search';
+        return this.note && this.note.type === "search";
     }
 
     getTitle() {
         return {
             show: this.isEnabled(),
             activate: true,
-            title: t('search_definition.search_parameters'),
-            icon: 'bx bx-search'
+            title: t("search_definition.search_parameters"),
+            icon: "bx bx-search"
         };
     }
 
     doRender() {
         this.$widget = $(TPL);
         this.contentSized();
-        this.$component = this.$widget.find('.search-definition-widget');
-        this.$actionList = this.$widget.find('.action-list');
+        this.$component = this.$widget.find(".search-definition-widget");
+        this.$actionList = this.$widget.find(".action-list");
 
         for (const actionGroup of bulkActionService.ACTION_GROUPS) {
             this.$actionList.append($('<h6 class="dropdown-header">').append(actionGroup.title));
 
             for (const action of actionGroup.actions) {
-                this.$actionList.append(
-                    $('<a class="dropdown-item" href="#">')
-                        .attr('data-action-add', action.actionName)
-                        .text(action.actionTitle)
-                );
+                this.$actionList.append($('<a class="dropdown-item" href="#">').attr("data-action-add", action.actionName).text(action.actionTitle));
             }
         }
 
-        this.$widget.on('click', '[data-search-option-add]', async event => {
-            const searchOptionName = $(event.target).attr('data-search-option-add');
-            const clazz = OPTION_CLASSES.find(SearchOptionClass => SearchOptionClass.optionName === searchOptionName);
+        this.$widget.on("click", "[data-search-option-add]", async (event) => {
+            const searchOptionName = $(event.target).attr("data-search-option-add");
+            const clazz = OPTION_CLASSES.find((SearchOptionClass) => SearchOptionClass.optionName === searchOptionName);
 
             if (clazz) {
                 await clazz.create(this.noteId);
-            }
-            else {
-                logError(t('search_definition.unknown_search_option', { searchOptionName }));
+            } else {
+                logError(t("search_definition.unknown_search_option", { searchOptionName }));
             }
 
             this.refresh();
         });
 
-        this.$widget.on('click', '[data-action-add]', async event => {
-            bootstrap.Dropdown.getOrCreateInstance(this.$widget.find('.action-add-toggle'));
+        this.$widget.on("click", "[data-action-add]", async (event) => {
+            bootstrap.Dropdown.getOrCreateInstance(this.$widget.find(".action-add-toggle"));
 
-            const actionName = $(event.target).attr('data-action-add');
+            const actionName = $(event.target).attr("data-action-add");
 
             await bulkActionService.addAction(this.noteId, actionName);
 
             this.refresh();
         });
 
-        this.$searchOptions = this.$widget.find('.search-options');
-        this.$actionOptions = this.$widget.find('.action-options');
+        this.$searchOptions = this.$widget.find(".search-options");
+        this.$actionOptions = this.$widget.find(".action-options");
 
-        this.$searchButton = this.$widget.find('.search-button');
-        this.$searchButton.on('click', () => this.triggerCommand('refreshResults'));
+        this.$searchButton = this.$widget.find(".search-button");
+        this.$searchButton.on("click", () => this.triggerCommand("refreshResults"));
 
-        this.$searchAndExecuteButton = this.$widget.find('.search-and-execute-button');
-        this.$searchAndExecuteButton.on('click', () => this.searchAndExecute());
+        this.$searchAndExecuteButton = this.$widget.find(".search-and-execute-button");
+        this.$searchAndExecuteButton.on("click", () => this.searchAndExecute());
 
-        this.$saveToNoteButton = this.$widget.find('.save-to-note-button');
-        this.$saveToNoteButton.on('click', async () => {
-            const {notePath} = await server.post("special-notes/save-search-note", {searchNoteId: this.noteId});
+        this.$saveToNoteButton = this.$widget.find(".save-to-note-button");
+        this.$saveToNoteButton.on("click", async () => {
+            const { notePath } = await server.post("special-notes/save-search-note", { searchNoteId: this.noteId });
 
             await ws.waitForMaxKnownEntityChangeId();
 
             await appContext.tabManager.getActiveContext().setNote(notePath);
             // Note the {{- notePathTitle}} in json file is not typo, it's unescaping
             // See https://www.i18next.com/translation-function/interpolation#unescape
-            toastService.showMessage(t('search_definition.search_note_saved', { notePathTitle: await treeService.getNotePathTitle(notePath) }));
+            toastService.showMessage(t("search_definition.search_note_saved", { notePathTitle: await treeService.getNotePathTitle(notePath) }));
         });
     }
 
     async refreshResultsCommand() {
         try {
-            const {error} = await froca.loadSearchNote(this.noteId);
+            const { error } = await froca.loadSearchNote(this.noteId);
 
             if (error) {
-                this.handleEvent('showSearchError', { error });
+                this.handleEvent("showSearchError", { error });
             }
-        }
-        catch (e) {
+        } catch (e) {
             toastService.showError(e.message);
         }
 
-        this.triggerEvent('searchRefreshed', {ntxId: this.noteContext.ntxId});
+        this.triggerEvent("searchRefreshed", { ntxId: this.noteContext.ntxId });
     }
 
     async refreshSearchDefinitionCommand() {
@@ -275,7 +260,7 @@ export default class SearchDefinitionWidget extends NoteContextAwareWidget {
         this.$searchOptions.empty();
 
         for (const OptionClass of OPTION_CLASSES) {
-            const {attributeType, optionName} = OptionClass;
+            const { attributeType, optionName } = OptionClass;
 
             const attr = this.note.getAttribute(attributeType, optionName);
 
@@ -291,30 +276,26 @@ export default class SearchDefinitionWidget extends NoteContextAwareWidget {
 
         const actions = bulkActionService.parseActions(this.note);
 
-        this.$actionOptions
-            .empty()
-            .append(...actions.map(action => action.render()));
+        this.$actionOptions.empty().append(...actions.map((action) => action.render()));
 
-        this.$searchAndExecuteButton.css('visibility', actions.length > 0 ? 'visible' : '_hidden');
+        this.$searchAndExecuteButton.css("visibility", actions.length > 0 ? "visible" : "_hidden");
     }
 
     getContent() {
-        return '';
+        return "";
     }
 
     async searchAndExecute() {
         await server.post(`search-and-execute-note/${this.noteId}`);
 
-        this.triggerCommand('refreshResults');
+        this.triggerCommand("refreshResults");
 
-        toastService.showMessage(t('search_definition.actions_executed'), 3000);
+        toastService.showMessage(t("search_definition.actions_executed"), 3000);
     }
 
-    entitiesReloadedEvent({loadResults}) {
+    entitiesReloadedEvent({ loadResults }) {
         // only refreshing deleted attrs, otherwise components update themselves
-        if (loadResults.getAttributeRows().find(attrRow =>
-            attrRow.type === 'label' && attrRow.name === 'action' && attrRow.isDeleted)) {
-
+        if (loadResults.getAttributeRows().find((attrRow) => attrRow.type === "label" && attrRow.name === "action" && attrRow.isDeleted)) {
             this.refresh();
         }
     }

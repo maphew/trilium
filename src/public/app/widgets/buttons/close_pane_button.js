@@ -3,12 +3,15 @@ import OnClickButtonWidget from "./onclick_button.js";
 
 export default class ClosePaneButton extends OnClickButtonWidget {
     isEnabled() {
-        return super.isEnabled()
+        return (
+            super.isEnabled() &&
             // main note context should not be closeable
-            && this.noteContext && !!this.noteContext.mainNtxId;
+            this.noteContext &&
+            !!this.noteContext.mainNtxId
+        );
     }
 
-    async noteContextReorderEvent({ntxIdsInOrder}) {
+    async noteContextReorderEvent({ ntxIdsInOrder }) {
         this.refresh();
     }
 

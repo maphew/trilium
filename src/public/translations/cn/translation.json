@@ -152,10 +152,10 @@
     "insertDateTime": "在插入点插入当前日期和时间",
     "jumpToTreePane": "跳转到树面板并滚动到活动笔记",
     "markdownAutoformat": "类Markdown自动格式化",
-    "headings": "<kbd>##</kbd>, <kbd>###</kbd>, <kbd>####</kbd>  等，后跟空格，自动转换为标题",
-    "bulletList": "<kbd>*</kbd> 或 <kbd>-</kbd> 后跟空格，自动转换为项目符号列表",
-    "numberedList": "<kbd>1.</kbd> or <kbd>1)</kbd> 后跟空格，自动转换为编号列表",
-    "blockQuote": "一行以 <kbd>></kbd> 开头并后跟空格，自动转换为块引用",
+    "headings": "<code>##</code>, <code>###</code>, <code>####</code>  等，后跟空格，自动转换为标题",
+    "bulletList": "<code>*</code> 或 <code>-</code> 后跟空格，自动转换为项目符号列表",
+    "numberedList": "<code>1.</code> or <code>1)</code> 后跟空格，自动转换为编号列表",
+    "blockQuote": "一行以 <code>></code> 开头并后跟空格，自动转换为块引用",
     "troubleshooting": "故障排除",
     "reloadFrontend": "重新加载Trilium前端",
     "showDevTools": "显示开发者工具",
@@ -186,10 +186,10 @@
       "description": "配置在导入笔记时应保留的 HTML 标签。不在此列表中的标签将在导入过程中被移除。一些标签（例如 'script'）为了安全性会始终被移除。",
       "placeholder": "输入 HTML 标签，每行一个",
       "reset_button": "重置为默认列表"
-  },
-  "import-status": "导入状态",
-  "in-progress": "导入进行中：{{progress}}",
-  "successful": "导入成功完成。"
+    },
+    "import-status": "导入状态",
+    "in-progress": "导入进行中：{{progress}}",
+    "successful": "导入成功完成。"
   },
   "include_note": {
     "dialog_title": "包含笔记",
@@ -1090,7 +1090,7 @@
     "layout-horizontal-title": "水平",
     "layout-vertical-description": "启动栏位于左侧（默认）",
     "layout-horizontal-description": "启动栏位于标签栏下方，标签栏现在是全宽的。"
- },
+  },
   "zoom_factor": {
     "title": "缩放系数（仅桌面客户端有效）",
     "description": "缩放也可以通过 CTRL+- 和 CTRL+= 快捷键进行控制。"

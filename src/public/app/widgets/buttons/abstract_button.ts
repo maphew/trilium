@@ -16,7 +16,6 @@ export interface AbstractButtonWidgetSettings {
 }
 
 export default class AbstractButtonWidget<SettingsT extends AbstractButtonWidgetSettings> extends NoteContextAwareWidget {
-
     protected settings!: SettingsT;
     protected tooltip!: bootstrap.Tooltip;
 
@@ -31,13 +30,13 @@ export default class AbstractButtonWidget<SettingsT extends AbstractButtonWidget
         this.tooltip = new bootstrap.Tooltip(this.$widget, {
             html: true,
             title: () => this.getTitle(),
-            trigger: 'hover',
+            trigger: "hover",
             placement: this.settings.titlePlacement,
-            fallbackPlacements: [ this.settings.titlePlacement ]
-        })
+            fallbackPlacements: [this.settings.titlePlacement]
+        });
 
         if (this.settings.onContextMenu) {
-            this.$widget.on("contextmenu", e => {
+            this.$widget.on("contextmenu", (e) => {
                 this.tooltip.hide();
 
                 if (this.settings.onContextMenu) {
@@ -52,9 +51,7 @@ export default class AbstractButtonWidget<SettingsT extends AbstractButtonWidget
     }
 
     getTitle() {
-        return typeof this.settings.title === "function"
-            ? this.settings.title()
-            : this.settings.title;
+        return typeof this.settings.title === "function" ? this.settings.title() : this.settings.title;
     }
 
     refreshIcon() {
@@ -64,9 +61,7 @@ export default class AbstractButtonWidget<SettingsT extends AbstractButtonWidget
             }
         }
 
-        const icon = typeof this.settings.icon === "function"
-            ? this.settings.icon()
-            : this.settings.icon;
+        const icon = typeof this.settings.icon === "function" ? this.settings.icon() : this.settings.icon;
 
         if (icon) {
             this.$widget.addClass(icon);

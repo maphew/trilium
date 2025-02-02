@@ -48,7 +48,11 @@ jobs:
           node-version: 20
           cache: "npm"
       
-      - run: npm ci
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
       
       - name: Run the TypeScript build
         run: npx tsc
@@ -68,7 +72,7 @@ jobs:
       
       - name: Validate container run output
         run: |
-          CONTAINER_ID=$(docker run -d --log-driver=journald --rm --name trilium_local ${{ env.TEST_TAG }})
+          CONTAINER_ID=$(docker run -d --log-driver=journald --rm --network=host -e TRILIUM_PORT=8082 --volume ./integration-tests/db:/home/node/trilium-data --name trilium_local ${{ env.TEST_TAG }})
           echo "Container ID: $CONTAINER_ID"
       
       - name: Wait for the healthchecks to pass
@@ -78,6 +82,15 @@ jobs:
           wait-time: 50
           require-status: running
           require-healthy: true
+    
+      - name: Run Playwright tests
+        run: TRILIUM_DOCKER=1 npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: Playwright report (${{ matrix.dockerfile }})
+          path: playwright-report/
+          retention-days: 30
 
       # Print the entire log of the container thus far, regardless if the healthcheck failed or succeeded
       - name: Print entire log

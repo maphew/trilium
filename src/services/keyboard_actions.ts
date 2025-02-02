@@ -2,12 +2,9 @@
 
 import optionService from "./options.js";
 import log from "./log.js";
-import { isElectron as getIsElectron, isMac as getIsMac } from "./utils.js";
-import { KeyboardShortcut } from './keyboard_actions_interface.js';
+import { isElectron, isMac } from "./utils.js";
+import type { KeyboardShortcut } from "./keyboard_actions_interface.js";
 import { t } from "i18next";
-
-const isMac = getIsMac();
-const isElectron = getIsElectron();
 
 function getDefaultKeyboardActions() {
     if (!t("keyboard_actions.note-navigation")) {
@@ -76,7 +73,6 @@ function getDefaultKeyboardActions() {
             description: t("keyboard_actions.sort-child-notes"),
             scope: "note-tree"
         },
-
 
         {
             separator: t("keyboard_actions.creating-and-moving-notes")
@@ -197,7 +193,6 @@ function getDefaultKeyboardActions() {
             scope: "note-tree"
         },
 
-
         {
             separator: t("keyboard_actions.tabs-and-windows")
         },
@@ -304,7 +299,6 @@ function getDefaultKeyboardActions() {
             scope: "window"
         },
 
-
         {
             separator: t("keyboard_actions.dialogs")
         },
@@ -350,7 +344,6 @@ function getDefaultKeyboardActions() {
             description: t("keyboard_actions.show-help"),
             scope: "window"
         },
-
 
         {
             separator: t("keyboard_actions.text-note-operations")
@@ -511,6 +504,12 @@ function getDefaultKeyboardActions() {
             scope: "window"
         },
         {
+            actionName: "exportAsPdf",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.export-as-pdf"),
+            scope: "window"
+        },
+        {
             actionName: "openNoteExternally",
             defaultShortcuts: [],
             description: t("keyboard_actions.open-note-externally"),
@@ -602,13 +601,13 @@ function getDefaultKeyboardActions() {
     ];
 
     /*
-    * Apply macOS-specific tweaks.
-    */
-    const platformModifier = isMac ? 'Meta' : 'Ctrl';
+     * Apply macOS-specific tweaks.
+     */
+    const platformModifier = isMac ? "Meta" : "Ctrl";
 
     for (const action of DEFAULT_KEYBOARD_ACTIONS) {
         if (action.defaultShortcuts) {
-            action.defaultShortcuts = action.defaultShortcuts.map(shortcut => shortcut.replace("CommandOrControl", platformModifier));
+            action.defaultShortcuts = action.defaultShortcuts.map((shortcut) => shortcut.replace("CommandOrControl", platformModifier));
         }
     }
 
@@ -623,21 +622,19 @@ function getKeyboardActions() {
     }
 
     for (const option of optionService.getOptions()) {
-        if (option.name.startsWith('keyboardShortcuts')) {
+        if (option.name.startsWith("keyboardShortcuts")) {
             let actionName = option.name.substring(17);
             actionName = actionName.charAt(0).toLowerCase() + actionName.slice(1);
 
-            const action = actions.find(ea => ea.actionName === actionName);
+            const action = actions.find((ea) => ea.actionName === actionName);
 
             if (action) {
                 try {
                     action.effectiveShortcuts = JSON.parse(option.value);
-                }
-                catch (e) {
+                } catch (e) {
                     log.error(`Could not parse shortcuts for action ${actionName}`);
                 }
-            }
-            else {
+            } else {
                 log.info(`Keyboard action ${actionName} found in database, but not in action definition.`);
             }
         }

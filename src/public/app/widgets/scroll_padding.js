@@ -11,8 +11,7 @@ export default class ScrollPaddingWidget extends NoteContextAwareWidget {
         this.$widget = $(TPL);
         this.contentSized();
 
-        this.$widget.on("click", () =>
-            this.triggerCommand('scrollToEnd', {ntxId: this.ntxId}));
+        this.$widget.on("click", () => this.triggerCommand("scrollToEnd", { ntxId: this.ntxId }));
     }
 
     initialRenderCompleteEvent() {

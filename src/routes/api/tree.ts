@@ -3,8 +3,8 @@
 import becca from "../../becca/becca.js";
 import log from "../../services/log.js";
 import NotFoundError from "../../errors/not_found_error.js";
-import { Request } from 'express';
-import BNote from "../../becca/entities/bnote.js";
+import type { Request } from "express";
+import type BNote from "../../becca/entities/bnote.js";
 
 function getNotesAndBranchesAndAttributes(_noteIds: string[] | Set<string>) {
     const noteIds = new Set(_noteIds);
@@ -37,7 +37,7 @@ function getNotesAndBranchesAndAttributes(_noteIds: string[] | Set<string>) {
         for (const attr of note.ownedAttributes) {
             collectedAttributeIds.add(attr.attributeId);
 
-            if (attr.type === 'relation' && ['template', 'inherit'].includes(attr.name) && attr.targetNote) {
+            if (attr.type === "relation" && ["template", "inherit"].includes(attr.name) && attr.targetNote) {
                 collectEntityIds(attr.targetNote);
             }
         }
@@ -70,13 +70,13 @@ function getNotesAndBranchesAndAttributes(_noteIds: string[] | Set<string>) {
 
     const branches = [];
 
-    if (noteIds.has('root')) {
+    if (noteIds.has("root")) {
         branches.push({
-            branchId: 'none_root',
-            noteId: 'root',
-            parentNoteId: 'none',
+            branchId: "none_root",
+            noteId: "root",
+            parentNoteId: "none",
             notePosition: 0,
-            prefix: '',
+            prefix: "",
             isExpanded: true
         });
     }
@@ -128,7 +128,7 @@ function getNotesAndBranchesAndAttributes(_noteIds: string[] | Set<string>) {
 }
 
 function getTree(req: Request) {
-    const subTreeNoteId = typeof req.query.subTreeNoteId === "string" ? req.query.subTreeNoteId : 'root';
+    const subTreeNoteId = typeof req.query.subTreeNoteId === "string" ? req.query.subTreeNoteId : "root";
     const collectedNoteIds = new Set<string>([subTreeNoteId]);
 
     function collect(parentNote: BNote) {

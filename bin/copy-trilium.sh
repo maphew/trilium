@@ -68,7 +68,6 @@ find $DIR -name "*.ts" -type f -delete
 
 d="$DIR"/src/public
 [[ -d "$d"/app-dist ]] || mkdir -pv "$d"/app-dist
-cp "$d"/app/share.js "$d"/app-dist/
 cp -r "$d"/app/doc_notes "$d"/app-dist/
 
 rm -rf "$d"/app

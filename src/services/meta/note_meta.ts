@@ -1,7 +1,7 @@
-import AttachmentMeta from "./attachment_meta.js";
-import AttributeMeta from "./attribute_meta.js";
+import type AttachmentMeta from "./attachment_meta.js";
+import type AttributeMeta from "./attribute_meta.js";
 
-interface NoteMeta {
+export default interface NoteMeta {
     noteId?: string;
     notePath?: string[];
     isClone?: boolean;
@@ -22,5 +22,3 @@ interface NoteMeta {
     attachments?: AttachmentMeta[];
     children?: NoteMeta[];
 }
-
-export default NoteMeta;

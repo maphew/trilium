@@ -1,5 +1,5 @@
 body {
-    font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", arial, sans-serif;
     line-height: 1.5;
 }
 
@@ -188,32 +188,32 @@ iframe.pdf-view {
     border-radius: 2px;
     counter-reset: footnote-counter;
     margin: 1em 0;
-    padding: 10px
+    padding: 10px;
 }
 
 .ck-content .footnote-item {
     counter-increment: footnote-counter;
     display: flex;
     list-style: none;
-    margin-left: .5em
+    margin-left: 0.5em;
 }
 
 .ck-content .footnote-item:target .footnote-content {
     background: #eee;
 }
 
-.ck-content .footnote-item>* {
-    vertical-align: text-top
+.ck-content .footnote-item > * {
+    vertical-align: text-top;
 }
 
 .ck-content .footnote-back-link {
-    margin-right: .1em;
+    margin-right: 0.1em;
     position: relative;
-    top: -.2em
+    top: -0.2em;
 }
 
-.ck-content .footnotes .footnote-back-link>sup {
-    margin-right: 0
+.ck-content .footnotes .footnote-back-link > sup {
+    margin-right: 0;
 }
 
 .ck-content .footnote-item:before {
@@ -221,7 +221,7 @@ iframe.pdf-view {
     display: inline-block;
     min-width: fit-content;
     position: relative;
-    right: .2em;
+    right: 0.2em;
     text-align: right;
 }
 
@@ -229,10 +229,10 @@ iframe.pdf-view {
     border-radius: 2px;
     display: inline-block;
     flex-grow: 1;
-    padding: 0 .3em;
-    width: 95%
+    padding: 0 0.3em;
+    width: 95%;
 }
 
 .ck-content .ck-content-widget.footnote-section .ck-content-widget__type-around__button_after {
-    display: none
+    display: none;
 }

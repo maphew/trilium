@@ -3,14 +3,13 @@ import QuickSearchWidget from "./quick_search.js";
 
 /**
  * Similar to the {@link QuickSearchWidget} but meant to be included inside the launcher bar.
- * 
+ *
  * <p>
  * Adds specific tweaks such as:
- * 
+ *
  * - Hiding the widget on mobile.
  */
 export default class QuickSearchLauncherWidget extends QuickSearchWidget {
-
     constructor(isHorizontalLayout) {
         super();
         this.isHorizontalLayout = isHorizontalLayout;
@@ -29,5 +28,4 @@ export default class QuickSearchLauncherWidget extends QuickSearchWidget {
 
         return super.isEnabled();
     }
-
 }

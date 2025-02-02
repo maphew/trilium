@@ -14,9 +14,9 @@ function getEntityHashes() {
     const startTime = new Date();
 
     // we know this is slow and the total content hash calculation time is logged
-    type HashRow = [ string, string, string, boolean ];
-    const hashRows = sql.disableSlowQueryLogging(
-        () => sql.getRawRows<HashRow>(`
+    type HashRow = [string, string, string, boolean];
+    const hashRows = sql.disableSlowQueryLogging(() =>
+        sql.getRawRows<HashRow>(`
             SELECT entityName,
                     entityId,
                     hash,
@@ -28,12 +28,12 @@ function getEntityHashes() {
 
     // sorting is faster in memory
     // sorting by entityId is enough, hashes will be segmented by entityName later on anyway
-    hashRows.sort((a, b) => a[1] < b[1] ? -1 : 1);
+    hashRows.sort((a, b) => (a[1] < b[1] ? -1 : 1));
 
     const hashMap: Record<string, SectorHash> = {};
 
     for (const [entityName, entityId, hash, isErased] of hashRows) {
-        const entityHashMap = hashMap[entityName] = hashMap[entityName] || {};
+        const entityHashMap = (hashMap[entityName] = hashMap[entityName] || {});
 
         const sector = entityId[0];
 

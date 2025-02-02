@@ -100,8 +100,26 @@ export interface BranchRow {
  * end user. Those types should be used only for checking against, they are
  * not for direct use.
  */
-export const ALLOWED_NOTE_TYPES = [ "file", "image", "search", "noteMap", "launcher", "doc", "contentWidget", "text", "relationMap", "render", "canvas", "mermaid", "book", "webView", "code", "mindMap" ] as const;
-export type NoteType = typeof ALLOWED_NOTE_TYPES[number];
+export const ALLOWED_NOTE_TYPES = [
+    "file",
+    "image",
+    "search",
+    "noteMap",
+    "launcher",
+    "doc",
+    "contentWidget",
+    "text",
+    "relationMap",
+    "render",
+    "canvas",
+    "mermaid",
+    "book",
+    "webView",
+    "code",
+    "mindMap",
+    "geoMap"
+] as const;
+export type NoteType = (typeof ALLOWED_NOTE_TYPES)[number];
 
 export interface NoteRow {
     noteId: string;
