@@ -8,16 +8,22 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Modal as BootstrapModal } from "bootstrap";
+
 import Component from "../../../components/component";
 import contextMenu from "../../../menus/context_menu";
+import dialog from "../../../services/dialog";
 import server from "../../../services/server";
 import toast from "../../../services/toast";
 import FBranch from "../../../entities/fbranch";
 import froca from "../../../services/froca";
+import attributes from "../../../services/attributes";
 import { executeBulkActions } from "../../../services/bulk_action";
+import LoadResults from "../../../services/load_results";
 import { buildNote } from "../../../test/easy-froca";
 import { ParentComponent } from "../../react/react_utils";
 import BoardView, { BoardViewData } from ".";
+import { getNoteTypeOptions, type NoteTypeOption } from "../../../services/note_types";
 import { collectShortcutHints } from "../../../services/shortcut_hints";
 import BoardApi, { getPendingWrites } from "./api";
 import { DEFAULT_COLUMN_ICON } from "./columns";
@@ -32,6 +38,57 @@ vi.mock("../../../services/i18n", () => ({
     // Awaited by whatever waits for the catalogue; a mock without it rejects where it is read.
     translationsInitializedPromise: $.Deferred().resolve()
 }));
+
+// The picker is a Bootstrap dropdown portalled to the page, which happy-dom does not open. What the
+// board answers for is the icon it shows and what it does with a pick, so the button stands in for
+// the picker and hands one over when it is pressed.
+// What a card can be made from. The listing itself is the app's and is tested there; the board is
+// handed a short list of it, the four it offers by default and one it does not.
+vi.mock("../../../services/note_types", () => ({
+    getNoteTypeOptions: vi.fn(async () => {
+        templateReads++;
+        return NOTE_TYPE_OPTIONS;
+    }),
+    resolveNoteTypeOptions: (ids: string[], available: { id: string }[]) =>
+        ids.flatMap(id => available.filter(option => option.id === id)),
+    noteTypeOptionGroupTitle: (group: string) => `group:${group}`,
+    default: {}
+}));
+
+/** How many times the board has asked what a card can be made from. */
+let templateReads = 0;
+
+const NOTE_TYPE_OPTIONS = [
+    [ "type:text:text/html", "Text", "text", "text/html" ],
+    [ "type:code:text/x-markdown", "Markdown", "code", "text/x-markdown" ],
+    [ "type:canvas:application/json", "Canvas", "canvas", "application/json" ],
+    [ "type:spreadsheet:application/json", "Spreadsheet", "spreadsheet", "application/json" ],
+    [ "type:mermaid:text/mermaid", "Mermaid", "mermaid", "text/mermaid" ]
+].map(([ id, title, type, mime ]) => ({
+    id, title, icon: "bx bx-note", group: "type" as const, options: { type, mime }
+})) as NoteTypeOption[];
+
+vi.mock("../../react/IconPicker", () => ({
+    IconPickerButton: ({ className, icon, onSelect, onOpened, onClosed }: {
+        className?: string, icon: string, onSelect: (picked: string) => void,
+        onOpened?: () => void, onClosed?: () => void
+    }) => (
+        <span className={className}>
+            <button className={icon} onClick={() => {
+                onOpened?.();
+                onSelect(PICKED_ICON);
+                onClosed?.();
+            }} />
+            {/* The picker opening and closing on their own, for what the editor does in between.
+                Not buttons: a host counting the buttons its picker draws would count these too. */}
+            <span className="picker-open" onClick={() => onOpened?.()} />
+            <span className="picker-close" onClick={() => onClosed?.()} />
+        </span>
+    )
+}));
+
+/** What the picker hands over when it is pressed under test. */
+const PICKED_ICON = "bx bx-star";
 
 vi.mock("../../../services/bulk_action", () => ({
     executeBulkActions: vi.fn(async (
@@ -50,9 +107,22 @@ vi.mock("../../../services/bulk_action", () => ({
     })
 }));
 
+/** What a card is made from until another template is picked: the first the board offers. */
+function textTemplate() {
+    return expect.objectContaining({ id: "type:text:text/html" });
+}
+
 /** Drains the async chain inside `refresh()` (getBoardData → setByColumn/setColumns). */
 async function flush() {
     await new Promise((resolve) => setTimeout(resolve));
+}
+
+/** Fills a field the way typing does, so that what watches the field hears about it. */
+async function type(field: HTMLInputElement | HTMLTextAreaElement, value: string) {
+    await act(async () => {
+        field.value = value;
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
 }
 
 const saved: BoardViewData[] = [];
@@ -91,7 +161,18 @@ function Harness({ note, noteIds, initialConfig }: { note: ReturnType<typeof bui
 
 /** Files a fresh note under the board, the way an import or another client's write reaches it. */
 function addCard(board: ReturnType<typeof buildNote>, status: string) {
-    const card = buildNote({ title: "Added", "#status": status });
+    return fileCard(board, buildNote({ title: "Added", "#status": status }));
+}
+
+/** Takes a card off the board, the way carrying it to another one does. */
+function unfileCard(board: ReturnType<typeof buildNote>, card: ReturnType<typeof buildNote>) {
+    delete froca.branches[`${board.noteId}_${card.noteId}`];
+    delete board.childToBranch[card.noteId];
+    board.children = board.children.filter(noteId => noteId !== card.noteId);
+}
+
+/** Puts a note the test already holds under the board, for one made before it is filed. */
+function fileCard(board: ReturnType<typeof buildNote>, card: ReturnType<typeof buildNote>) {
     const branchId = `${board.noteId}_${card.noteId}`;
 
     froca.branches[branchId] = new FBranch(froca, {
@@ -102,6 +183,7 @@ function addCard(board: ReturnType<typeof buildNote>, status: string) {
         parentNoteId: board.noteId
     });
     board.addChild(card.noteId, branchId, false);
+    return card;
 }
 
 /** Opens the title editor the way the keyboard does, the menu entry needing a rendered menu. */
@@ -124,6 +206,7 @@ describe("Collapsed board columns", () => {
     let container: HTMLElement | undefined;
 
     afterEach(() => {
+        vi.useRealTimers();
         saved.length = 0;
         if (container) {
             render(null, container);
@@ -133,7 +216,7 @@ describe("Collapsed board columns", () => {
     });
 
     /** A board whose first column is stored collapsed and holds two cards. */
-    async function setup() {
+    async function setup({ keepCollapsed = false } = {}) {
         const note = buildNote({
             title: "Board",
             "#collection": "",
@@ -156,7 +239,10 @@ describe("Collapsed board columns", () => {
                         note={note}
                         noteIds={[ ...note.getChildNoteIds() ]}
                         initialConfig={{ columns: [
-                            { value: "To Do", collapsed: true }, { value: "Done" }
+                            { value: "To Do", collapsed: true, ...(keepCollapsed
+                                ? { keepCollapsed: true }
+                                : {}) },
+                            { value: "Done" }
                         ] }}
                     />
                 </ParentComponent.Provider>,
@@ -211,7 +297,7 @@ describe("Collapsed board columns", () => {
     });
 
     it("opens the column when it is selected and closes it when another one is", async () => {
-        const { mountPoint } = await setup();
+        const { mountPoint } = await setup({ keepCollapsed: true });
 
         await select(mountPoint, 0);
         expect(isCollapsed(mountPoint, 0)).toBe(false);
@@ -275,7 +361,7 @@ describe("Collapsed board columns", () => {
     });
 
     it("closes an open column when focus reaches another one", async () => {
-        const { mountPoint } = await setup();
+        const { mountPoint } = await setup({ keepCollapsed: true });
 
         await select(mountPoint, 0);
         expect(isCollapsed(mountPoint, 0)).toBe(false);
@@ -293,7 +379,7 @@ describe("Collapsed board columns", () => {
      * focus leaving it is not a reason to close it. Only another column being selected is.
      */
     it("stays open while a control rendered outside it is used", async () => {
-        const { mountPoint } = await setup();
+        const { mountPoint } = await setup({ keepCollapsed: true });
 
         await select(mountPoint, 0);
         expect(isCollapsed(mountPoint, 0)).toBe(false);
@@ -311,10 +397,262 @@ describe("Collapsed board columns", () => {
         expect(isCollapsed(mountPoint, 0)).toBe(false);
     });
 
-    it("opens a collapsed column without writing anything", async () => {
+    /**
+     * A column collapsed by hand is opened by hand, the way it is in most boards: the stored flag
+     * goes with the open, so the column does not shut again the moment another one is selected.
+     */
+    it("opens a collapsed column for good, clearing the stored flag", async () => {
         const { mountPoint } = await setup();
 
-        // Opening it by selection is not a change to the config, so nothing is written at all.
+        await select(mountPoint, 0);
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+        expect(saved.at(-1)?.columns?.[0]).toEqual({ value: "To Do" });
+
+        // Selecting another one no longer takes it back.
+        await select(mountPoint, 1);
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+    });
+
+    /**
+     * The cards are laid out again on every frame of the widening, so they are held unpainted
+     * until it is over. A column opened to take a dragged card shows them at once.
+     */
+    it("holds the cards unpainted while the column widens", async () => {
+        const { mountPoint } = await setup();
+
+        await select(mountPoint, 0);
+        const column = columnAt(mountPoint, 0);
+        expect(column.classList.contains("expanding")).toBe(true);
+        // Drawn all the same, so the board can hand focus to one of them.
+        expect(cardCount(mountPoint, 0)).toBe(2);
+
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 350));
+        });
+        expect(columnAt(mountPoint, 0).classList.contains("expanding")).toBe(false);
+    });
+
+    /** The reverse of the collapse, for the open the reader asked for. */
+    it("marks an open the reader asked for", async () => {
+        const { mountPoint } = await setup();
+        expect(columnAt(mountPoint, 0).classList.contains("quick-expand")).toBe(false);
+
+        await select(mountPoint, 0);
+        expect(columnAt(mountPoint, 0).classList.contains("quick-expand")).toBe(true);
+    });
+
+    /**
+     * A peek closes behind the pointer, with the columns beside it shifting under it, so it eases
+     * shut; a collapse the reader asked for surprises nobody and runs faster.
+     */
+    it("marks a collapse the reader asked for, and leaves a peek closing unmarked", async () => {
+        const { mountPoint } = await setup({ keepCollapsed: true });
+
+        await select(mountPoint, 0);
+        await act(async () => {
+            columnAt(mountPoint, 0).querySelector("h3")
+                ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(true);
+        expect(columnAt(mountPoint, 0).classList.contains("quick-collapse")).toBe(true);
+
+        // Opened again, what closes it is the peek, which is not the reader asking for it.
+        await select(mountPoint, 0);
+        expect(columnAt(mountPoint, 0).classList.contains("quick-collapse")).toBe(false);
+
+        await select(mountPoint, 1);
+        expect(isCollapsed(mountPoint, 0)).toBe(true);
+        expect(columnAt(mountPoint, 0).classList.contains("quick-collapse")).toBe(false);
+    });
+
+    /**
+     * The reader is looking at the open column when the entry is unchecked, so the column stays
+     * open: shutting it the moment another one is selected would read as the entry doing nothing.
+     */
+    it("keeps a peeked column open once it is no longer kept collapsed", async () => {
+        const { mountPoint } = await setup({ keepCollapsed: true });
+
+        await select(mountPoint, 0);
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        columnAt(mountPoint, 0).querySelector("h3")
+            ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        const entry = (show.mock.calls.at(-1)?.[0].items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === "bx bx-lock-alt");
+        if (!entry || !("handler" in entry)) throw new Error("expected a keep-collapsed entry");
+
+        await act(async () => {
+            entry.handler?.(entry, {} as never);
+            await flush();
+        });
+        show.mockRestore();
+
+        expect(saved.at(-1)?.columns?.[0]).toEqual({ value: "To Do" });
+        await select(mountPoint, 1);
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+    });
+
+    /**
+     * The board's own menu, for a press on the ground the columns stand on. Expanding shows every
+     * column at once; a column that is kept collapsed is only peeked, and closes as the reader
+     * settles on one column, which is what a single peek does.
+     */
+    it("collapses and expands every column from the board's menu", async () => {
+        const { mountPoint } = await setup({ keepCollapsed: true });
+        const board = mountPoint.querySelector<HTMLElement>(".board-view-container");
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        // With a column open, which the collapse has to close along with the rest.
+        await select(mountPoint, 1);
+        board?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        const entries = (show.mock.calls.at(-1)?.[0].items ?? []).flatMap(item =>
+            item && "uiIcon" in item && "handler" in item
+                ? [ { icon: item.uiIcon, handler: item.handler } ]
+                : []);
+        expect(entries.map(entry => entry.icon)).toEqual([
+            "bx bx-columns", "bx bx-collapse-alt", "bx bx-expand-alt",
+            "bx bx-archive", "bx bx-cog"
+        ]);
+        const entry = (icon: string) => entries.find(item => item.icon === icon)?.handler;
+
+        await act(async () => {
+            entry("bx bx-collapse-alt")?.({} as never, {} as never);
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(true);
+        expect(isCollapsed(mountPoint, 1)).toBe(true);
+        expect(saved.at(-1)?.columns?.map(column => column.collapsed)).toEqual([ true, true ]);
+
+        await act(async () => {
+            entry("bx bx-expand-alt")?.({} as never, {} as never);
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+        expect(isCollapsed(mountPoint, 1)).toBe(false);
+        // The one kept collapsed keeps the flag, and shuts again as soon as a column is selected.
+        expect(saved.at(-1)?.columns?.map(column => column.collapsed))
+            .toEqual([ true, undefined ]);
+
+        await select(mountPoint, 1);
+        expect(isCollapsed(mountPoint, 0)).toBe(true);
+        expect(isCollapsed(mountPoint, 1)).toBe(false);
+
+        show.mockRestore();
+    });
+
+    /**
+     * A press on a card is focus arriving before it is a click, and while the whole board is peeked
+     * every column reads as inactive. The column pressed in keeps its peek; the rest give theirs up.
+     */
+    it("settles a board-wide peek on the column pressed in", async () => {
+        const { mountPoint } = await setup({ keepCollapsed: true });
+        const board = mountPoint.querySelector<HTMLElement>(".board-view-container");
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        board?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        const expand = (show.mock.calls.at(-1)?.[0].items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === "bx bx-expand-alt");
+        if (!expand || !("handler" in expand)) throw new Error("expected an expand entry");
+
+        await act(async () => {
+            expand.handler?.(expand, {} as never);
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+
+        // Focus landing on one of its cards, which is what a press on a card does first.
+        await act(async () => {
+            columnAt(mountPoint, 0).querySelector(".board-note")
+                ?.dispatchEvent(new Event("focusin", { bubbles: true }));
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+
+        // And the peek is this column's alone: focus reaching another one closes it as usual.
+        await act(async () => {
+            columnAt(mountPoint, 1).querySelector("h3")
+                ?.dispatchEvent(new Event("focusin", { bubbles: true }));
+            await flush();
+        });
+        expect(isCollapsed(mountPoint, 0)).toBe(true);
+
+        show.mockRestore();
+    });
+
+    /**
+     * The board's own menu offers what the board is as well as what it does: an editor for a new
+     * column, and the two settings that decide which columns and cards it draws at all.
+     */
+    it("opens the column editor and toggles what the board shows, from its menu", async () => {
+        const { mountPoint } = await setup();
+        const board = mountPoint.querySelector<HTMLElement>(".board-view-container");
+        const archived = vi.spyOn(BoardApi.prototype, "setArchivedShown")
+            .mockResolvedValue(undefined);
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        board?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        const items = show.mock.calls.at(-1)?.[0].items ?? [];
+        const entry = (icon: string) => {
+            const found = items.find(item => item && "uiIcon" in item && item.uiIcon === icon);
+            if (!found || !("handler" in found)) throw new Error(`expected a ${icon} entry`);
+            return found;
+        };
+
+        // Archived notes are not shown, so the entry is not ticked, and pressing it asks for them.
+        // The inbox column is turned on in the properties dialog rather than here.
+        expect("trailingIcon" in entry("bx bx-archive") && entry("bx bx-archive").trailingIcon)
+            .toBeUndefined();
+        entry("bx bx-archive").handler?.(entry("bx bx-archive"), {} as never);
+        expect(archived).toHaveBeenCalledWith(true);
+
+        // The same editor the slot at the end of the board opens.
+        expect(mountPoint.querySelector(".board-add-column input")).toBeNull();
+        await act(async () => {
+            entry("bx bx-columns").handler?.(entry("bx bx-columns"), {} as never);
+            await flush();
+        });
+        expect(mountPoint.querySelector(".board-add-column input")).toBeTruthy();
+
+        show.mockRestore();
+        archived.mockRestore();
+    });
+
+    /** A column and a card answer for their own presses, and the board does not speak over them. */
+    it("leaves a press inside a column to the column", async () => {
+        const { mountPoint } = await setup();
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        columnAt(mountPoint, 1).querySelector(".board-column-content")
+            ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        expect(show).not.toHaveBeenCalled();
+        show.mockRestore();
+    });
+
+    /** The first of the two clicks opens the strip; collapsing it again would undo that. */
+    it("leaves a strip open when it is double clicked open", async () => {
+        const { mountPoint } = await setup();
+        const header = columnAt(mountPoint, 0).querySelector("h3");
+
+        await act(async () => {
+            header?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, detail: 1 }));
+            header?.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+            await flush();
+        });
+        await act(async () => {
+            header?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, detail: 2 }));
+            header?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
+            await flush();
+        });
+
+        expect(isCollapsed(mountPoint, 0)).toBe(false);
+    });
+
+    it("keeps the flag through an open where the column is kept collapsed", async () => {
+        const { mountPoint } = await setup({ keepCollapsed: true });
+
         await select(mountPoint, 0);
         expect(isCollapsed(mountPoint, 0)).toBe(false);
         expect(saved).toEqual([]);
@@ -640,9 +978,10 @@ describe("Board column rename", () => {
         container = mountPoint;
         document.body.appendChild(mountPoint);
 
+        const host = new Component();
         await act(async () => {
             render(
-                <ParentComponent.Provider value={new Component()}>
+                <ParentComponent.Provider value={host}>
                     <Harness
                         note={note}
                         noteIds={[ ...note.getChildNoteIds() ]}
@@ -654,7 +993,8 @@ describe("Board column rename", () => {
         });
         await act(async () => { await flush(); });
 
-        return { note, container: mountPoint };
+        // The host is what the board's own event handlers hang off, for a test that sends one.
+        return { note, container: mountPoint, host };
     }
 
     /**
@@ -695,31 +1035,40 @@ describe("Board column rename", () => {
      * which a board that cannot write its own definition does for good. The board still has to
      * bring what it can reach into line, so only a running write holds persistence back.
      */
-    it("persists again once the write has landed, even with its record left standing", async () => {
+    /**
+     * A board that keeps a column list is left to keep it: written on every refresh instead, a
+     * client reading the board while another changes it resolves a name the change has already
+     * taken away and writes it back as a column of its own.
+     */
+    it("leaves a stored column list alone, and writes one only for a board with none", async () => {
         const { note } = await setup();
         saved.length = 0;
 
-        // The record stands, and no write is running.
-        getPendingWrites(`${note.noteId}|status`).renames.set("Done", undefined);
+        const draw = async (initialConfig: BoardViewData) => {
+            const mountPoint = document.createElement("div");
+            document.body.appendChild(mountPoint);
+            await act(async () => {
+                render(
+                    <ParentComponent.Provider value={new Component()}>
+                        <Harness
+                            note={note}
+                            noteIds={[ ...note.getChildNoteIds() ]}
+                            initialConfig={initialConfig}
+                        />
+                    </ParentComponent.Provider>,
+                    mountPoint
+                );
+            });
+            await act(async () => { await flush(); });
+            mountPoint.remove();
+        };
 
-        const second = document.createElement("div");
-        document.body.appendChild(second);
-        await act(async () => {
-            render(
-                <ParentComponent.Provider value={new Component()}>
-                    <Harness
-                        note={note}
-                        noteIds={[ ...note.getChildNoteIds() ]}
-                        initialConfig={DEFAULT_CONFIG}
-                    />
-                </ParentComponent.Provider>,
-                second
-            );
-        });
-        await act(async () => { await flush(); });
+        await draw(DEFAULT_CONFIG);
+        expect(saved).toEqual([]);
 
-        expect(saved.at(-1)?.columns?.map(column => column.value)).toEqual([ "To Do", "Doing" ]);
-        second.remove();
+        await draw({});
+        expect(saved.at(-1)?.columns?.map(column => column.value))
+            .toEqual([ "To Do", "Doing", "Done" ]);
     });
 
     it("offers its keys as contextual shortcut hints", async () => {
@@ -834,17 +1183,20 @@ describe("Board column rename", () => {
         expect(columnTitles(mountPoint)).toEqual([ "To Do", "Doing" ]);
     });
 
-    it("opens the title editor when the title is double clicked", async () => {
+    it("collapses the column when its header is double clicked", async () => {
         const { container } = await setup();
         const [ first ] = [ ...container.querySelectorAll<HTMLElement>(".board-column") ];
 
         await act(async () => {
-            first.querySelector(".title")
+            first.querySelector("h3")
                 ?.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+            await flush();
         });
 
-        expect(first.querySelector("h3")?.classList.contains("editing")).toBe(true);
-        expect(first.querySelector("h3 input")).not.toBeNull();
+        expect(first.classList.contains("collapsed")).toBe(true);
+        expect(saved.at(-1)?.columns?.[0]).toEqual({ value: "To Do", collapsed: true });
+        // The title editor is left to F2 and to the menu.
+        expect(first.querySelector("h3 input")).toBeNull();
     });
 
     /** The tooltip is set on the element, which is where `useStaticTooltip` reads it back from. */
@@ -1026,15 +1378,23 @@ describe("Board column rename", () => {
         await act(async () => { await flush(); });
     }
 
-    it("does not leave the old name behind as an empty column", async () => {
+    /**
+     * The cards, the stored columns and the definition are renamed together by the server, so that
+     * no client reads the board while they disagree and writes the old name back. What the board
+     * does from here is ask for that, and write none of the three itself.
+     */
+    it("asks the server to rename the column, and writes nothing of its own", async () => {
         const { container } = await setup();
+        const put = vi.spyOn(server, "put").mockResolvedValue(undefined);
         expect(columnTitles(container)).toEqual([ "To Do", "Doing", "Done" ]);
 
         await renameSecondColumn(container, "In Progress");
 
-        expect(columnTitles(container)).toEqual([ "To Do", "In Progress", "Done" ]);
-        expect(saved.at(-1)?.columns?.map(c => c.value))
-            .toEqual([ "To Do", "In Progress", "Done" ]);
+        expect(put).toHaveBeenCalledWith(expect.stringMatching(/board\/rename-column$/),
+            expect.objectContaining({
+                attribute: "status", oldValue: "Doing", newValue: "In Progress"
+            }));
+        expect(saved).toEqual([]);
     });
 
     /**
@@ -1202,7 +1562,7 @@ describe("Board column rename", () => {
             await flush();
         });
 
-        expect(created).toHaveBeenCalledWith("Doing", "First");
+        expect(created).toHaveBeenCalledWith("Doing", "First", "bottom", undefined, textTemplate());
         expect(slot?.querySelector("textarea")).toBe(editor);
         expect(editor.value).toBe("");
         expect(document.activeElement).toBe(editor);
@@ -1215,7 +1575,7 @@ describe("Board column rename", () => {
         });
 
         expect(created).toHaveBeenCalledTimes(2);
-        expect(created).toHaveBeenLastCalledWith("Doing", "Second");
+        expect(created).toHaveBeenLastCalledWith("Doing", "Second", "bottom", undefined, textTemplate());
     });
 
     /**
@@ -1286,11 +1646,205 @@ describe("Board column rename", () => {
         expect(others.some(other => other.classList.contains("appearing"))).toBe(false);
     });
 
+    /**
+     * The field a card is named in stands where the card goes and holds what it is called, so the
+     * card is drawn into the place the field was keeping for it: it fades in there rather than
+     * opening out of a gap the column makes after closing the one the field left.
+     */
+    it("keeps the field standing until the card it made takes its place", async () => {
+        const { note, container } = await setup();
+        const made = buildNote({ title: "Made", "#status": "Doing" });
+        let answer: (noteId: string) => void = () => {};
+        vi.spyOn(BoardApi.prototype, "createNewItemBefore")
+            .mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+
+        const column = container.querySelectorAll<HTMLElement>(".board-column")[1];
+        const standIn = column.querySelector<HTMLElement>(".board-note");
+        if (!standIn) throw new Error("expected a card in the column");
+
+        await act(async () => {
+            standIn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        const field = column
+            .querySelector<HTMLTextAreaElement>(".board-new-item.inserting textarea");
+        if (!field) throw new Error("expected the field for a new card to be open");
+        field.value = "Made";
+        await act(async () => {
+            field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        // The write is still in flight, so the field stands, and holds what it is about to become.
+        await act(async () => {
+            answer(made.noteId);
+            await flush();
+        });
+        expect(column.querySelector(".board-new-item.inserting")).toBeTruthy();
+        expect(field.value).toBe("Made");
+
+        fileCard(note, made);
+        await redraw(note, container);
+
+        expect(column.querySelector(".board-new-item.inserting")).toBeNull();
+        // Faded in where the field stood, and not opened out of nothing.
+        const card = drawn(container, made.noteId);
+        expect(card.classList.contains("appearing")).toBe(true);
+        expect(card.style.height).toBe("");
+    });
+
+    /** A read of the templates the test itself answers, in the order it chooses. */
+    interface Answer {
+        resolve: (options: NoteTypeOption[]) => void;
+        reject: (error: Error) => void;
+    }
+
+    /** What the pill in the editor a card is named in reads, which is the board's own template. */
+    async function pillNames(container: HTMLElement) {
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        return slot?.querySelector(".card-template-pill button")?.textContent ?? "";
+    }
+
+    /**
+     * An attribute change as the server reports one: the row is tracked as well as carried.
+     *
+     * A label taken away is reported as a change like any other, the row read from the database
+     * rather than from becca and so carrying what the label was.
+     */
+    function attributeChanged(name: string, noteId = "someNote", isDeleted = false) {
+        const results = new LoadResults([ {
+            entityName: "attributes",
+            entityId: "attr1",
+            entity: { attributeId: "attr1", noteId, type: "label", name, isDeleted }
+        } as never ]);
+        results.addAttribute("attr1", "other");
+        return results;
+    }
+
+    /**
+     * Names a card in the field a press of Enter opens below the given one, which is what makes it.
+     *
+     * Answers with the field, which is taken down as the card is made.
+     */
+    async function nameCardBeside(card: HTMLElement, title: string) {
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        const field = card.parentElement
+            ?.querySelector<HTMLTextAreaElement>(".board-new-item.inserting textarea");
+        if (!field) throw new Error("expected the field for a new card to be open");
+
+        field.value = title;
+        await act(async () => {
+            field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        return field;
+    }
+
+    /**
+     * Takes a dialog down as Bootstrap would.
+     *
+     * Its own teardown waits on a transition that happy-dom never runs, so a dialog left open keeps
+     * the focus trap Bootstrap put on the page: every editor the tests after it open would lose the
+     * focus the moment it was given.
+     */
+    async function dismiss(dialog?: HTMLElement) {
+        await act(async () => {
+            dialog?.dispatchEvent(new Event("hidden.bs.modal", { bubbles: true }));
+            await flush();
+        });
+
+        BootstrapModal.getInstance(dialog as HTMLElement)?.dispose();
+        dialog?.remove();
+        document.querySelector(".modal-backdrop")?.remove();
+        document.body.classList.remove("modal-open");
+    }
+
+    /** The element standing for a note, which a move draws afresh. */
+    function drawn(container: HTMLElement, noteId: string) {
+        const element = [ ...container.querySelectorAll<HTMLElement>(".board-note") ]
+            .find(card => card.getAttribute("data-note-id") === noteId);
+        if (!element) throw new Error(`expected ${noteId} to be drawn`);
+        return element;
+    }
+
+    /**
+     * A card that arrives from somewhere else, a move between columns above all, mounts as a new
+     * element in the column that draws it. Only a card the column itself made is shown: the rest
+     * are already where they were put.
+     */
+    it("shows only the card the column made, not one that merely arrived", async () => {
+        const { note, container } = await setup();
+        withBoxes();
+
+        try {
+            addCard(note, "Doing");
+            await redraw(note, container);
+
+            const arrived = [ ...container.querySelectorAll<HTMLElement>(".board-note") ]
+                .find(card => card.textContent?.includes("Added"));
+            if (!arrived) throw new Error("expected the card that arrived to be drawn");
+            expect(arrived.classList.contains("appearing")).toBe(false);
+            expect(arrived.style.height).toBe("");
+            expect(arrived.style.overflow).toBe("");
+        } finally {
+            dropBoxes();
+        }
+    });
+
+    /** happy-dom lays nothing out, and a child with no offset parent is one `useFlip` skips. */
+    function withBoxes() {
+        for (const [ property, read ] of Object.entries({
+            offsetParent(this: HTMLElement) { return this.parentElement; },
+            offsetHeight() { return 34; },
+            offsetTop() { return 0; }
+        })) {
+            Object.defineProperty(HTMLElement.prototype, property,
+                { configurable: true, get: read as () => unknown });
+        }
+    }
+
+    function dropBoxes() {
+        for (const property of [ "offsetParent", "offsetHeight", "offsetTop" ]) {
+            delete (HTMLElement.prototype as unknown as Record<string, unknown>)[property];
+        }
+    }
+
+    /** Draws the board again, which is how a card filed under it reaches the column. */
+    async function redraw(note: ReturnType<typeof buildNote>, container: HTMLElement) {
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={DEFAULT_CONFIG}
+                    />
+                </ParentComponent.Provider>,
+                container
+            );
+            await flush();
+        });
+        await act(async () => { await flush(); });
+    }
+
     it("reveals a card inserted next to another one, without leaving its place", async () => {
         const { note, container } = await setup();
 
-        // A second card in the same column, so the one standing in for the insert has a card after
-        // it and the column is brought to it rather than run to its end.
+        // Two more cards in the same column, so the one standing in for the insert has a card on
+        // either side and the column is brought to it rather than run to either end.
+        addCard(note, "Doing");
         addCard(note, "Doing");
         await act(async () => {
             render(
@@ -1308,47 +1862,72 @@ describe("Board column rename", () => {
         await act(async () => { await flush(); });
 
         const column = container.querySelectorAll<HTMLElement>(".board-column")[1];
-        const [ first, second ] = column.querySelectorAll<HTMLElement>(".board-note");
-        const noteId = first?.getAttribute("data-note-id");
-        if (!first || !second || !noteId) throw new Error("expected a column of two cards");
+        const [ first, middle, last ] = column.querySelectorAll<HTMLElement>(".board-note");
+        const noteId = middle?.getAttribute("data-note-id");
+        if (!first || !middle || !last || !noteId) {
+            throw new Error("expected a column of three cards");
+        }
 
         const scrolled = vi.fn();
-        Object.defineProperty(first, "scrollIntoView",
+        Object.defineProperty(middle, "scrollIntoView",
             { value: scrolled, configurable: true, writable: true });
         const content = column.querySelector<HTMLElement>(".board-column-content");
         Object.defineProperty(content, "scrollHeight",
             { value: 500, configurable: true, writable: true });
-        vi.spyOn(BoardApi.prototype, "insertRowAtPosition")
-            .mockResolvedValue({ noteId } as never);
+        vi.spyOn(BoardApi.prototype, "createNewItemBefore").mockResolvedValue(noteId);
 
-        await act(async () => {
-            second.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-            await flush();
-        });
+        await nameCardBeside(last, "Typed");
 
-        expect(first.classList.contains("appearing")).toBe(true);
+        expect(middle.classList.contains("appearing")).toBe(true);
         expect(scrolled).toHaveBeenCalled();
         expect(content?.scrollTop).toBe(0);
     });
 
     /**
-     * The editor an insert opens holds focus while the title is typed; the card takes it once that
-     * editor is done, so the arrow keys carry on from the card just made.
+     * The same field wherever it stands, so a card inserted between two others is named, iconed and
+     * made from a template the way a card added below the column is.
      */
-    it("leaves an inserted card focused, and a card added in the footer unfocused", async () => {
+    it("inserts with the field the column's own footer uses", async () => {
+        const { container } = await setup();
+        const column = container.querySelectorAll<HTMLElement>(".board-column")[1];
+        const card = column.querySelector<HTMLElement>(".board-note");
+        if (!card) throw new Error("expected a card in the column");
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        const field = column.querySelector<HTMLElement>(".board-new-item.inserting");
+        expect(field?.querySelector(".title-editor-icon button")).toBeTruthy();
+        expect(field?.querySelector(".card-template-pill button")?.textContent).toContain("Text");
+        expect(field?.querySelector("textarea")?.placeholder).toBeTruthy();
+
+        // Escape takes it down again, having made nothing.
+        const editor = field?.querySelector<HTMLTextAreaElement>("textarea");
+        await act(async () => {
+            editor?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            await flush();
+        });
+        expect(column.querySelector(".board-new-item.inserting")).toBeNull();
+    });
+
+    /**
+     * The field a card is named in among the others stands for the card being made, so it is taken
+     * down as the card lands and the card is left focused: the arrow keys carry on from there.
+     */
+    it("leaves the card it made focused, and a card added in the footer unfocused", async () => {
         const { container } = await setup();
         const column = container.querySelectorAll<HTMLElement>(".board-column")[1];
         const card = column.querySelector<HTMLElement>(".board-note");
         const noteId = card?.getAttribute("data-note-id");
         if (!card || !noteId) throw new Error("expected a card in the column");
 
-        vi.spyOn(BoardApi.prototype, "insertRowAtPosition")
-            .mockResolvedValue({ noteId } as never);
-        await act(async () => {
-            card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-            await flush();
-        });
+        // The stand-in for the card just made, which is what the board draws and focuses.
+        vi.spyOn(BoardApi.prototype, "createNewItemBefore").mockResolvedValue(noteId);
+        await nameCardBeside(card, "Typed");
 
+        expect(column.querySelector(".board-new-item.inserting")).toBeNull();
         expect(document.activeElement).toBe(card);
 
         // The footer's own editor keeps focus instead, so a run of cards can be typed into it.
@@ -1465,7 +2044,7 @@ describe("Board column rename", () => {
             await flush();
         });
 
-        expect(added).toHaveBeenCalledWith("Blocked");
+        expect(added).toHaveBeenCalledWith("Blocked", false, undefined);
         expect(slot?.querySelector("input")).toBe(editor);
         expect(editor.value).toBe("");
         expect(document.activeElement).toBe(editor);
@@ -1482,6 +2061,769 @@ describe("Board column rename", () => {
         expect(added).not.toHaveBeenCalled();
         expect(slot?.querySelector("input")).toBeNull();
         expect(slot?.classList.contains("editing")).toBe(false);
+    });
+
+    /**
+     * The button beside the field changes face as the field is typed into, and the field takes its
+     * value from a prop: a render that fed the old one back took the first character with it.
+     */
+    it("keeps what is typed into the add-column field", async () => {
+        const { container } = await setup();
+        const slot = container.querySelector<HTMLElement>(".board-add-column");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLInputElement>("input");
+        if (!editor) throw new Error("expected the add-column editor to be open");
+
+        await type(editor, "B");
+        expect(editor.value).toBe("B");
+
+        await type(editor, "Blocked");
+        expect(editor.value).toBe("Blocked");
+    });
+
+    /**
+     * The same picker the column's own heading carries, so a column is given its icon as it is
+     * named. It is kept for the next column, as the card editor keeps its own.
+     */
+    it("makes a column with the icon picked in the editor, and keeps it for the next", async () => {
+        const { container } = await setup();
+        const added = vi.spyOn(BoardApi.prototype, "addNewColumn").mockResolvedValue(true);
+        added.mockClear();
+        const slot = container.querySelector<HTMLElement>(".board-add-column");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLInputElement>("input");
+        if (!editor) throw new Error("expected the add-column editor to be open");
+        // What a column is drawn with, until something else is picked.
+        expect(slot?.querySelector(".title-editor-icon button")?.className)
+            .toContain(DEFAULT_COLUMN_ICON);
+
+        await act(async () => {
+            slot?.querySelector<HTMLElement>(".title-editor-icon button")?.click();
+            await flush();
+        });
+        await type(editor, "Starred");
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        expect(added).toHaveBeenCalledWith("Starred", false, PICKED_ICON);
+        expect(editor.value).toBe("");
+        expect(slot?.querySelector(".title-editor-icon button")?.className).toContain(PICKED_ICON);
+    });
+
+    /** The same two ends a card's button offers, named for a board that runs across. */
+    it("offers both ends of the board from the add-column button", async () => {
+        const { container } = await setup();
+        const added = vi.spyOn(BoardApi.prototype, "addNewColumn").mockResolvedValue(true);
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        const slot = container.querySelector<HTMLElement>(".board-add-column");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLInputElement>("input");
+        if (!editor) throw new Error("expected the add-column editor to be open");
+
+        // Nothing typed is nothing to create, so there is no button standing there at all.
+        expect(slot?.querySelector(".title-editor-submit")).toBeNull();
+
+        await type(editor, "Blocked");
+        const button = slot?.querySelector<HTMLElement>(".title-editor-submit");
+        if (!button) throw new Error("expected the button beside the field");
+        button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        const opened = show.mock.calls.at(-1)?.[0];
+        const entries = (opened?.items ?? []).flatMap(item =>
+            item && "title" in item && "handler" in item
+                ? [ { title: item.title, icon: "uiIcon" in item ? item.uiIcon : undefined,
+                      shortcut: "shortcut" in item ? item.shortcut : undefined,
+                      handler: item.handler } ]
+                : []);
+        expect(entries.map(entry => [ entry.title, entry.icon, entry.shortcut ])).toEqual([
+            [ "board_view.create-column-at-start", "bx bx-horizontal-left", "Shift+Enter" ],
+            [ "board_view.create-column-at-end", "bx bx-horizontal-right", "Enter" ]
+        ]);
+        // The button stands at the board's right edge, where a menu drawn rightwards is pushed
+        // back over it.
+        expect(opened?.orientation).toBe("left");
+
+        await act(async () => {
+            entries[0]?.handler?.({} as never, {} as never);
+            await flush();
+        });
+        expect(added).toHaveBeenCalledWith("Blocked", true, undefined);
+        expect(editor.value).toBe("");
+
+        // Shift+Enter says the same thing from the field itself.
+        added.mockClear();
+        await type(editor, "Also first");
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown",
+                { key: "Enter", shiftKey: true, bubbles: true }));
+            await flush();
+        });
+        expect(added).toHaveBeenCalledWith("Also first", true, undefined);
+
+        show.mockRestore();
+    });
+
+    /**
+     * The same as Enter, for a reader who would rather press something: pressing it must not take
+     * focus out of the field first, since losing focus is what closes the editor.
+     */
+    it("makes a card from the button inside the new-item editor, and clears it", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const submit = slot?.querySelector<HTMLElement>(".title-editor-submit");
+        if (!editor || !submit) throw new Error("expected the editor and its button");
+
+        await type(editor, "From the button");
+        await act(async () => {
+            submit.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            await flush();
+        });
+
+        expect(created).toHaveBeenCalledWith("Doing", "From the button", "bottom", undefined, textTemplate());
+        expect(editor.value).toBe("");
+        expect(slot?.querySelector("textarea")).toBe(editor);
+        expect(document.activeElement).toBe(editor);
+    });
+
+    /**
+     * The pill at the foot of the new-card field names what the card will be made from. It offers
+     * what the board offers, and picking one is remembered: the next card is made from it, and so
+     * is the next editor opened.
+     */
+    it("makes a card from the template picked in the pill, and remembers it", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const pill = slot?.querySelector<HTMLElement>(".card-template-pill button");
+        if (!editor || !pill) throw new Error("expected the editor and its template pill");
+
+        // The first the board offers, until something else is picked.
+        expect(pill.textContent).toContain("Text");
+
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+            $(pill.closest(".dropdown") as HTMLElement).trigger("show.bs.dropdown");
+            await flush();
+        });
+
+        // The menu is portalled to the page, and the boards this file rendered before left theirs
+        // behind, so it is the last one that belongs to the board under test.
+        const menu = [ ...document.querySelectorAll<HTMLElement>(".card-template-pill") ].at(-1);
+        const items = [ ...(menu?.querySelectorAll<HTMLElement>(".dropdown-item") ?? []) ];
+        expect(items.map(item => item.textContent?.trim())).toEqual([
+            "Text", "Markdown", "Canvas", "Spreadsheet", "board_view.more-templates"
+        ]);
+        // The one a card would be made from is ticked, rather than standing out by its background.
+        expect(items.map(item => !!item.querySelector(".card-template-current")))
+            .toEqual([ true, false, false, false, false ]);
+        expect(items.some(item => item.classList.contains("active"))).toBe(false);
+
+        await act(async () => {
+            items[2].click();
+            await flush();
+        });
+
+        // Stored on the board, so the next editor opens on it as well.
+        expect(saved.at(-1)?.template).toBe("type:canvas:application/json");
+        expect([ ...(menu?.querySelectorAll(".dropdown-item") ?? []) ]
+            .map(item => !!item.querySelector(".card-template-current")))
+            .toEqual([ false, false, true, false, false ]);
+
+        await type(editor, "Drawn");
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        expect(created).toHaveBeenCalledWith("Doing", "Drawn", "bottom", undefined,
+            expect.objectContaining({ id: "type:canvas:application/json" }));
+        expect(slot?.querySelector(".card-template-pill button")?.textContent).toContain("Canvas");
+    });
+
+    /**
+     * Opening the pill's menu takes focus off the field: Bootstrap focuses the toggle it opens
+     * from. Losing focus is what closes this editor, so the editor would take the menu down with
+     * itself the moment it was opened, and the toggle would then find nothing to open.
+     */
+    it("stays open while the template pill's menu has the focus", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const pill = slot?.querySelector<HTMLElement>(".card-template-pill button");
+        if (!editor || !pill) throw new Error("expected the editor and its pill");
+        await type(editor, "Still here");
+
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+            $(pill.closest(".dropdown") as HTMLElement).trigger("show.bs.dropdown");
+            editor.dispatchEvent(new FocusEvent("blur"));
+            editor.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            await flush();
+        });
+
+        expect(slot?.querySelector("textarea")).toBe(editor);
+        expect(editor.value).toBe("Still here");
+        expect(created).not.toHaveBeenCalled();
+
+        // Once the menu is done with, the field has the focus again.
+        await act(async () => {
+            $(pill.closest(".dropdown") as HTMLElement).trigger("hide.bs.dropdown");
+            await flush();
+        });
+        expect(document.activeElement).toBe(editor);
+    });
+
+    /**
+     * A board outlives the templates it read: one made while it stands would never be offered, and
+     * one deleted would go on being offered. A template is a note carrying `#template`, so a change
+     * to one of those attributes is what sends the board back for the list.
+     */
+    it("reads the templates again when one is made or taken away", async () => {
+        const { host } = await setup();
+        const before = templateReads;
+
+        // A change to something else leaves the list where it is.
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded", { loadResults: attributeChanged("status") });
+            await flush();
+        });
+        expect(templateReads).toBe(before);
+
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded", { loadResults: attributeChanged("template") });
+            await flush();
+        });
+        expect(templateReads).toBe(before + 1);
+
+        // And a note that stops being a template, which is the same row with `isDeleted` set.
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded",
+                { loadResults: attributeChanged("template", "someNote", true) });
+            await flush();
+        });
+        expect(templateReads).toBe(before + 2);
+    });
+
+    /**
+     * A template's icon is what the picker and the pill show, and an icon is a label on the note
+     * rather than part of the note row: the change is reported as an attribute changing, which is
+     * not what a reloaded note reads as. The label is not always `iconClass`, so any label on a
+     * note the board offers sends it back for the list. Notes it offers nothing from are its own.
+     */
+    it("reads the templates again when one it offers is given another icon", async () => {
+        const reading = vi.mocked(getNoteTypeOptions);
+        const stockAnswer = reading.getMockImplementation();
+        const template = {
+            id: "template:tmpl1",
+            title: "My template",
+            icon: "bx bx-star",
+            group: "user",
+            options: { type: "text", mime: "text/html", templateNoteId: "tmpl1" }
+        } as NoteTypeOption;
+        reading.mockImplementation(async () => [ ...NOTE_TYPE_OPTIONS, template ]);
+
+        try {
+            const { host } = await setup();
+            const before = reading.mock.calls.length;
+
+            // An icon given to a note the board offers nothing from is not its business.
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("iconClass") });
+                await flush();
+            });
+            expect(reading.mock.calls.length).toBe(before);
+
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("iconClass", "tmpl1") });
+                await flush();
+            });
+            expect(reading.mock.calls.length).toBe(before + 1);
+
+            // And an icon taken away again, which is the same row with `isDeleted` set.
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("iconClass", "tmpl1", true) });
+                await flush();
+            });
+            expect(reading.mock.calls.length).toBe(before + 2);
+
+            // A note with no icon of its own wears its workspace's, which is another label again.
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("workspaceIconClass", "tmpl1") });
+                await flush();
+            });
+            expect(reading.mock.calls.length).toBe(before + 3);
+        } finally {
+            reading.mockImplementation(stockAnswer ?? (async () => NOTE_TYPE_OPTIONS));
+        }
+    });
+
+    /**
+     * Two reads can be in flight at once: the one the board makes as it arrives, and one a template
+     * being made or deleted asks for. The server need not answer in the order it was asked, so the
+     * answer to the older read is not what the board is left offering.
+     */
+    it("keeps the newest reading of what a card can be made from", async () => {
+        const answers: Answer[] = [];
+        const reading = vi.mocked(getNoteTypeOptions);
+        const stockAnswer = reading.getMockImplementation();
+        reading.mockImplementation(() =>
+            new Promise((resolve, reject) => { answers.push({ resolve, reject }); }));
+
+        try {
+            // Both reads are made, and neither has been answered.
+            const { host, container } = await setup();
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("template") });
+                await flush();
+            });
+            expect(answers.length).toBe(2);
+
+            // The newer read is answered first, and the older one after it, with nothing at all.
+            await act(async () => {
+                answers[1].resolve(NOTE_TYPE_OPTIONS);
+                answers[0].resolve([]);
+                await flush();
+            });
+
+            // The pill names what a card would be made from, which the older answer has none of.
+            expect(await pillNames(container)).toContain("Text");
+        } finally {
+            reading.mockImplementation(stockAnswer ?? (async () => NOTE_TYPE_OPTIONS));
+        }
+    });
+
+    /**
+     * A read that fails leaves no answer at all, so what an older read answered is what the board
+     * has: it is taken rather than thrown away for a newer read that came back with nothing.
+     */
+    it("takes an older answer when the newer read fails", async () => {
+        const answers: Answer[] = [];
+        const reading = vi.mocked(getNoteTypeOptions);
+        const stockAnswer = reading.getMockImplementation();
+        reading.mockImplementation(() =>
+            new Promise((resolve, reject) => { answers.push({ resolve, reject }); }));
+
+        try {
+            const { host, container } = await setup();
+            await act(async () => {
+                await host.handleEvent("entitiesReloaded",
+                    { loadResults: attributeChanged("template") });
+                await flush();
+            });
+            expect(answers.length).toBe(2);
+
+            await act(async () => {
+                answers[1].reject(new Error("offline"));
+                answers[0].resolve(NOTE_TYPE_OPTIONS);
+                await flush();
+            });
+
+            expect(await pillNames(container)).toContain("Text");
+        } finally {
+            reading.mockImplementation(stockAnswer ?? (async () => NOTE_TYPE_OPTIONS));
+        }
+    });
+
+    /** The pill's last entry leads where the board's own menu does: how the board is set up. */
+    it("opens the board's properties from the pill, listing what it offers in order", async () => {
+        const { container } = await setup();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const pill = slot?.querySelector<HTMLElement>(".card-template-pill button");
+        if (!pill) throw new Error("expected the template pill");
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+            $(pill.closest(".dropdown") as HTMLElement).trigger("show.bs.dropdown");
+            await flush();
+        });
+
+        const menus = [ ...document.querySelectorAll<HTMLElement>(".card-template-pill") ];
+        const more = [ ...(menus.at(-1)?.querySelectorAll<HTMLElement>(".dropdown-item") ?? []) ]
+            .find(item => item.textContent?.includes("more-templates"));
+        if (!more) throw new Error("expected a way to the dialog");
+
+        await act(async () => {
+            more.click();
+            await flush();
+        });
+        // The card reads what a note can be made from as it is drawn, which takes a moment.
+        await act(async () => { await flush(); });
+
+        // The last of them: a dialog portalled to the page outlives the board that drew it here.
+        const dialog = [ ...document.querySelectorAll<HTMLElement>(".board-properties-dialog") ]
+            .at(-1);
+        expect(dialog).toBeTruthy();
+
+        // What the board offers, in the order it stores them, each carried by a grip of its own.
+        const templates = dialog?.querySelector<HTMLElement>(".template-selection-card");
+        const named = [ ...(templates?.querySelectorAll(".template-selection-name") ?? []) ]
+            .map(element => element.textContent);
+        expect(named).toEqual([ "Text", "Markdown", "Canvas", "Spreadsheet" ]);
+        expect(templates?.querySelectorAll(".tn-sortable-grip").length).toBe(4);
+        expect(templates?.querySelectorAll(".tn-sortable-adder").length).toBe(2);
+
+        // And the attributes the cards show, which the same dialog arranges.
+        expect(dialog?.querySelector(".promoted-attributes-card")).toBeTruthy();
+
+        await dismiss(dialog);
+    });
+
+    /**
+     * The icon stands inside the field, at its head, and is what the card is made with. It is kept
+     * between cards, unlike the title: a run of cards is often a run of the same kind of card.
+     */
+    it("makes a card with the icon picked in the editor, and keeps it for the next", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const picker = slot?.querySelector<HTMLElement>(".title-editor-icon");
+        if (!editor || !picker) throw new Error("expected the editor and its icon");
+
+        // What a text note is drawn with, until something else is picked.
+        expect(picker.querySelector("button")?.className).toContain("bx bx-note");
+
+        await pickIcon(slot);
+        expect(slot?.querySelector(".title-editor-icon button")?.className)
+            .toContain(PICKED_ICON);
+
+        await type(editor, "Starred");
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        expect(created).toHaveBeenCalledWith("Doing", "Starred", "bottom", PICKED_ICON, textTemplate());
+        // The title goes, the icon stays.
+        expect(editor.value).toBe("");
+        expect(slot?.querySelector(".title-editor-icon button")?.className)
+            .toContain(PICKED_ICON);
+    });
+
+    /**
+     * The picker takes focus with it, and losing focus is what closes the editor: it would take the
+     * picker down with itself the moment it was opened.
+     */
+    it("stays open while the icon picker has the focus", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        // The spy outlives the test that made it, and with it what it was called with there.
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the new-item editor to be open");
+        await type(editor, "Still here");
+
+        await act(async () => {
+            slot?.querySelector<HTMLElement>(".picker-open")?.click();
+            editor.dispatchEvent(new FocusEvent("blur"));
+            editor.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+            await flush();
+        });
+
+        expect(slot?.querySelector("textarea")).toBe(editor);
+        expect(editor.value).toBe("Still here");
+        expect(created).not.toHaveBeenCalled();
+
+        // The blur that would have ended the edit is spent, so the field is focused again.
+        await act(async () => {
+            slot?.querySelector<HTMLElement>(".picker-close")?.click();
+            await flush();
+        });
+        expect(document.activeElement).toBe(editor);
+    });
+
+    /** Renaming a card makes nothing, so the button that creates is not offered beside it. */
+    it("offers no create button while a card's title is edited", async () => {
+        const { container } = await setup();
+        const card = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-note");
+        if (!card) throw new Error("expected a card");
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "F2", bubbles: true }));
+            await flush();
+        });
+
+        const editor = card.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the title editor");
+
+        await type(editor, "Renamed");
+        expect(card.querySelector(".title-editor-submit")).toBeNull();
+        // The icon is offered all the same, which is what the editor is dressed for.
+        expect(card.querySelector(".title-editor-icon")).toBeTruthy();
+    });
+
+    /** The same picker on a card being renamed, which writes the icon onto the card itself. */
+    it("writes the icon picked while a card's title is edited", async () => {
+        const { container } = await setup();
+        const setLabel = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined);
+        const card = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-note");
+        const noteId = card?.getAttribute("data-note-id");
+        if (!card || !noteId) throw new Error("expected a card");
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "F2", bubbles: true }));
+            await flush();
+        });
+        expect(card.querySelector("textarea")).toBeTruthy();
+
+        await pickIcon(card);
+
+        expect(setLabel).toHaveBeenCalledWith(noteId, "iconClass", PICKED_ICON);
+        setLabel.mockRestore();
+    });
+
+    /** Takes an icon from the picker standing in the given editor. */
+    async function pickIcon(host: HTMLElement | null | undefined) {
+        const button = host?.querySelector<HTMLElement>(".title-editor-icon button");
+        if (!button) throw new Error("expected an icon beside the field");
+
+        await act(async () => {
+            button.click();
+            await flush();
+        });
+    }
+
+    /**
+     * Cards are made at the end of a column, and at its head for the reader adding what comes next
+     * rather than what comes last. Both ends are reached from the field: Enter for the end, and
+     * Shift+Enter or the button's own menu for the head.
+     */
+    it("makes a card at the head of the column on Shift+Enter", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the new-item editor to be open");
+
+        await type(editor, "On top");
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown",
+                { key: "Enter", shiftKey: true, bubbles: true }));
+            await flush();
+        });
+
+        expect(created).toHaveBeenCalledWith("Doing", "On top", "top", undefined, textTemplate());
+        // The field is emptied for the next one, as it is for a card made at the end.
+        expect(editor.value).toBe("");
+    });
+
+    it("offers both ends of the column from the button's own menu", async () => {
+        const { container } = await setup();
+        const created = vi.spyOn(BoardApi.prototype, "createNewItem")
+            .mockResolvedValue(undefined);
+        created.mockClear();
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const button = slot?.querySelector<HTMLElement>(".title-editor-submit");
+        if (!editor || !button) throw new Error("expected the editor and its button");
+
+        // Nothing typed: there is nowhere to put a card that is not being made.
+        button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        expect(show).not.toHaveBeenCalled();
+
+        await type(editor, "Either end");
+        button.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        const items = show.mock.calls.at(-1)?.[0].items ?? [];
+        const entries = items.flatMap(item => item && "title" in item && "handler" in item
+            ? [ { title: item.title, shortcut: "shortcut" in item ? item.shortcut : undefined,
+                  handler: item.handler } ]
+            : []);
+        expect(entries.map(entry => [ entry.title, entry.shortcut ])).toEqual([
+            [ "board_view.create-at-top", "Shift+Enter" ],
+            [ "board_view.create-at-bottom", "Enter" ]
+        ]);
+
+        await act(async () => {
+            entries[0]?.handler?.({} as never, {} as never);
+            await flush();
+        });
+        expect(created).toHaveBeenCalledWith("Doing", "Either end", "top", undefined, textTemplate());
+        expect(editor.value).toBe("");
+
+        show.mockRestore();
+    });
+
+    /** A finger has no second button, so it holds the create button to reach the same menu. */
+    it("opens the placement menu on a hold, and gives it up for a scroll", async () => {
+        const { container } = await setup();
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const button = slot?.querySelector<HTMLElement>(".title-editor-submit");
+        if (!editor || !button) throw new Error("expected the editor and its button");
+        await type(editor, "Held");
+
+        // Only now: the board is drawn through timers of its own, which would never come round.
+        vi.useFakeTimers();
+
+        const press = (type: string, at: number, pointerType = "touch") =>
+            button.dispatchEvent(new PointerEvent(type, {
+                bubbles: true, pointerType, clientX: at, clientY: at
+            }));
+
+        // A finger that walks away is scrolling the board, and the menu is not what it asked for.
+        press("pointerdown", 0);
+        press("pointermove", 40);
+        vi.advanceTimersByTime(1000);
+        expect(show).not.toHaveBeenCalled();
+
+        press("pointerdown", 0);
+        vi.advanceTimersByTime(1000);
+        expect(show).toHaveBeenCalled();
+
+        // The press ends in a click of its own, which must not reach the page and close the menu.
+        const reached = vi.fn();
+        document.addEventListener("click", reached);
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        document.removeEventListener("click", reached);
+        expect(reached).not.toHaveBeenCalled();
+
+        // A mouse has its own way there, so holding it down offers nothing.
+        show.mockClear();
+        press("pointerdown", 0, "mouse");
+        vi.advanceTimersByTime(1000);
+        expect(show).not.toHaveBeenCalled();
+
+        vi.useRealTimers();
+        show.mockRestore();
+    });
+
+    /**
+     * With nothing typed there is nothing to save, so the button reaches for a note that exists
+     * already instead, and goes back to making one as soon as the field holds anything.
+     */
+    it("offers an existing note from the new-item button while the field is empty", async () => {
+        const { container } = await setup();
+        const chosen = vi.spyOn(dialog, "chooseNote").mockResolvedValue("existing");
+        const added = vi.spyOn(BoardApi.prototype, "addExistingItem").mockResolvedValue(true);
+        const slot = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            .querySelector<HTMLElement>(".board-new-item");
+
+        await act(async () => {
+            slot?.click();
+            await flush();
+        });
+
+        const editor = slot?.querySelector<HTMLTextAreaElement>("textarea");
+        const button = () => slot?.querySelector<HTMLElement>(".title-editor-submit");
+        if (!editor) throw new Error("expected the editor");
+        expect(button()?.className).toContain("bx-folder-open");
+
+        await act(async () => {
+            slot?.querySelector<HTMLElement>(".title-editor-submit")
+                ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            await flush();
+        });
+        expect(chosen).toHaveBeenCalled();
+        // No place given: the field below a column adds the note at the end of it.
+        expect(added).toHaveBeenCalledWith("Doing", "existing", undefined);
+
+        await type(editor, "Typed");
+        expect(button()?.className).toContain("bx-plus-circle");
     });
 
     it("starts the new item off with the character typed on its button", async () => {
@@ -1582,7 +2924,7 @@ describe("Board column rename", () => {
     it("says so when what was typed could not be saved", async () => {
         const { container } = await setup();
         const error = vi.spyOn(toast, "showError").mockImplementation(() => {});
-        vi.mocked(executeBulkActions).mockRejectedValueOnce(new Error("offline"));
+        vi.spyOn(server, "put").mockRejectedValueOnce(new Error("offline"));
 
         await renameSecondColumn(container, "Renamed");
         await act(async () => { await flush(); });
@@ -1882,5 +3224,71 @@ describe("Board grouped by a relation", () => {
         await act(async () => { await flush(); });
 
         return { board: mountPoint, target };
+    }
+});
+
+describe("the promoted attributes a card shows", () => {
+    let container: HTMLElement;
+    let drawn = 0;
+
+    afterEach(() => {
+        render(null, container);
+        container.remove();
+    });
+
+    it("draws every one of them until the board's config arranges them", async () => {
+        await draw();
+
+        expect(pills()).toEqual([ "Due: 2026-01-01", "owner: Ada" ]);
+    });
+
+    it("draws them in the stored order, and leaves out what is hidden", async () => {
+        await draw([ { name: "owner" }, { name: "dueDate", hidden: true } ]);
+
+        expect(pills()).toEqual([ "owner: Ada" ]);
+    });
+
+    it("draws an attribute the config has never named, after the ones it has", async () => {
+        await draw([ { name: "owner" } ]);
+
+        expect(pills()).toEqual([ "owner: Ada", "Due: 2026-01-01" ]);
+    });
+
+    /** A board defining two promoted labels, one card carrying a value for each. */
+    async function draw(promotedAttributes?: { name: string, hidden?: boolean }[]) {
+        // The cache keeps what a note id was built with, so a card of its own is what keeps this
+        // test's values off the one the test before it drew.
+        const card = `promotedCard${++drawn}`;
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            "#label:dueDate(inheritable)": "promoted,alias=Due,single,text",
+            "#label:owner(inheritable)": "promoted,single,text",
+            children: [
+                { id: card, title: "First", "#status": "To Do", "#dueDate": "2026-01-01",
+                    "#owner": "Ada" }
+            ]
+        });
+
+        container = document.body.appendChild(document.createElement("div"));
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{ columns: [ { value: "To Do" } ], promotedAttributes }}
+                    />
+                </ParentComponent.Provider>,
+                container
+            );
+        });
+        await act(async () => { await flush(); });
+    }
+
+    function pills() {
+        return [ ...container.querySelectorAll(".board-note .user-attribute") ]
+            .map(element => element.textContent);
     }
 });

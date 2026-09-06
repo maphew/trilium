@@ -2,7 +2,8 @@ import "./index.css";
 
 import clsx from "clsx";
 
-import { createContext, Fragment, TargetedKeyboardEvent } from "preact";
+import { ComponentChildren, createContext, Fragment, TargetedKeyboardEvent } from "preact";
+import { JSX } from "preact/jsx-runtime";
 import { createPortal, RefObject } from "preact/compat";
 import {
     Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState
@@ -11,35 +12,67 @@ import {
 import FNote from "../../../entities/fnote";
 import { t } from "../../../services/i18n";
 import type LoadResults from "../../../services/load_results";
+import { ContextMenuEvent } from "../../../menus/context_menu";
 import { isIMEComposing } from "../../../services/shortcuts";
 import type { ShortcutHintDefinition } from "../../../services/shortcut_hints";
 import toast from "../../../services/toast";
-import { isMobile } from "../../../services/utils";
+import { escapeHtml, isMobile } from "../../../services/utils";
+import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
+import type { PromotedAttributeSetting } from "../promoted_attributes";
 import CollectionProperties from "../../note_bars/CollectionProperties";
 import FormTextArea from "../../react/FormTextArea";
 import FormTextBox from "../../react/FormTextBox";
 import {
     useContextualShortcutHints, useNoteContext, useNoteLabelBoolean, useNoteLabelWithDefault,
-    useTrackedElement, useTriliumEvent
+    useNoteTypeOptions, useTrackedElement, useTriliumEvent
 } from "../../react/hooks";
 import Icon from "../../react/Icon";
 import NoteAutocomplete from "../../react/NoteAutocomplete";
 import ShortcutHintButton from "../../shortcut_hints/shortcut_hint_button";
 import { onWheelHorizontalScroll } from "../../widget_utils";
+import ActionButton from "../../react/ActionButton";
+import { IconPickerButton } from "../../react/IconPicker";
 import { useDragPan } from "../../react/drag_pan";
+import { FLIP_SETTLE_MS, useFlip } from "../../react/flip";
 import { ViewModeProps } from "../interface";
 import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api";
 import { useBoardDrag } from "./board_drag";
 import { movesColumn } from "./drag_geometry";
 import BoardApi from "./api";
-import { DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
+import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
 import Column from "./column";
+import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
+import BoardProperties from "./properties";
+import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
 import { applyCardMove, ColumnMap, getBoardData } from "./data";
 import { useBoardKeyboard } from "./keyboard";
 
+/**
+ * What a control standing inside an editor's field calls as it opens and closes.
+ *
+ * Losing focus is what closes an editor, and a menu takes focus with it: a control that opens one
+ * says so, and the editor stays where it is until the menu is done with.
+ */
+export interface HoldOpen {
+    onOpened: () => void;
+    onClosed: () => void;
+}
+
 export interface BoardViewData {
     columns?: BoardColumnData[];
+    /**
+     * What a new card can be made from, as {@link NoteTypeOption} ids. Absent until the reader picks
+     * for the board, which is what `DEFAULT_CARD_TEMPLATES` stands in for.
+     */
+    templates?: string[];
+    /** The one last used, which the next card is made from. */
+    template?: string;
+    /**
+     * Which promoted attributes the cards show, and in what order. An attribute the list does not
+     * name is shown after the ones it does; see {@link resolvePromotedAttributes}.
+     */
+    promotedAttributes?: PromotedAttributeSetting[];
 }
 
 export interface BoardColumnData {
@@ -55,6 +88,12 @@ export interface BoardColumnData {
      * it again until another one is selected, which does not change this.
      */
     collapsed?: boolean;
+    /**
+     * Whether the column collapses again after being opened. Without it, opening a collapsed
+     * column by hand clears `collapsed`; a column opened to take a dragged card is unaffected
+     * either way.
+     */
+    keepCollapsed?: boolean;
     /**
      * Whether the inbox column also collects notes below the board's direct children. Has no
      * meaning on any other column, which is defined by a grouping value instead.
@@ -139,6 +178,14 @@ export const BoardActionsContext = createContext<BoardActions>({
     setDropTarget: () => undefined
 });
 
+/**
+ * Which promoted attributes a card draws, in order.
+ *
+ * A context rather than a prop: a card is memoized, so this is what reaches one when the reader
+ * arranges the attributes and nothing about the card itself has changed.
+ */
+export const BoardPromotedAttributesContext = createContext<string[] | undefined>(undefined);
+
 export const BoardDragStateContext = createContext<BoardDragState>({
     draggedCard: null,
     draggedColumn: null,
@@ -151,6 +198,12 @@ export const BoardDragStateContext = createContext<BoardDragState>({
  * board handles itself (see `keyboard.ts` and the card and column handlers), none of them
  * rebindable, so each is listed literally rather than through a registered action.
  */
+/** How long a finger stays on the create button before it offers where to put the card. */
+const HOLD_TO_PLACE_MS = 500;
+
+/** How far the pointer can move during that and still count as a hold rather than a scroll. */
+const HOLD_SLACK_PX = 10;
+
 const BOARD_HINTS: ShortcutHintDefinition = [
     {
         titleKey: "board_view.hints.navigation",
@@ -216,6 +269,23 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const [ columnNameToEdit, setColumnNameToEdit ] = useState<string>();
     const [ columnLimitToEdit, setColumnLimitToEdit ] = useState<string>();
     const [ activeColumn, setActiveColumn ] = useState<string>();
+    /**
+     * Whether every collapsed column is open at once, which "Expand all columns" asks for.
+     *
+     * Held apart from `activeColumn`, which names one column: a column drawn open by this is not
+     * the column the reader is working in, and is closed by the same signal a single peek is, which
+     * is a column being selected or focused.
+     */
+    const [ isPeekingAll, setIsPeekingAll ] = useState(false);
+    /** Whether the editor a column is named in is open, which the board's own menu also opens. */
+    const [ isCreatingColumn, setIsCreatingColumn ] = useState(false);
+    /** Everything a card could be made from: the note types and every template. */
+    const availableTemplates = useNoteTypeOptions();
+    const [ isEditingProperties, setIsEditingProperties ] = useState(false);
+    const selectColumn = useCallback<Dispatch<StateUpdater<string | undefined>>>((column) => {
+        setIsPeekingAll(false);
+        setActiveColumn(column);
+    }, []);
     // How many card moves are still being written. The board is drawn as they will leave it, so a
     // redraw from the first of a move's two writes would take that back.
     const movesInFlight = useRef(0);
@@ -273,17 +343,68 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const api = apiRef.current.api;
     // Every member is one of useState's own setters, so this value is built once and never changes
     // identity -- a drag cannot reach anything that reads only this.
+    const openBoardMenu = useCallback((event: ContextMenuEvent) => {
+        // Only the ground the columns stand on. A column and a card answer for their own presses,
+        // and what they leave alone, such as the button that makes a card, is left alone here too.
+        if ((event.target as HTMLElement)?.closest(".board-column, .board-add-column")) {
+            return;
+        }
+
+        openBoardContextMenu(event, {
+            archivedShown: includeArchived,
+            onAddColumn: () => setIsCreatingColumn(true),
+            onShowArchived: (shown) => api.setArchivedShown(shown),
+            onOpenProperties: () => setIsEditingProperties(true),
+            onCollapseAll: () => {
+                // The open column is closed with the rest: it holds the peek that would otherwise
+                // keep it open against what is being written for it.
+                selectColumn(undefined);
+                api.setAllColumnsCollapsed(true);
+            },
+            onExpandAll: () => {
+                // Opened for good where the column is not kept collapsed, and peeked where it is.
+                setIsPeekingAll(true);
+                api.setAllColumnsCollapsed(false);
+            }
+        });
+    }, [ api, selectColumn, inboxEnabled, includeArchived ]);
+
+    // Read from the api rather than from the prop, since a pick moves the api's own copy ahead of
+    // the board's; keyed on the prop so that a change from anywhere else is followed too.
+    const offeredTemplates = useMemo(
+        () => resolveNoteTypeOptions(api.getCardTemplateIds(), availableTemplates),
+        [ api, viewConfig, availableTemplates ]);
+    // Handed to the api as well, for the cards made from somewhere other than the editor: an
+    // insert beside another card reaches for the same template without being given one.
+    useEffect(
+        () => api.setAvailableCardTemplates(availableTemplates), [ api, availableTemplates ]);
+
+    const cardTemplates = useMemo(() => ({
+        offered: offeredTemplates,
+        current: currentCardTemplate(offeredTemplates, api.getLastCardTemplateId()),
+        onSelect: (template: NoteTypeOption) => api.setLastCardTemplateId(template.id),
+        onMore: () => setIsEditingProperties(true)
+    }), [ api, viewConfig, offeredTemplates ]);
+
+    // Held while the names are the same, since a new array would redraw every card on every render.
+    const shownAttributesRef = useRef<string[]>([]);
+    const resolvedAttributes = api.getVisiblePromotedAttributeNames();
+    if (resolvedAttributes.join(",") !== shownAttributesRef.current.join(",")) {
+        shownAttributesRef.current = resolvedAttributes;
+    }
+    const shownAttributes = shownAttributesRef.current;
+
     const boardActions = useMemo<BoardActions>(() => ({
         setBranchIdToEdit,
         setColumnNameToEdit,
         setColumnLimitToEdit,
-        setActiveColumn,
+        setActiveColumn: selectColumn,
         setDraggedCard,
         setDraggedColumn,
         setDropPosition,
         setDropTarget
     }), [
-        setBranchIdToEdit, setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn,
+        setBranchIdToEdit, setColumnNameToEdit, setColumnLimitToEdit, selectColumn,
         setDraggedCard, setDraggedColumn, setDropPosition, setDropTarget
     ]);
 
@@ -301,6 +422,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         [ usableColumns, storedColumns, includeArchived ]);
 
     const containerRef = useRef<HTMLDivElement>(null);
+    /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
+    const columnMovedUntil = useRef(0);
 
     const boardDragState = useMemo<BoardDragState>(() => ({
         branchIdToEdit,
@@ -359,17 +482,34 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                     return;
                 }
 
-                if (newPersistedData) {
+                // Only to give a board that keeps no column list one to begin with. Written on
+                // every refresh instead, this is what a client reads the board with while another
+                // is changing it: it resolves a name the change has already taken away from
+                // whichever source it has not heard about yet, and writes it back as a column.
+                // What this board itself changes is written where it is changed.
+                if (newPersistedData && !viewConfig?.columns?.length) {
                     viewConfig = { ...newPersistedData };
                     saveConfig(newPersistedData);
                 }
 
-                // The columns the board settled on are the options its definition should offer. This
-                // is what gives a board created after migration 0240 ran a definition at all, and what
-                // keeps one that gained a column from outside the board's own UI up to date. It writes
-                // only when the two actually differ, so the re-render its own write causes stops here.
+                // The columns the board settled on are the options its definition should offer,
+                // which is what gives a board created after migration 0240 ran a definition at all.
+                // Only a board without one of its own: a client reading the board while another is
+                // changing it resolves a name the change has already taken away, and writing that
+                // into the definition puts the column back for everyone. What this board changes
+                // itself is written where it is changed.
                 // Reported rather than surfaced: nothing the user did is failing, and a board that
                 // cannot write it re-tries on the next render, which would toast on each one.
+                // Only a board that has no definition of its own. One that has is kept in step by
+                // whatever writes its columns: the server for a rename, `storeColumns` for
+                // everything the board itself changes. Writing it from here as well means a client
+                // reading the board while another changes it puts its own view of the columns on
+                // disk, which is how a renamed column loses its place or comes back under its old
+                // name.
+                if (statusDefinition?.isOwned) {
+                    return;
+                }
+
                 api.syncColumnsToDefinition(columns)
                     .catch((e) => console.error("Failed to sync the board columns to the attribute definition:", e));
             });
@@ -392,7 +532,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             // one merely passed near keeps to itself, and one already opened stays open, since
             // closing it under a drag would move every column after it.
             if (position && inside && storedColumns.get(position.column)?.collapsed) {
-                setActiveColumn(position.column);
+                selectColumn(position.column);
             }
         },
         onCardEnd: (card, position) => {
@@ -450,6 +590,21 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // is left to whatever it belongs to. Suppressed while a card is carried: the gesture owns the
     // pointer, and the board must not slide under it.
     const { isPannable, isPanning } = useDragPan(containerRef, { disabled: isDraggingItem });
+    // Columns slide to follow the gap a carried column opens. The selector excludes the drag
+    // preview, whose transform `useBoardDrag` writes every frame; `AddNewColumn` is outside the
+    // container, and is moved by the scroll that keeps it in view instead.
+    //
+    // No `grow`: a column is its grouping value, so a rename mounts a new element and is
+    // indistinguishable from an arrival. The column just added is shown by `board-item-appear` and
+    // by the scroll to the board's end.
+    useFlip(containerRef, {
+        selector: ".board-column:not(.board-drag-preview)",
+        axis: "horizontal",
+        // Only for a move the reader made, tracked by `columnMovedUntil`. A value change redraws
+        // the columns, and the order churns while the cards, the definition and the stored config
+        // catch up with one another; sliding for that animates a rename as a move.
+        disabled: !draggedColumn && Date.now() > columnMovedUntil.current
+    });
 
     /**
      * Brings a column to the middle of the screen, for a board that scrolls one column at a time.
@@ -496,7 +651,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
 
     // The board is not drawn afresh for another note, so the column opened on one would otherwise
     // still be open on the next, over whatever that board stores for a column of the same name.
-    useEffect(() => setActiveColumn(undefined), [ parentNote ]);
+    useEffect(() => selectColumn(undefined), [ parentNote, selectColumn ]);
 
     useEffect(refresh, [
         parentNote, noteIds, viewConfig, statusAttributeWithPrefix, statusDefinition, inboxEnabled
@@ -506,6 +661,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number) => {
+        columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
         // The list the api holds, which is also the one it reorders. A column the board is not
         // showing is in neither, so indexing into `columns` would be off by one.
         const allColumns = api.columns;
@@ -556,6 +712,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         <div className="board-view">
             <CollectionProperties note={parentNote} />
             <BoardActionsContext.Provider value={boardActions}>
+                <BoardPromotedAttributesContext.Provider value={shownAttributes}>
                 <BoardDragStateContext.Provider value={boardDragState}>
                     {byColumn && columns && <div
                         ref={containerRef}
@@ -564,6 +721,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                             panning: isPanning
                         })}
                         onKeyDown={handleKeyDown}
+                        onContextMenu={openBoardMenu}
                         onWheel={onWheelHorizontalScroll}
                     >
                         {/* The columns are keyed by value, so a reorder moves each column's
@@ -594,7 +752,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     color={storedColumns.get(column)?.color}
                                     archived={storedColumns.get(column)?.archived}
                                     collapsed={storedColumns.get(column)?.collapsed}
+                                    keepCollapsed={storedColumns.get(column)?.keepCollapsed}
                                     isActive={activeColumn === column}
+                                    isPeeked={isPeekingAll}
+                                    cardTemplates={cardTemplates}
                                     nested={storedColumns.get(column)?.nested}
                                     limit={storedColumns.get(column)?.limit}
                                     columnIndex={index}
@@ -617,19 +778,29 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                             isInRelationMode={isInRelationMode}
                             columnCount={shownColumns.length}
                             onCreated={setCreatedColumn}
+                            isCreating={isCreatingColumn}
+                            setIsCreating={setIsCreatingColumn}
                         />
                         {/* Where what is being carried is put. Preact draws the layer and never
                             its contents, so the copy is not among the children it places. */}
                         <div className="board-drag-layer" />
-                        {/* Out of the board and onto the page: the dialog is positioned against
-                            the window, and Bootstrap puts its backdrop on the body, so a stacking
+                        {/* Out of the board and onto the page: a dialog is positioned against the
+                            window, and Bootstrap puts its backdrop on the body, so a stacking
                             context above the board would trap it underneath. */}
                         {createPortal(
-                            <ColumnLimitDialog
-                                api={api}
-                                column={columnLimitToEdit}
-                                onClose={() => setColumnLimitToEdit(undefined)}
-                            />,
+                            <>
+                                <ColumnLimitDialog
+                                    api={api}
+                                    column={columnLimitToEdit}
+                                    onClose={() => setColumnLimitToEdit(undefined)}
+                                />
+                                <BoardProperties
+                                    api={api}
+                                    note={parentNote}
+                                    shown={isEditingProperties}
+                                    onClose={() => setIsEditingProperties(false)}
+                                />
+                            </>,
                             document.body
                         )}
                         {!isMobile() && (
@@ -640,6 +811,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                         )}
                     </div>}
                 </BoardDragStateContext.Provider>
+                </BoardPromotedAttributesContext.Provider>
             </BoardActionsContext.Provider>
         </div>
     );
@@ -681,15 +853,24 @@ export function findRefreshReason(loadResults: LoadResults, statusAttribute: str
     return null;
 }
 
-function AddNewColumn({ api, isInRelationMode, columnCount, onCreated }: {
+function AddNewColumn({
+    api, isInRelationMode, columnCount, onCreated, isCreating, setIsCreating
+}: {
     api: BoardApi,
     isInRelationMode: boolean,
     /** How many columns stand before this, which is what carries it past the board's edge. */
     columnCount: number,
     /** Names the column just made, which the board reveals as it draws it. */
-    onCreated: (column: string) => void
+    onCreated: (column: string) => void,
+    /** Whether the editor is open. The board's own menu opens the same one this slot opens. */
+    isCreating: boolean,
+    setIsCreating: (isCreating: boolean) => void
 }) {
-    const [ isCreatingNewColumn, setIsCreatingNewColumn ] = useState(false);
+    const isCreatingNewColumn = isCreating;
+    const setIsCreatingNewColumn = setIsCreating;
+    // Kept between columns, as the card editor keeps its own: a run of columns is often a run of
+    // the same kind of column.
+    const [ icon, setIcon ] = useState(DEFAULT_COLUMN_ICON);
     const slotRef = useRef<HTMLDivElement>(null);
 
     // Keyed on the count rather than done when the write returns: the column it makes room for is
@@ -701,9 +882,11 @@ function AddNewColumn({ api, isInRelationMode, columnCount, onCreated }: {
         }
 
         const board = slotRef.current?.closest<HTMLElement>(".board-view-container");
-        if (board) {
-            board.scrollLeft = board.scrollWidth;
+        if (!board) {
+            return;
         }
+
+        board.scrollLeft = board.scrollWidth;
     }, [ columnCount, isCreatingNewColumn ]);
 
     const addColumnCallback = useCallback(() => {
@@ -732,8 +915,9 @@ function AddNewColumn({ api, isInRelationMode, columnCount, onCreated }: {
                 : (
                     <TitleEditor
                         placeholder={t("board_view.add-column-placeholder")}
-                        save={async (columnName) => {
-                            const created = await api.addNewColumn(columnName);
+                        save={async (columnName, atStart) => {
+                            const created = await api.addNewColumn(columnName, atStart,
+                                icon !== DEFAULT_COLUMN_ICON ? icon : undefined);
                             if (created) {
                                 onCreated(columnName);
                             } else {
@@ -746,6 +930,17 @@ function AddNewColumn({ api, isInRelationMode, columnCount, onCreated }: {
                         // standing with an empty field. A column named by a note answers for
                         // itself, since picking one is what closes that editor.
                         saveAndContinue={!isInRelationMode}
+                        submitTitle={t("board_view.create-new-column")}
+                        openPlacements={openCreateColumnMenu}
+                        // The same picker the column's own heading carries, so a column is given
+                        // its icon as it is named rather than after it stands there.
+                        icon={{
+                            current: icon,
+                            onSelect: setIcon,
+                            onReset: icon !== DEFAULT_COLUMN_ICON
+                                ? () => setIcon(DEFAULT_COLUMN_ICON)
+                                : undefined
+                        }}
                         mode={isInRelationMode ? "relation" : "normal"}
                     />
                 )}
@@ -755,41 +950,103 @@ function AddNewColumn({ api, isInRelationMode, columnCount, onCreated }: {
 
 export function TitleEditor({
     currentValue, placeholder, save, dismiss, mode, isNewItem, selectOnFocus = true,
-    saveAndContinue = false, returnFocusTo, abandon
+    saveAndContinue = false, handsOver = false, returnFocusTo, abandon, whenEmpty, submitTitle,
+    openPlacements, icon, footer
 }: {
     currentValue?: string;
     placeholder?: string;
-    save: (newValue: string) => void | Promise<void>;
+    save: (newValue: string, atStart?: boolean) => void | Promise<void>;
     dismiss: () => void;
     isNewItem?: boolean;
     mode?: "normal" | "multiline" | "relation";
     /**
-     * Whether Enter saves and clears the editor rather than closing it, so that a run of cards can
-     * be typed one after another. Enter is then the only thing that saves: Escape and losing focus
-     * both give up what was typed and close the editor, since an editor that stays open between
-     * cards is left behind often enough that saving on the way out would make cards nobody asked
-     * for.
+     * Whether Enter saves and clears the editor rather than closing it, so a run of cards can be
+     * typed one after another. Enter is then the only thing that saves: Escape and losing focus
+     * discard what was typed and close the editor. An editor left standing between cards is walked
+     * away from often enough that saving on the way out would create cards nobody asked for.
      */
     saveAndContinue?: boolean;
-    /** What was typed and not saved, handed over so that reopening the editor can carry it back. */
+    /**
+     * Whether the field keeps what was typed once it has saved, and saves only once.
+     *
+     * For an editor the caller takes down as what it made takes its place: emptied instead, the
+     * field would stand where the new thing is about to be drawn without holding what it says.
+     */
+    handsOver?: boolean;
+    /** Reports what was typed and not saved, so reopening the editor can restore it. */
     abandon?: (typed: string) => void;
     /**
+     * What the button does while the field is empty, drawn as `bx bx-folder-open`. Without it no
+     * button is drawn at all until something is typed.
+     */
+    whenEmpty?: { title: string, onClick?: () => void };
+    /** Names what the button creates, shown in its tooltip. */
+    submitTitle?: string;
+    /**
+     * What stands at the foot of the field, inside its own box: the pill naming what a new card
+     * will be made from. The field is given room for it.
+     */
+    footer?: (hold: HoldOpen) => ComponentChildren;
+    /**
+     * The icon shown inside the field, at the leading edge, which opens the picker when pressed.
+     * The caller answers for what a pick does: a card carries it as `iconClass`, and the editor a
+     * card is made in keeps it for the next card.
+     */
+    icon?: { current: string, onSelect: (icon: string) => void, onReset?: () => void };
+    /**
+     * Opens the menu naming which end to create at, for a `save` that reads `atStart`. Passing it
+     * is what gives the button both ends: a right click or a hold opens the menu, Shift+Enter
+     * saves at the start.
+     */
+    openPlacements?: (x: number, y: number, place: (atStart: boolean) => void) => void;
+    /**
      * Where focus goes when the editor closes, instead of back to whatever held it before. A card
-     * whose editor was opened for it rather than by it names itself, so that closing does not light
-     * up the card the reader came from on the way.
+     * whose editor was opened by an insert passes its own element, so closing does not focus the
+     * card the insert was made from.
      */
     returnFocusTo?: RefObject<HTMLElement>;
     /**
-     * Whether opening the editor selects what is already in it, which is what a rename wants. An
-     * editor opened part-typed puts the caret after the text instead, so the next key carries on
-     * rather than replacing it.
+     * Whether opening the editor selects the text already in it, which is what a rename wants. An
+     * editor opened part-typed puts the caret after the text instead, so the next key continues it.
      */
     selectOnFocus?: boolean;
 }) {
     const inputRef = useRef<any>(null);
+    /**
+     * What the field holds. Kept in state because `FormTextBox` takes its value as a prop: any
+     * other render, the button changing icon included, would write a stale prop back over it.
+     */
+    const [ typed, setTyped ] = useState(currentValue ?? "");
+    const isEmpty = !typed.trim();
     const focusElRef = useRef<Element>(null);
     const dismissOnNextRefreshRef = useRef(false);
     const shouldDismiss = useRef(false);
+    /**
+     * Whether something the field carries is open, during which the editor stays where it is.
+     *
+     * A menu takes focus with it, and losing focus is what closes this editor: it would take the
+     * menu down with itself, which is what the icon picker and the pill naming what a card is made
+     * from both do. Held in a ref rather than in state because the blur arrives before the render
+     * a state change would schedule; focus goes back to the field as the menu closes, the blur
+     * that would have ended the edit being spent.
+     */
+    const isHoldingOpen = useRef(false);
+    const holdOpen = useMemo<HoldOpen>(() => ({
+        onOpened: () => { isHoldingOpen.current = true; },
+        onClosed: () => {
+            isHoldingOpen.current = false;
+            inputRef.current?.focus();
+        }
+    }), []);
+    /** Whether the field has already saved, for one that keeps what it saved standing. */
+    const hasHandedOver = useRef(false);
+    const held = useRef<number>();
+    /** Where on the screen the finger went down, against which a scroll is told from a hold. */
+    const heldFrom = useRef<{ x: number, y: number }>();
+    /** Whether the menu was opened by a hold, whose press ends in a click the menu must survive. */
+    const openedByHold = useRef(false);
+
+    useEffect(() => () => window.clearTimeout(held.current), []);
 
     // Laid out rather than deferred: with the open drawn synchronously, this puts focus on the
     // editor inside the press that asked for it, which is what opens a phone's keyboard.
@@ -822,12 +1079,7 @@ export function TitleEditor({
         if (e.key === "Enter" && saveAndContinue) {
             e.preventDefault();
             e.stopPropagation();
-
-            const input = inputRef.current;
-            if (input?.value.trim()) {
-                commit(input.value);
-                input.value = "";
-            }
+            submit(!!openPlacements && e.shiftKey);
             return;
         }
 
@@ -838,13 +1090,110 @@ export function TitleEditor({
             if (target instanceof HTMLElement) {
                 shouldDismiss.current = (e.key === "Escape");
                 target.focus();
-            } else {
-                dismiss();
+                return;
             }
+
+            // Nothing to hand focus back to, and it is the blur of handing it back that saves. An
+            // editor opened by a press on the thing it edits, rather than from something focused,
+            // has nowhere to send it, so Enter says here what that blur would have said.
+            const typed = inputRef.current?.value ?? "";
+            if (e.key === "Enter" && typed.trim() && (typed !== currentValue || isNewItem)) {
+                commit(typed);
+            }
+
+            dismiss();
         }
     };
 
+    /**
+     * Saves what is in the editor and empties it, leaving it open for whatever comes next.
+     *
+     * @param atStart whether to save at the near end, for an editor that offers both.
+     * @param typed what to save, for a menu that read the field when it opened rather than now.
+     */
+    function submit(atStart?: boolean, typed?: string) {
+        const input = inputRef.current;
+        const value = typed ?? input?.value ?? "";
+
+        if (value.trim()) {
+            if (hasHandedOver.current) {
+                return;
+            }
+
+            commit(value, atStart);
+
+            if (handsOver) {
+                hasHandedOver.current = true;
+                input?.focus();
+                return;
+            }
+
+            if (input) {
+                input.value = "";
+            }
+        }
+
+        input?.focus();
+        setTyped("");
+    }
+
+    /** Offers both ends, saving what the field held when the menu was opened. */
+    function openPlacementMenu(e: JSX.TargetedMouseEvent<HTMLElement>) {
+        e.preventDefault();
+        e.stopPropagation();
+        cancelHold();
+
+        const typed = inputRef.current?.value ?? "";
+        openPlacements?.(e.pageX, e.pageY, (atStart) => submit(atStart, typed));
+    }
+
+    /** Opens the same menu for a finger, which has no second button to open it with. */
+    function holdToPlace(e: JSX.TargetedPointerEvent<HTMLElement>) {
+        if (e.pointerType === "mouse") {
+            return;
+        }
+
+        const { pageX, pageY, clientX, clientY } = e;
+        cancelHold();
+        heldFrom.current = { x: clientX, y: clientY };
+        held.current = window.setTimeout(() => {
+            openedByHold.current = true;
+            const typed = inputRef.current?.value ?? "";
+            openPlacements?.(pageX, pageY, (atStart) => submit(atStart, typed));
+        }, HOLD_TO_PLACE_MS);
+    }
+
+    function cancelHold() {
+        window.clearTimeout(held.current);
+        heldFrom.current = undefined;
+    }
+
+    /** Gives up on a hold the finger has walked away from, which is a scroll and not a press. */
+    function holdMoved(e: JSX.TargetedPointerEvent<HTMLElement>) {
+        const from = heldFrom.current;
+        if (from && Math.hypot(e.clientX - from.x, e.clientY - from.y) > HOLD_SLACK_PX) {
+            cancelHold();
+        }
+    }
+
+    function pressed(e: JSX.TargetedMouseEvent<HTMLElement>) {
+        cancelHold();
+
+        // A hold ends in a click, which would reach the page and close the menu it just opened.
+        if (openedByHold.current) {
+            openedByHold.current = false;
+            e.stopPropagation();
+            return;
+        }
+
+        submit(false);
+    }
+
     const onBlur = (newValue: string) => {
+        if (isHoldingOpen.current) {
+            return;
+        }
+
         if (saveAndContinue) {
             abandon?.(newValue);
             dismiss();
@@ -862,8 +1211,8 @@ export function TitleEditor({
     // The editor is closing either way, and what a save writes has already been put back by
     // whatever could not write it; all that is left is to say so rather than to reject unhandled,
     // which is what a save reaching nobody used to do.
-    function commit(newValue: string) {
-        Promise.resolve(save(newValue)).catch((e) => {
+    function commit(newValue: string, atStart?: boolean) {
+        Promise.resolve(save(newValue, atStart)).catch((e) => {
             console.error("Failed to save what the board editor was given:", e);
             toast.showError(t("board_view.save-error"));
         });
@@ -871,17 +1220,96 @@ export function TitleEditor({
 
     if (mode !== "relation") {
         const Element = mode === "multiline" ? FormTextArea : FormTextBox;
-
-        return (
+        const field = (
             <Element
                 inputRef={inputRef}
-                currentValue={currentValue ?? ""}
+                currentValue={typed}
                 placeholder={placeholder}
                 autoComplete="trilium-title-entry" // forces the auto-fill off better than the "off" value.
                 rows={mode === "multiline" ? 4 : undefined}
                 onKeyDown={onKeyDown}
                 onBlur={onBlur}
+                onInput={(e) => setTyped(e.currentTarget.value)}
             />
+        );
+
+        if (!saveAndContinue && !icon && !footer) {
+            return field;
+        }
+
+        // A placement applies only to the button that creates. With nothing typed there is nothing
+        // to create, so the button stands for whatever the caller offers instead, or for nothing.
+        // An editor that saves once, a card being renamed above all, makes nothing and offers none.
+        const offersPlacement = !!openPlacements && !isEmpty;
+        const madeBy = submitTitle ?? t("board_view.add-new-item");
+        const offered = isEmpty
+            ? whenEmpty && {
+                icon: "bx bx-folder-open", title: whenEmpty.title, onClick: whenEmpty.onClick
+            }
+            : saveAndContinue && {
+                icon: "bx bx-plus-circle",
+                title: offersPlacement
+                    ? `<span class="action">${escapeHtml(madeBy)}</span>`
+                        + `<span class="hint">${escapeHtml(t("board_view.create-hold-hint"))}</span>`
+                    : madeBy,
+                onClick: pressed
+            };
+
+        return (
+            <div className={clsx("title-editor-field", {
+                "with-submit": saveAndContinue,
+                "with-footer": !!footer
+            })}>
+                {/* The press that opens the picker must not take focus out of the field: the
+                    blur arrives before the picker reports itself open, and losing focus is what
+                    closes the editor. */}
+                {icon && (
+                    <span onMouseDown={(e) => e.preventDefault()}>
+                        <IconPickerButton
+                            className="title-editor-icon"
+                            icon={icon.current}
+                            title={t("board_view.change-note-icon")}
+                            onSelect={icon.onSelect}
+                            onReset={icon.onReset}
+                            // A grid of a thousand icons and a search field is a task of its own,
+                            // so the board behind it is dimmed rather than left looking pressable.
+                            backdrop
+                            {...holdOpen}
+                        />
+                    </span>
+                )}
+                {field}
+                {/* The press must not take focus out of the field first: losing it is what closes
+                    the editor, and it would be gone before the click arrived. */}
+                {offered && (
+                    <span
+                        onMouseDown={(e) => e.preventDefault()}
+                        onPointerDown={offersPlacement ? holdToPlace : undefined}
+                        onPointerUp={cancelHold}
+                        onPointerMove={holdMoved}
+                        onPointerCancel={cancelHold}
+                        onContextMenu={offersPlacement ? openPlacementMenu : undefined}
+                    >
+                        <ActionButton
+                            className="title-editor-submit"
+                            icon={offered.icon}
+                            text={offered.title}
+                            tooltipHtml={offersPlacement}
+                            tooltipClass={
+                                offersPlacement ? "title-editor-submit-tooltip" : undefined}
+                            onClick={offered.onClick}
+                        />
+                    </span>
+                )}
+                {/* Inside the field's own box, in the room made for it below the text. The press
+                    must not take focus out of the field, which is what closes the editor. */}
+                {footer && (
+                    <span
+                        className="title-editor-footer"
+                        onMouseDown={(e) => e.preventDefault()}
+                    >{footer(holdOpen)}</span>
+                )}
+            </div>
         );
     }
     return (

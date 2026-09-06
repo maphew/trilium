@@ -10,6 +10,7 @@ import FBranch from "../../../entities/fbranch";
 import FNote from "../../../entities/fnote";
 import { ContextMenuEvent } from "../../../menus/context_menu";
 import branches from "../../../services/branches";
+import dialog from "../../../services/dialog";
 import { getHue, parseColor } from "../../../services/css_class_manager";
 import froca from "../../../services/froca";
 import { t } from "../../../services/i18n";
@@ -18,13 +19,22 @@ import ActionButton from "../../react/ActionButton";
 import Icon from "../../react/Icon";
 import { IconPickerButton } from "../../react/IconPicker";
 import { useStaticTooltip } from "../../react/hooks";
+import { useFlip } from "../../react/flip";
 import { useScrollFade } from "../../react/scroll_fade";
+
+/** How long a field waits for the card it made, after which it is taken down regardless. */
+const HAND_OVER_MS = 2000;
+
+/** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
+const EXPAND_MS = 200;
 import NoteLink from "../../react/NoteLink";
 import { BoardActionsContext, BoardDragStateContext, TitleEditor } from ".";
 import BoardApi from "./api";
 import Card from "./card";
-import { DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
-import { openColumnContextMenu } from "./context_menu";
+import CardTemplatePill from "./card_template_pill";
+import { type CardTemplates } from "./card_templates";
+import { DEFAULT_CARD_ICON, DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
+import { openColumnContextMenu, openCreateCardMenu } from "./context_menu";
 
 interface DragContext {
     column: string;
@@ -45,11 +55,14 @@ export default function Column({
     color,
     archived,
     collapsed,
+    keepCollapsed,
     isActive,
+    isPeeked,
     nested,
     limit,
     columnItems,
     isNew,
+    cardTemplates,
     api,
     parentNote,
     isInRelationMode
@@ -61,10 +74,16 @@ export default function Column({
     color?: string,
     /** Whether the column is archived. Only ever rendered while archived notes are shown. */
     archived?: boolean,
-    /** Whether the column is stored as collapsed. Selecting it opens it without clearing this. */
+    /** Whether the column is stored as collapsed. A drag opening it does not clear this. */
     collapsed?: boolean,
+    /** Whether the column collapses again once opened, which keeps `collapsed` through an open. */
+    keepCollapsed?: boolean,
     /** Whether this is the column the reader is working in, which opens it while it is collapsed. */
     isActive?: boolean,
+    /** Whether the board is showing every collapsed column at once, which opens this one too. */
+    isPeeked?: boolean,
+    /** What a new card is made from, and how the reader picks something else. */
+    cardTemplates: CardTemplates,
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     nested?: boolean,
     /** The note limit, absent if disabled. */
@@ -80,23 +99,55 @@ export default function Column({
     onFocusCard: (noteId: string) => void
 } & DragContext) {
     const [ isCreatingNewItem, setIsCreatingNewItem ] = useState(false);
-    const [ created, setCreated ] = useState<{ noteId?: string, takesFocus: boolean }>();
-    // The column stays the one just added until another is, so what has already been shown is
-    // remembered here rather than played again by every redraw of the board.
+    /**
+     * The card a field standing among the cards makes its own above, absent while no such field is
+     * open and empty for one standing below the last card.
+     *
+     * The card below the field rather than the one above it, so the field keeps its place as it
+     * makes cards: each one is drawn above the field, and a run of them stands in the order it was
+     * typed. Named by the card above instead, the field would be carried down past every card it
+     * made, and moving the element it is typed in takes focus out of it.
+     */
+    const [ insertBefore, setInsertBefore ] = useState<{ branchId?: string }>();
+    /**
+     * The cards as last drawn, for the callback that opens a field among them. Read through a ref
+     * so that callback keeps one identity: rebuilt per refresh, it would be a new prop on every
+     * card and no card could be left undrawn.
+     */
+    const itemsRef = useRef(columnItems);
+    itemsRef.current = columnItems;
+    /** Opens the field at a place among the cards, which is the index the card it makes takes. */
+    const beginInsert = useCallback((index: number) => {
+        setInsertBefore({ branchId: itemsRef.current?.[index]?.branch.branchId });
+    }, []);
+    /** The card the footer just made, which is revealed and scrolled to as it is drawn. */
+    const [ createdNoteId, setCreatedNoteId ] = useState<string>();
+    /**
+     * The card a field standing among the others just made, which takes the field's place.
+     *
+     * The field stands where the card goes until the board has drawn it, so the card fades in
+     * where the field was rather than opening out of a gap the column has to make for it.
+     */
+    const [ insertedNoteId, setInsertedNoteId ] = useState<string>();
+    const cardInserted = useCallback((noteId: string | undefined) => {
+        setInsertedNoteId(noteId);
+        setCreatedNoteId(noteId);
+    }, []);
+    // `isNew` stays true until another column is added, so the reveal is recorded here rather than
+    // replayed on every redraw of the board.
     const [ isRevealed, setIsRevealed ] = useState(false);
-    // A card inserted next to another one is where the reader is working, so it is left focused; one
-    // made in the footer is not, or every card would take focus from the editor still being typed in.
-    const cardInserted = useCallback(
-        (noteId: string | undefined) => setCreated({ noteId, takesFocus: true }), []);
-    const cardAdded = useCallback(
-        (noteId: string | undefined) => setCreated({ noteId, takesFocus: false }), []);
     const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn } =
         useContext(BoardActionsContext);
     const { branchIdToEdit, columnNameToEdit, dropTarget, draggedCard, dropPosition } = useContext(BoardDragStateContext);
     const isEditing = (columnNameToEdit === column);
     const editorRef = useRef<HTMLInputElement>(null);
+    const headerRef = useRef<HTMLHeadingElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const scrollFade = useScrollFade(contentRef);
+    // Cards slide to follow the drop gap opening and closing. No card opens out of nothing: one
+    // made in the footer is shown by the scroll to the end and by its fade, and one made among the
+    // others takes the place its field was standing in.
+    useFlip(contentRef, { selector: ".board-note" });
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
         column, columnIndex, columnItems, isEditing, api, parentNote
     });
@@ -110,20 +161,90 @@ export default function Column({
 
     // Read here rather than in the badge: the column body shows an outline as well.
     const isOverLimit = limit !== undefined && (columnItems?.length ?? 0) > limit;
-    const isCollapsed = !!collapsed && !isActive;
+    const isCollapsed = !!collapsed && !isActive && !isPeeked;
+    // A column opened to take a dragged card takes its width at once, and its cards with it.
+    const opensAtOnce = !!draggedCard || dropTarget === column;
+
+    /**
+     * Whether the column is still widening, during which its cards are left unpainted.
+     *
+     * They are laid out again on every frame of the widening, their titles rewrapping as the
+     * column grows, which is what the reader would otherwise watch. Read during the render that
+     * opens the column, so there is no frame where they are painted into a narrow one.
+     *
+     * Unpainted rather than undrawn: the board focuses the card a keyboard open steps onto, and a
+     * card that is not there yet is one it cannot hand focus to.
+     */
+    const [ isExpanding, setIsExpanding ] = useState(false);
+    const [ wasCollapsed, setWasCollapsed ] = useState(isCollapsed);
+    if (wasCollapsed !== isCollapsed) {
+        setWasCollapsed(isCollapsed);
+        setIsExpanding(!isCollapsed && !opensAtOnce);
+    }
+
+    useEffect(() => {
+        if (!isExpanding) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => setIsExpanding(false), EXPAND_MS);
+        return () => window.clearTimeout(timer);
+    }, [ isExpanding ]);
+
+    // Only while the column is open: the strip's own press opens it, which is what it says
+    // instead. Memoised because `useStaticTooltip` rebuilds the tooltip on a new config.
+    const headerTooltip = useMemo(
+        () => ({ title: isCollapsed ? "" : t("board_view.collapse-hint") }), [ isCollapsed ]);
+    useStaticTooltip(headerRef, headerTooltip);
 
     // Reported on the way in only. A column opened by being selected closes when another one is
     // selected, so nothing here watches for focus leaving: the menu, the icon picker and the limit
     // dialog all render outside the column, and each would otherwise close it as it opened.
-    const select = useCallback(() => setActiveColumn(column), [ column, setActiveColumn ]);
+    const select = useCallback(() => {
+        setActiveColumn(column);
+
+        // Opening the strip by hand opens the column for good, unless `keepCollapsed` says it
+        // closes again. A column opened by a card dragged over it goes through `setActiveColumn`
+        // instead, so it keeps the flag.
+        if (isCollapsed && !keepCollapsed) {
+            api.setColumnCollapsed(column, false);
+        }
+    }, [ api, column, isCollapsed, keepCollapsed, setActiveColumn ]);
+
+    /**
+     * Whether the collapse now being drawn is one the reader asked for, which runs faster than a
+     * peek closing: only the peek closes behind the pointer, with the board shifting under it.
+     */
+    const [ isCollapsingByHand, setIsCollapsingByHand ] = useState(false);
+
+    /** Collapses the column, closing the open one so that the change is drawn straight away. */
+    const collapse = useCallback(() => {
+        setIsCollapsingByHand(true);
+        api.setColumnCollapsed(column, true);
+        setActiveColumn(undefined);
+    }, [ api, column, setActiveColumn ]);
+
+    /**
+     * Whether the header was a strip when the press began.
+     *
+     * The first click of a double click on a strip already opens the column, so by the time
+     * `dblclick` arrives the header is a heading and collapsing it again would undo the open. Only
+     * the press that starts a sequence is recorded, which `detail` counts.
+     */
+    const wasCollapsedOnPress = useRef(false);
 
     // Focus reaching a column closes whichever one was open, and opens nothing: a collapsed column
     // is walked onto without being disturbed, and is opened by a click or by Space instead.
     const handleFocusIn = useCallback(() => {
-        if (!isActive) {
-            setActiveColumn(undefined);
+        if (isActive) {
+            return;
         }
-    }, [ isActive, setActiveColumn ]);
+
+        // While the whole board is peeked, focus arriving settles the peek on this column rather
+        // than closing every column: the reader has just gone to work in this one, and a press on
+        // one of its cards is focus arriving before it is a click.
+        setActiveColumn(isPeeked ? column : undefined);
+    }, [ column, isActive, isPeeked, setActiveColumn ]);
 
     const openMenu = useCallback((e: ContextMenuEvent) => {
         openColumnContextMenu(api, e, {
@@ -134,6 +255,8 @@ export default function Column({
             archived,
             collapsed,
             canRename: !isCollapsed,
+            isCollapsed,
+            keepCollapsed,
             nested,
             onEditTitle: () => setColumnNameToEdit(column),
             onNewItem: () => setIsCreatingNewItem(true),
@@ -141,11 +264,13 @@ export default function Column({
                 setColumnNameToEdit(await api.insertColumn(column, direction));
             },
             onSetLimit: () => setColumnLimitToEdit(column),
-            onCollapse: (collapse) => {
-                api.setColumnCollapsed(column, collapse);
-                // The menu is opened from the column, which is therefore the open one. Closing it
-                // here is what shows the reader that anything happened.
-                if (collapse) {
+            onCollapse: collapse,
+            onKeepCollapsed: (keep) => {
+                setIsCollapsingByHand(keep);
+                api.setColumnKeepCollapsed(column, keep, !isCollapsed);
+                // Turning it on collapses the column as well, so the open one is closed here for
+                // the same reason `collapse` closes it.
+                if (keep) {
                     setActiveColumn(undefined);
                 }
             },
@@ -157,8 +282,9 @@ export default function Column({
             }
         });
     }, [
-        api, column, color, archived, collapsed, isCollapsed, nested, columns, columnIndex,
-        setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn, onMoveColumn, onFocusColumn
+        api, column, color, archived, collapsed, keepCollapsed, collapse, isCollapsed, nested,
+        columns, columnIndex, setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn,
+        onMoveColumn, onFocusColumn
     ]);
 
     // A fully desaturated colour has no hue to tint with, and leaves the column plain.
@@ -185,8 +311,52 @@ export default function Column({
     }, []);
 
     useEffect(() => {
+        if (!isCollapsed) {
+            setIsCollapsingByHand(false);
+        }
+    }, [ isCollapsed ]);
+
+    useEffect(() => {
         editorRef.current?.focus();
     }, [ isEditing ]);
+
+    // The field is taken down only once the card it made stands in its place, so the column does
+    // not close the gap the field held and open it again for the card.
+    useEffect(() => {
+        if (!insertedNoteId) {
+            return;
+        }
+
+        const close = () => {
+            setInsertBefore(undefined);
+            setInsertedNoteId(undefined);
+        };
+
+        if (columnItems?.some(({ note }) => note.noteId === insertedNoteId)) {
+            close();
+            return;
+        }
+
+        // A card can be drawn in another column, which one made from a template carrying a value
+        // of its own is, so the field is not left standing for a card that never arrives here.
+        const timer = window.setTimeout(close, HAND_OVER_MS);
+        return () => window.clearTimeout(timer);
+    }, [ insertedNoteId, columnItems ]);
+
+    // The field a card is inserted in, drawn where the reader asked for the card. The same field
+    // as the one below the column, so a card is made the same way wherever it goes.
+    const insertField = insertBefore && (
+        <AddNewItem
+            api={api}
+            cardTemplates={cardTemplates}
+            column={column}
+            insert={{
+                before: insertBefore.branchId,
+                close: () => setInsertBefore(undefined)
+            }}
+            onCreated={cardInserted}
+        />
+    );
 
     return (
         <div
@@ -198,6 +368,11 @@ export default function Column({
                 "board-column-archived": archived,
                 "over-limit": isOverLimit,
                 collapsed: isCollapsed,
+                "quick-collapse": isCollapsingByHand,
+                // Opening is drawn for the reader who asked for it. A column opened to take a
+                // dragged card takes its width at once, since the drop is measured as it opens.
+                "quick-expand": !isCollapsed && !opensAtOnce,
+                expanding: isExpanding,
                 appearing: isNew && !isRevealed
             })}
             onAnimationEnd={(e) => {
@@ -215,6 +390,7 @@ export default function Column({
             style={{ "--board-column-custom-hue": hue }}
         >
             <h3
+                ref={headerRef}
                 className={`${isEditing ? "editing" : ""}`}
                 // While collapsed the header is what opens the column, so it says so and answers
                 // for the keys a button answers for. Open, it is a heading again and Space does
@@ -222,6 +398,16 @@ export default function Column({
                 role={isCollapsed ? "button" : undefined}
                 aria-expanded={isCollapsed ? false : undefined}
                 onContextMenu={openMenu}
+                onMouseDown={(e) => {
+                    if (e.detail <= 1) {
+                        wasCollapsedOnPress.current = isCollapsed;
+                    }
+                }}
+                onDblClick={() => {
+                    if (!wasCollapsedOnPress.current) {
+                        collapse();
+                    }
+                }}
                 onKeyDown={handleTitleKeyDown}
                 tabIndex={300}
             >
@@ -262,14 +448,7 @@ export default function Column({
 
                 {!isEditing ? (
                     <>
-                        <span
-                            className="title"
-                            // In relation mode the title is a link to the note the column stands
-                            // for, and the first of the two clicks has already followed it.
-                            onDblClick={isInRelationMode
-                                ? undefined
-                                : () => setColumnNameToEdit(column)}
-                        >
+                        <span className="title">
                             {isInRelationMode
                                 ? <NoteLink notePath={column} showNoteIcon />
                                 : api.getColumnTitle(column)}
@@ -319,6 +498,7 @@ export default function Column({
                             {showIndicatorBefore && (
                                 <div className="board-drop-placeholder show" style={gapStyle} />
                             )}
+                            {insertBefore?.branchId === branch.branchId && insertField}
                             <Card
                                 api={api}
                                 note={note}
@@ -326,18 +506,17 @@ export default function Column({
                                 column={column}
                                 index={index}
                                 statusAttribute={api.statusAttribute}
-                                isNew={note.noteId === created?.noteId}
-                                focusOnArrival={
-                                    note.noteId === created?.noteId && created.takesFocus
-                                }
+                                isNew={note.noteId === createdNoteId}
+                                focusOnArrival={note.noteId === insertedNoteId}
                                 isDragging={draggedCard?.noteId === note.noteId}
                                 isEditing={branch.branchId === branchIdToEdit}
                                 onFocusCard={onFocusCard}
-                                onCreated={cardInserted}
+                                onInsert={beginInsert}
                             />
                         </Fragment>
                     );
                 })}
+                {insertBefore && !insertBefore.branchId && insertField}
                 {dropPosition?.column === column && dropPosition.index === (columnItems?.length ?? 0) && (
                     <div className="board-drop-placeholder show" style={gapStyle} />
                 )}
@@ -345,41 +524,73 @@ export default function Column({
 
             {!isCollapsed && <AddNewItem
                 api={api}
+                cardTemplates={cardTemplates}
                 column={column}
                 isCreating={isCreatingNewItem}
                 setIsCreating={setIsCreatingNewItem}
-                onCreated={cardAdded}
+                onCreated={setCreatedNoteId}
             />}
         </div>
     );
 }
 
 /**
- * The editor a new card is named in, opened by the button below the column or by its menu. The
- * state is the column's rather than this component's, since the menu is raised from the header.
+ * The editor a new card is named in, standing below the column or between two of its cards.
+ *
+ * Below the column it is opened by the button it replaces or by the column's menu, so that state
+ * is the column's rather than this component's: the menu is raised from the header. Between two
+ * cards it is opened by a card's own menu, and `insert` says where it stands.
  */
-function AddNewItem({ column, api, isCreating, setIsCreating, onCreated }: {
+function AddNewItem({
+    column, api, cardTemplates, isCreating, setIsCreating, onCreated, insert
+}: {
     column: string,
     api: BoardApi,
-    isCreating: boolean,
-    setIsCreating: (isCreating: boolean) => void,
-    /** Names the card just made, which the column reveals once the board has drawn it. */
-    onCreated: (noteId: string | undefined) => void
+    cardTemplates: CardTemplates,
+    isCreating?: boolean,
+    setIsCreating?: (isCreating: boolean) => void,
+    /** Names the card just made, which the column shows once the board has drawn it. */
+    onCreated: (noteId: string | undefined) => void,
+    /**
+     * Where a field standing among the cards puts what it makes: above the card it is given, or
+     * at the end of the column where it is given none. Absent for the field below the column.
+     */
+    insert?: { before?: string, close: () => void }
 }) {
+    // A field standing among the cards is nothing else: there is no button for it to replace, and
+    // it is taken down rather than closed.
+    const isEditing = !!insert || !!isCreating;
+    const close = useCallback(
+        () => insert ? insert.close() : setIsCreating?.(false),
+        [ insert, setIsCreating ]);
     // What the editor opens with: empty to begin with, then whatever was typed into it and left
     // unsaved, so that reaching for something else and coming back does not cost the title.
     const [ initialTitle, setInitialTitle ] = useState("");
+    // Kept between cards, unlike the title: a run of cards is often a run of the same kind of card.
+    const [ icon, setIcon ] = useState(DEFAULT_CARD_ICON);
 
     const open = useCallback((title: string) => {
         setInitialTitle(title);
-        setIsCreating(true);
+        setIsCreating?.(true);
     }, [ setIsCreating ]);
+
+    /** Puts a note that already exists into this column, for a field with nothing typed into it. */
+    const addExistingItem = useCallback(async () => {
+        const noteId = await dialog.chooseNote({
+            title: t("board_view.add-existing-item-title"),
+            okLabel: t("board_view.add-existing-item-ok")
+        });
+
+        if (noteId) {
+            await api.addExistingItem(column, noteId, insert?.before);
+        }
+    }, [ api, column, insert ]);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (isCreating) return;
 
         if (e.key === "Enter" && !e.ctrlKey) {
-            setIsCreating(true);
+            setIsCreating?.(true);
             return;
         }
 
@@ -392,14 +603,34 @@ function AddNewItem({ column, api, isCreating, setIsCreating, onCreated }: {
         }
     }, [ isCreating, open, setIsCreating ]);
 
+    /** Makes the card, where the field stands or at the end of the column. */
+    const create = useCallback(async (title: string, atStart?: boolean) => {
+        const cardIcon = icon !== DEFAULT_CARD_ICON ? icon : undefined;
+
+        if (insert) {
+            // Left standing until the column has drawn the card, which takes the field's place.
+            const noteId = await api.createNewItemBefore(
+                column, insert.before, title, cardIcon, cardTemplates.current);
+            if (noteId) {
+                onCreated(noteId);
+            } else {
+                insert.close();
+            }
+            return;
+        }
+
+        onCreated(await api.createNewItem(
+            column, title, atStart ? "top" : "bottom", cardIcon, cardTemplates.current));
+    }, [ api, cardTemplates, column, icon, insert, onCreated ]);
+
     return (
         <div
-            className={`board-new-item ${isCreating ? "editing" : ""}`}
-            onClick={() => flushSync(() => setIsCreating(true))}
-            onKeyDown={handleKeyDown}
-            tabIndex={300}
+            className={clsx("board-new-item", { editing: isEditing, inserting: !!insert })}
+            onClick={!insert ? () => flushSync(() => setIsCreating?.(true)) : undefined}
+            onKeyDown={!insert ? handleKeyDown : undefined}
+            tabIndex={!insert ? 300 : undefined}
         >
-            {!isCreating ? (
+            {!isEditing ? (
                 <>
                     <Icon icon="bx bx-plus" />{" "}
                     {t("board_view.new-item")}
@@ -408,12 +639,29 @@ function AddNewItem({ column, api, isCreating, setIsCreating, onCreated }: {
                 <TitleEditor
                     currentValue={initialTitle}
                     placeholder={t("board_view.new-item-placeholder")}
-                    save={async (title) => onCreated(await api.createNewItem(column, title))}
-                    dismiss={() => setIsCreating(false)}
+                    save={create}
+                    dismiss={close}
                     mode="multiline" isNewItem
                     selectOnFocus={false}
                     saveAndContinue
+                    handsOver={!!insert}
                     abandon={setInitialTitle}
+                    whenEmpty={{
+                        title: t("board_view.add-existing-item"),
+                        onClick: addExistingItem
+                    }}
+                    submitTitle={t("board_view.create-new-note")}
+                    // Only the field below the column offers both ends. One standing among the
+                    // cards is already at the end the reader asked for.
+                    openPlacements={!insert ? openCreateCardMenu : undefined}
+                    footer={(hold) => <CardTemplatePill {...cardTemplates} {...hold} />}
+                    icon={{
+                        current: icon,
+                        onSelect: setIcon,
+                        onReset: icon !== DEFAULT_CARD_ICON
+                            ? () => setIcon(DEFAULT_CARD_ICON)
+                            : undefined
+                    }}
                 />
             )}
         </div>
