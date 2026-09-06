@@ -23,13 +23,13 @@ overrides:
   # facets to work. A partial bump leaves two copies in the tree, which breaks
   # both typechecking (nominal type clashes) and runtime (lint markers, etc.).
   # Keep every core singleton pinned here so the whole tree resolves to one copy.
-  "@codemirror/view": "6.43.9"
-  "@codemirror/state": "6.7.1"
+  "@codemirror/view": "6.43.10"
+  "@codemirror/state": "6.7.2"
   "@codemirror/language": "6.12.4"
   "@codemirror/commands": "6.11.0"
   "@codemirror/autocomplete": "6.20.3"
   "@codemirror/lint": "6.9.7"
-  "@codemirror/search": "6.7.1"
+  "@codemirror/search": "6.7.2"
   "@lezer/common": "1.5.2"
   "@lezer/highlight": "1.2.3"
   "@lezer/lr": "1.4.10"
@@ -38,7 +38,8 @@ overrides:
   # copies in the tree mean two declarations of the `unique symbol` that marks a `Schema`, so a tool
   # built by one provider stops being assignable to the ToolSet `ai` expects (TS2322 on the Anthropic
   # web-search tool). Pin the version `ai` itself is built against, and raise it with the next bump.
-  "@ai-sdk/provider-utils": "5.0.33"
+  "@ai-sdk/provider-utils": "5.0.36"
+  "zod": "4.5.4"
   "mermaid": "11.17.2"
   "preact": "10.29.8"
   "roughjs": "4.6.6"
@@ -62,7 +63,6 @@ overrides:
   "@smithy/config-resolver@<4.4.0": ">=4.4.0"
   "diff@<4.0.4": ">=4.0.4"
   "diff@>=6.0.0 <8.0.3": ">=8.0.3"
-  "zod": ">=4.0.0"
   "rollup@>=4.0.0 <4.59.0": ">=4.59.0"
   "basic-ftp@<5.2.0": ">=5.2.0"
   "ajv@>=7.0.0-alpha.0 <8.18.0": ">=8.18.0"
