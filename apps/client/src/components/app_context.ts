@@ -13,6 +13,7 @@ import type LoadResults from "../services/load_results.js";
 import type { CreateNoteOpts } from "../services/note_create.js";
 import options from "../services/options.js";
 import type { ShortcutHintSection } from "../services/shortcut_hints.js";
+import { reportSplashPhase } from "../services/splash.js";
 import toast from "../services/toast.js";
 import utils from "../services/utils.js";
 import { ReactWrappedWidget } from "../widgets/basic_widget.js";
@@ -25,6 +26,8 @@ import type { InfoProps } from "../widgets/dialogs/info.jsx";
 import type { MarkdownImportOpts } from "../widgets/dialogs/markdown_import.jsx";
 import { ChooseNoteTypeCallback } from "../widgets/dialogs/note_type_chooser.jsx";
 import type { PrintPreviewData } from "../widgets/dialogs/print_preview.jsx";
+import type { NotePickerDialogOptions } from "../widgets/dialogs/note_picker.js";
+import type { ItemPickerDialogOptions } from "../widgets/dialogs/item_picker.js";
 import type { PromptDialogOptions } from "../widgets/dialogs/prompt.js";
 import type NoteTreeWidget from "../widgets/note_tree.js";
 import type { RightPaneTabId } from "../widgets/sidebar/RightPaneTabs.jsx";
@@ -149,6 +152,8 @@ export type CommandMappings = {
         isNewNote?: boolean;
     };
     showPromptDialog: PromptDialogOptions;
+    showItemPickerDialog: ItemPickerDialogOptions;
+    showNotePickerDialog: NotePickerDialogOptions;
     showInfoDialog: InfoProps;
     showConfirmDialog: ConfirmWithMessageOptions;
     showRecentChanges: CommandData & { ancestorNoteId: string };
@@ -157,7 +162,12 @@ export type CommandMappings = {
     openNewNoteSplit: NoteCommandData;
     openInWindow: NoteCommandData;
     /** Opens a note in the quick-edit popup. A `viewScope` carrying an `attachmentId` opens that attachment instead of the note itself. */
-    openInPopup: CommandData & { noteIdOrPath: string; viewScope?: ViewScope; };
+    openInPopup: CommandData & {
+        noteIdOrPath: string;
+        viewScope?: ViewScope;
+        /** Offers the note type switcher while the note is still blank, as the tab layout does. */
+        showNoteTypeSwitcher?: boolean;
+    };
     /** Dismisses the quick-edit popup, for something within it that has sent the reader elsewhere. Does nothing if it isn't open. */
     closePopupEditor: CommandData;
     openInTreePopup: CommandData & { noteIdOrPath: string; hoistedNoteId: string; };
@@ -403,7 +413,7 @@ export type CommandMappings = {
     unhoist: CommandData;
     reloadFrontendApp: CommandData;
     openDevTools: CommandData;
-    findInText: CommandData;
+    findInText: CommandData & { searchTerms?: string[] };
     toggleLeftPane: CommandData;
     toggleFullscreen: CommandData;
     zoomOut: CommandData;
@@ -653,6 +663,7 @@ export class AppContext extends Component {
         this.initComponents();
         this.renderWidgets();
 
+        reportSplashPhase("notes");
         await froca.initializedPromise;
 
         this.tabManager.loadTabs();
