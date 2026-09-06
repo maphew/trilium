@@ -1,9 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { cardInsertionIndex, columnAt } from "./drag_geometry";
-import { measureBoard, toAreaY, toBoardX } from "./drag_measure";
+import { forgetCardHeights, measureBoard, toAreaY, toBoardX } from "./drag_measure";
 
 let container: HTMLElement | undefined;
+
+// What has been measured outlives one board, which is the point of it, so each test starts with
+// nothing remembered.
+beforeEach(forgetCardHeights);
 
 afterEach(() => {
     container?.remove();
@@ -38,6 +42,7 @@ function buildBoard({ scrollLeft = 200, areaScrollTop = 20, cardCounts = [ 2, 1 
         for (let card = 0; card < cards; card++) {
             const note = document.createElement("div");
             note.className = "board-note";
+            note.dataset.noteId = `note-${index}-${card}`;
             area.appendChild(note);
             // Stated where the card stands in the area's content, then drawn where that leaves it
             // on screen once the area has been scrolled.
@@ -102,6 +107,22 @@ describe("measureBoard", () => {
         expect(measureBoard(buildBoard({ areaScrollTop: 0 })).columns[0].cards).toEqual(expected);
         container?.remove();
         expect(measureBoard(buildBoard({ areaScrollTop: 90 })).columns[0].cards).toEqual(expected);
+    });
+
+    it("reads one card per column once it knows what the rest of them measure", () => {
+        const board = buildBoard({ cardCounts: [ 3, 2 ] });
+        const expected = measureBoard(board).columns.map((column) => column.cards);
+
+        let reads = 0;
+        for (const note of board.querySelectorAll<HTMLElement>(".board-note")) {
+            const box = note.getBoundingClientRect.bind(note);
+            note.getBoundingClientRect = () => { reads++; return box(); };
+        }
+
+        // Where a column's cards begin is still its own to say, so the first of them is read.
+        // The four under it are placed by counting up from it instead.
+        expect(measureBoard(board).columns.map((column) => column.cards)).toEqual(expected);
+        expect(reads).toBe(2);
     });
 
     it("hands back each column's card area, and counts a column holding none", () => {

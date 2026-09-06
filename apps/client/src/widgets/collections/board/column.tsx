@@ -172,23 +172,26 @@ export default function Column({
     // made in the footer is shown by the scroll to the end and by its fade, and one made among the
     // others takes the place its field was standing in.
     //
-    // While a card is carried, the cards that move are those of the column it came from and those
-    // of any column the gap has stood in. The rest are left unmeasured, measuring one costing a
-    // layout of the whole board; paused rather than switched off, so a column the gap reaches in
-    // one step still knows where its cards stood and slides them from there.
+    // While a card is carried, the cards that move are those of the column it came from, the one
+    // the gap stands in, and the one it has just left, whose cards close up behind it. Every other
+    // column is left unmeasured, measuring one costing a layout of the whole board; paused rather
+    // than switched off, so a column the gap reaches in one step still knows where its cards stood
+    // and slides them from there.
+    //
+    // Just left, rather than ever held: a column keeps whatever it last measured, so one the gap
+    // passed through earlier has nothing more to say. Kept on, a column of thousands measures
+    // again every time anything redraws the board for the rest of the gesture.
     //
     // A column being carried, and a column changing width, move no card inside any column, so
     // every column is left unmeasured for the length of either.
     const heldGap = useRef(false);
-    if (!draggedCard) {
-        heldGap.current = false;
-    } else if (dropIndex !== null) {
-        heldGap.current = true;
-    }
+    const holdsGap = dropIndex !== null;
+    const justLeftGap = heldGap.current && !holdsGap;
+    heldGap.current = holdsGap;
     useFlip(contentRef, {
         selector: ".board-note",
         paused: draggedCard
-            ? column !== draggedCard.fromColumn && !heldGap.current
+            ? column !== draggedCard.fromColumn && !holdsGap && !justLeftGap
             : !!draggedColumn || !!isResizing
     });
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({

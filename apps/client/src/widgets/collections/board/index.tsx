@@ -41,6 +41,7 @@ import { ViewModeProps } from "../interface";
 import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api";
 import { useBoardDrag } from "./board_drag";
 import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geometry";
+import { forgetCardHeights } from "./drag_measure";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
@@ -473,6 +474,14 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const containerRef = useRef<HTMLDivElement>(null);
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
+
+    // What a card measures is kept between drags, which holds while a column is the width it was
+    // measured at. A phone gives a column a share of the window, so a window that changes size
+    // takes the heights with it.
+    useEffect(() => {
+        window.addEventListener("resize", forgetCardHeights);
+        return () => window.removeEventListener("resize", forgetCardHeights);
+    }, []);
 
     // Which columns stand narrow, as a line, so that one opening or closing is read off a single
     // comparison. A column changing width hides or shows its own cards and moves no card inside
