@@ -10,7 +10,7 @@
     "build-scripts": "esrun scripts/build.ts -- --module=scripts",
     "build-styles": "esrun scripts/build.ts -- --module=styles",
     "dist": "esrun scripts/build.ts -- --minify",
-    "test": "esrun src/scripts/test.ts"
+    "test": "vitest run"
   },
   "exports": {
     "./templates/*": "./src/templates/*",
@@ -36,6 +36,7 @@
     "esbuild": "0.28.2",
     "highlight.js": "11.12.0",
     "sass": "1.103.1",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
   }
 }

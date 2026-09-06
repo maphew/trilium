@@ -12,14 +12,14 @@ import { t } from "../../../services/i18n";
 import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
 import Api from "./api";
-import { INBOX_COLUMN, INBOX_COLUMN_ICON } from "./columns";
+import { INBOX_COLUMN } from "./columns";
 
-/** What the column menu is opened for: the column itself, and what it can be asked to do. */
+/** The column a menu was opened on, and what the menu can ask of it. */
 interface ColumnMenuTarget {
     value: string;
-    /** The columns as drawn, in the order they stand. */
+    /** Every column, in display order. */
     columns: string[];
-    /** Where this column stands among them. */
+    /** This column's index in `columns`. */
     index: number;
     color?: string;
     archived?: boolean;
@@ -27,23 +27,23 @@ interface ColumnMenuTarget {
     collapsed?: boolean;
     /** Whether the column collapses again once it has been opened. */
     keepCollapsed?: boolean;
-    /** Whether the column is drawn as a strip right now, which is what the menu offers to do. */
+    /** Whether the column is currently rendered as a strip, which the menu toggles. */
     isCollapsed?: boolean;
-    /** Whether the title can be edited, which the strip a collapsed column is drawn as cannot. */
+    /** Whether the title can be edited. False for a collapsed column, rendered as a strip. */
     canRename: boolean;
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     nested?: boolean;
-    /** Puts the title into its inline editor, the menu being the only way there besides F2. */
+    /** Opens the inline title editor, which F2 also opens. */
     onEditTitle: () => void;
-    /** Opens the column's own new-item editor, the same one its button opens. */
+    /** Opens the column's new-item editor, the same one its button opens. */
     onNewItem: () => void;
-    /** Puts a new column on one side of this one and opens its title editor. */
+    /** Adds a column beside this one and opens its title editor. */
     onAddColumn: (direction: "before" | "after") => void;
-    /** Moves this column to sit before the given position among the columns as drawn. */
+    /** Moves this column before the given index in `columns`. */
     onMoveColumn: (toIndex: number) => void;
     /** Opens the dialog that sets the column's note limit. */
     onSetLimit: () => void;
-    /** Collapses the column, the board drawing the change straight away. */
+    /** Collapses or expands the column, which the board redraws at once. */
     onCollapse: (collapsed: boolean) => void;
     /** Sets whether the column collapses again once it has been opened. */
     onKeepCollapsed: (keepCollapsed: boolean) => void;
@@ -65,7 +65,7 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
                 shortcut: "F2",
                 handler: column.onEditTitle
             } ] : []),
-            // Nothing to collapse while the column is already drawn as a strip.
+            // Already a strip, so there is nothing to collapse.
             ...(column.isCollapsed ? [] : [ {
                 title: t("board_view.collapse-column"),
                 uiIcon: "bx bx-collapse-horizontal",
@@ -74,7 +74,7 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
             {
                 title: t("board_view.keep-column-collapsed"),
                 uiIcon: "bx bx-lock-alt",
-                // At the trailing edge, the entry keeping its own icon ahead of it.
+                // At the trailing edge, so the entry keeps its own icon in front.
                 trailingIcon: column.keepCollapsed ? "bx bx-check" : undefined,
                 handler: () => column.onKeepCollapsed(!column.keepCollapsed)
             },
@@ -165,26 +165,23 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
     });
 }
 
-/** How many columns a card's menu lists before the rest go behind an entry of their own. */
+/** How many columns a card's menu lists before the rest move into a submenu. */
 const LISTED_COLUMNS = 7;
 
-/** What the board is, and what it can be asked to do, for a press on the ground its columns stand on. */
+/** The board a menu was opened on, and what the menu can ask of it. */
 interface BoardMenuTarget {
-    /** Whether the board keeps an inbox column, which the entry reports and toggles. */
-    inboxShown: boolean;
-    /** Whether the board draws the notes filed as archived. */
+    /** Whether the board renders notes labelled `archived`. */
     archivedShown: boolean;
-    /** Opens the editor a column is named in, the same one the button at the end opens. */
+    /** Opens the column name editor, the same one the button at the end opens. */
     onAddColumn: () => void;
     onCollapseAll: () => void;
     onExpandAll: () => void;
-    onShowInbox: (shown: boolean) => void;
     onShowArchived: (shown: boolean) => void;
-    /** Opens the dialog naming what a new card can be made from. */
-    onCustomizeTemplates: () => void;
+    /** Opens `BoardProperties`, which configures the card templates. */
+    onOpenProperties: () => void;
 }
 
-/** What the board itself offers, for a press on the ground the columns stand on. */
+/** The board's own menu, opened by a right click outside any column. */
 export function openBoardContextMenu(event: ContextMenuEvent, board: BoardMenuTarget) {
     event.preventDefault();
     event.stopPropagation();
@@ -211,12 +208,6 @@ export function openBoardContextMenu(event: ContextMenuEvent, board: BoardMenuTa
             },
             { kind: "separator" },
             {
-                title: t("board_view.show-inbox-column"),
-                uiIcon: INBOX_COLUMN_ICON,
-                trailingIcon: board.inboxShown ? "bx bx-check" : undefined,
-                handler: () => board.onShowInbox(!board.inboxShown)
-            },
-            {
                 title: t("board_view.show-archived-notes"),
                 uiIcon: "bx bx-archive",
                 trailingIcon: board.archivedShown ? "bx bx-check" : undefined,
@@ -224,16 +215,16 @@ export function openBoardContextMenu(event: ContextMenuEvent, board: BoardMenuTa
             },
             { kind: "separator" },
             {
-                title: t("board_view.customize-templates"),
-                uiIcon: "bx bx-list-ul",
-                handler: board.onCustomizeTemplates
+                title: t("board_view.properties"),
+                uiIcon: "bx bx-cog",
+                handler: board.onOpenProperties
             }
         ],
         selectMenuItemHandler() {}
     });
 }
 
-/** Offers both ends of a column for the card the button below it is about to create. */
+/** Offers both ends of a column for the card its button is about to create. */
 export function openCreateCardMenu(x: number, y: number, create: (atStart: boolean) => void) {
     contextMenu.show({
         x,
@@ -257,10 +248,10 @@ export function openCreateCardMenu(x: number, y: number, create: (atStart: boole
 }
 
 /**
- * Offers both ends of the board for the column the button beside the field is about to create.
+ * Offers both ends of the board for the column its button is about to create.
  *
- * Opened leftwards: the button stands at the end of the board, hard against the window's edge,
- * where a menu drawn from the pointer would be pushed back over the button it came from.
+ * Opened leftwards: the button sits at the end of the board, against the window edge, where a menu
+ * placed at the pointer would be pushed back over the button itself.
  */
 export function openCreateColumnMenu(x: number, y: number, create: (atStart: boolean) => void) {
     contextMenu.show({
@@ -286,10 +277,10 @@ export function openCreateColumnMenu(x: number, y: number, create: (atStart: boo
 }
 
 /**
- * Where a column can be sent, each place named by what the column would come to stand after.
+ * Where a column can be moved, each entry named by the column it would follow.
  *
- * A place is left out where sending it there would leave the board as it stands: the column itself,
- * the one it already follows, and the head of the board for a column already at the head.
+ * An entry is left out when moving there changes nothing: the column itself, the one it already
+ * follows, and the head of the board for a column already first.
  */
 function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<string>[] {
     const head: MenuItem<string>[] = column.index > 0
@@ -308,8 +299,8 @@ function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<stri
         const title = api.getColumnTitle(name);
 
         return [ {
-            // Boxed the way the status list boxes its names, so a long one is cut rather than
-            // widening the menu. What `t()` interpolates it has already escaped.
+            // Boxed as the status list boxes its names, so a long one is clipped rather than
+            // widening the menu. `t()` escapes what it interpolates.
             title: `<span class="board-column-name">`
                 + `${t("board_view.move-column-after", { column: title })}</span>`,
             className: "board-column-item",
@@ -318,7 +309,7 @@ function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<stri
             badges: api.isColumnArchived(name)
                 ? [ { title: t("board_view.archived-badge") } ]
                 : undefined,
-            // A column is placed before a position, so standing after `name` means the one past it.
+            // A column is placed before an index, so following `name` means the index after it.
             handler: () => column.onMoveColumn(index + 1)
         } ];
     });
@@ -327,11 +318,11 @@ function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<stri
 }
 
 /**
- * The colour a column is tinted with, picked the way a note's is.
+ * The colour a column is tinted with, picked as a note's colour is.
  *
- * It holds the pick rather than reading it back from the board, since the menu is rendered once and
- * the board redrawing underneath does not reach it. `note-color-picker` is what the menu styles the
- * row through, so the class is worn here too.
+ * Keeps the picked value rather than re-reading it from the board: the menu renders once, and a
+ * redraw underneath never reaches it. Carries `note-color-picker`, which the menu styles the row
+ * by.
  */
 function ColumnColorPicker({ api, value, color }: { api: Api, value: string, color?: string }) {
     const [ currentColor, setCurrentColor ] = useState(color ?? null);
@@ -347,13 +338,12 @@ function ColumnColorPicker({ api, value, color }: { api: Api, value: string, col
 }
 
 /**
- * The columns a card can be filed under, standing in the menu itself rather than behind a submenu:
- * moving a card is what a board is for, and a submenu puts every column a step further away.
- * Past `LISTED_COLUMNS` of them the menu would run off the screen, so what does not fit goes behind
- * one entry, and the column the card is in is listed whether or not it is among the first.
+ * The columns a card can be moved to, listed in the menu rather than in a submenu, which would put
+ * every column a step further away. Past `LISTED_COLUMNS`, the rest move into one submenu entry,
+ * and the card's current column is always listed.
  *
- * Archived columns are offered like any other, since filing a card under one is a fair thing to
- * want; the badge is there so it is not a surprise when the card goes out of sight.
+ * An archived column is offered like any other, with a badge, since the card then leaves the
+ * board's default view.
  */
 function buildColumnItems(
     api: Api, note: FNote, column: string, onFocusCard: (noteId: string) => void
@@ -408,11 +398,11 @@ function buildColumnItems(
 
 export function openNoteContextMenu(
     api: Api, event: ContextMenuEvent, note: FNote, branchId: string, column: string,
-    /** Where this card stands among its column's cards, which is what an insert is placed by. */
+    /** This card's index in its column, which an insert is placed against. */
     index: number,
-    /** Puts focus back on the card once a change of column has drawn it under another one. */
+    /** Refocuses the card after a column change has redrawn it elsewhere. */
     onFocusCard: (noteId: string) => void,
-    /** Opens the field a new card is named in at a place in the column, above or below this one. */
+    /** Opens the new-card editor at an index in the column, above or below this card. */
     onInsert: (index: number) => void
 ) {
     event.preventDefault();
