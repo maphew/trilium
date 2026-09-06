@@ -2,6 +2,7 @@ import { RefObject } from "preact";
 import { useCallback, useLayoutEffect, useRef } from "preact/hooks";
 
 import branches from "../../../services/branches";
+import { FLIP_SETTLE_MS } from "../../react/flip";
 import BoardApi from "./api";
 import { ColumnMap } from "./data";
 
@@ -82,8 +83,8 @@ export interface BoardKeyboardOptions {
  * handlers keep what is theirs (F2 to rename, Enter to add a card, typing to start one).
  *
  * Focus follows what is under it rather than where it sits: a card moved to another column is
- * drawn as a new element, and columns are drawn unkeyed, so a header would otherwise be left
- * focused on whichever column took its place.
+ * drawn as a new element, and a column moved in the page is blurred by the browser, so a header
+ * would otherwise be left focused on nothing.
  */
 export function useBoardKeyboard({
     containerRef, columns, byColumn, api, moveColumn, insertColumn, setActiveColumn
@@ -98,11 +99,11 @@ export function useBoardKeyboard({
         if (!pending || !container) return;
 
         if (!("noteId" in pending.intent)) {
-            // The columns are drawn unkeyed, so what was focused is now over whichever column took
-            // the old one's place. Focus is pointed at the right one and the hold is done with.
+            // Moving a focused element blurs it, so the header is focused again by name once the
+            // board has drawn it in its new place, and the hold is done with.
             const element = findInColumn(container, pending.intent.column, pending.intent.part);
             if (element) {
-                element.focus();
+                reveal(element);
                 pendingFocus.current = null;
             }
             return;
@@ -117,13 +118,15 @@ export function useBoardKeyboard({
             return;
         }
 
-        element?.focus();
+        if (element) {
+            reveal(element);
+        }
     });
 
     /**
      * Puts focus on a column's heading once the board has drawn it again, for a move made from
-     * somewhere other than the keyboard. The columns are drawn unkeyed, so an element held onto
-     * across the move would be left standing over whichever column took the old one's place.
+     * somewhere other than the keyboard. The browser blurs an element it moves, so an element
+     * held onto across the move would be left focused on nothing.
      */
     const focusColumn = useCallback((column: string) => {
         pendingFocus.current = { intent: { column, part: "header" } };
@@ -220,6 +223,11 @@ export function useBoardKeyboard({
 
             take(e);
             setActiveColumn(column);
+
+            // Opening the strip by hand opens the column for good, as a click on it does.
+            if (!api.isColumnKeptCollapsed(column)) {
+                api.setColumnCollapsed(column, false);
+            }
 
             // The cards are drawn only once the column opens, so the first of them is asked for
             // rather than focused here; the effect above puts focus on it as it appears. The
@@ -367,7 +375,7 @@ function walk(container: HTMLElement, from: Spot, key: string) {
     const element = elementAt(container, next);
     if (!element) return false;
 
-    element.focus();
+    reveal(element);
     return true;
 }
 
@@ -470,10 +478,44 @@ function move(
     };
 }
 
+/** The pending `reveal()` timer, so a newer call replaces it instead of running alongside it. */
+let pendingReveal: number | undefined;
+
+/**
+ * Focuses an element and scrolls to it once it has stopped moving.
+ *
+ * `useFlip` transforms a moved element back to its old place and releases it, so while that slide
+ * runs the element is painted between the two places. `scrollIntoView` follows what is painted, so
+ * scrolling any earlier targets where the element came from and leaves the column where it was.
+ */
+function reveal(element: HTMLElement) {
+    element.focus({ preventScroll: true });
+
+    // Only the last call survives: keys pressed faster than a slide runs would otherwise each
+    // scroll to where the card stood when they fired.
+    window.clearTimeout(pendingReveal);
+    pendingReveal = window.setTimeout(() => {
+        if (!element.isConnected) {
+            return;
+        }
+
+        // The last card scrolls its column to the end rather than just into view: its own bottom
+        // margin and the fade over the column's bottom edge would otherwise cover it.
+        const content = element.closest<HTMLElement>(".board-column-content");
+        if (content && !element.nextElementSibling) {
+            content.scrollTop = content.scrollHeight;
+        }
+
+        // Into view either way, which is what scrolls the board sideways to the column a card has
+        // crossed into. Called second, so a column already scrolled to its end stays there.
+        element.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }, FLIP_SETTLE_MS);
+}
+
 /**
  * Moves the column focus is in, answering with what to put focus back on. Whatever was focused
- * stays focused: the columns are drawn unkeyed, so the element would otherwise be left standing
- * over whichever column took the old one's place.
+ * stays focused: the browser blurs an element it moves, so it would otherwise be left focused on
+ * nothing.
  */
 function shiftColumn(
     spot: Spot,

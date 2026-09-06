@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import appContext from "../../../components/app_context";
 import Component from "../../../components/component";
 import contextMenu from "../../../menus/context_menu";
+import cssClassManager from "../../../services/css_class_manager";
 import FAttribute from "../../../entities/fattribute";
 import froca from "../../../services/froca";
 import LoadResults from "../../../services/load_results";
@@ -25,12 +26,31 @@ vi.mock("../../../menus/link_context_menu", () => ({
     default: { getItems: () => [], handleLinkContextMenuItem: () => {} }
 }));
 
+/** Counts how often each card has drawn, which is what the memo boundary around it decides. */
+const draws = vi.hoisted(() => new Map<string, number>());
+vi.mock("../../attribute_widgets/UserAttributesList", () => ({
+    default: ({ note }: { note: { noteId: string } }) => {
+        draws.set(note.noteId, (draws.get(note.noteId) ?? 0) + 1);
+        // What a relation draws: a link to the note it points at, and beside it one to a page of
+        // its own, which is not the card's to open.
+        return (
+            <span className="user-attributes">
+                <a className="relation-link" href="#root/targetNote">Target</a>
+                <a className="outside-link" href="https://example.invalid">Elsewhere</a>
+            </span>
+        );
+    }
+}));
+
 describe("Board card", () => {
     let container: HTMLElement | undefined;
     /** froca is module-level, so ids are kept distinct rather than reset between tests. */
     let idSeed = 0;
 
-    beforeEach(() => vi.restoreAllMocks());
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        draws.clear();
+    });
 
     afterEach(() => {
         if (container) {
@@ -54,6 +74,41 @@ describe("Board card", () => {
         expect(cardClasses(second)).not.toContain("archived");
     });
 
+    /**
+     * A board holds hundreds of cards, so a refresh that redrew all of them would make one card's
+     * move cost the whole board. The api is what this rests on: rebuilt per refresh, as it once was,
+     * it is a new prop on every card and no card can be skipped.
+     */
+    it("leaves the cards a refresh did not change undrawn", async () => {
+        const { component, first, second } = await renderBoard();
+        const before = draws.get(first);
+        expect(before).toBeGreaterThan(0);
+
+        // The last card takes a column of its own, so the first one keeps both its column and its
+        // place in it while the board rebuilds its data.
+        await changeStatus(component, second, "Done");
+
+        expect(columnsOf(container)).toContain("Done");
+        expect(draws.get(first)).toBe(before);
+        expect(draws.get(second)).toBeGreaterThan(before ?? 0);
+    });
+
+    /**
+     * The board does not redraw a card for a colour, and a card whose props have not changed is
+     * skipped by the memo around it, so the card has to hear about the label itself.
+     */
+    it("follows its note's colour", async () => {
+        const { component, first, second } = await renderBoard();
+        const coloured = cssClassManager.createClassForColor("#ff0000");
+
+        expect(cardClasses(first)).not.toContain(coloured);
+
+        await addLabel(component, first, "color", "#ff0000");
+
+        expect(cardClasses(first)).toContain(coloured);
+        expect(cardClasses(second)).not.toContain(coloured);
+    });
+
     it("follows its note's icon, which the quick edit popup sets as a label", async () => {
         const { component, first } = await renderBoard();
 
@@ -74,22 +129,80 @@ describe("Board card", () => {
             .toHaveBeenCalledWith("openInPopup", { noteIdOrPath: first });
     });
 
-    /** Enter adds a card where a spreadsheet would add a row, and Shift puts it above instead. */
-    it("adds a card under the focused one for Enter, and over it for Shift and Enter", async () => {
-        const insert = vi.spyOn(BoardApi.prototype, "insertRowAtPosition")
-            .mockResolvedValue(undefined as never);
-        const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+    /**
+     * A relation on a card is drawn as a link to the note it points at. The page's own link handler
+     * would open that in a tab, and the card underneath would open itself over the top of it.
+     */
+    it("opens what a link inside it points at, and only that", async () => {
         const { first } = await renderBoard();
+        const opened = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        const link = card(first).querySelector<HTMLElement>(".relation-link");
+        if (!link) throw new Error("expected the relation link");
 
-        await act(async () => { press(card(first), "Enter"); });
-        expect(insert).toHaveBeenLastCalledWith("To Do", expect.any(String), "after");
+        const reachedPage = vi.fn();
+        document.addEventListener("click", reachedPage);
+        const press = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+        await act(async () => { link.dispatchEvent(press); });
+        document.removeEventListener("click", reachedPage);
 
-        await act(async () => { press(card(first), "Enter", { shiftKey: true }); });
-        expect(insert).toHaveBeenLastCalledWith("To Do", expect.any(String), "before");
-
-        // The card it was pressed on stays where it is; Space is what opens one.
-        expect(openInPopup).not.toHaveBeenCalled();
+        expect(opened).toHaveBeenCalledTimes(1);
+        expect(opened).toHaveBeenCalledWith("openInPopup", { noteIdOrPath: "root/targetNote" });
+        // Taken here, so `goToLink` never sees it and opens no tab for it.
+        expect(press.defaultPrevented).toBe(true);
+        expect(reachedPage).not.toHaveBeenCalled();
     });
+
+    /**
+     * A link naming no note is `goToLink`'s to open, and the card neither opens itself over it nor
+     * takes the press away from the handler that would follow it.
+     */
+    it("leaves a link that names no note to the page's own handler", async () => {
+        const { first } = await renderBoard();
+        const opened = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        opened.mockClear();
+        const link = card(first).querySelector<HTMLElement>(".outside-link");
+        if (!link) throw new Error("expected the outside link");
+
+        const reachedPage = vi.fn();
+        document.addEventListener("click", reachedPage);
+        const press = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+        await act(async () => { link.dispatchEvent(press); });
+        document.removeEventListener("click", reachedPage);
+
+        expect(opened).not.toHaveBeenCalled();
+        // Reaches `goToLink`, which is what follows an address of its own.
+        expect(reachedPage).toHaveBeenCalled();
+    });
+
+    /**
+     * Enter opens the field a card is named in where a spreadsheet would add a row, and Shift puts
+     * it above instead. The card itself is made by that field, once it has been given a title.
+     */
+    it("opens the field under the focused card for Enter, and over it for Shift and Enter",
+        async () => {
+            const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+            const { first } = await renderBoard();
+
+            await act(async () => { press(card(first), "Enter"); });
+            expect(fieldBeside(first)).toBe("after");
+
+            await act(async () => { press(card(first), "Enter", { shiftKey: true }); });
+            expect(fieldBeside(first)).toBe("before");
+
+            // The card it was pressed on stays where it is; Space is what opens one.
+            expect(openInPopup).not.toHaveBeenCalled();
+        });
+
+    /** Which side of a card the field for a new one stands on, or that none is open. */
+    function fieldBeside(noteId: string) {
+        const field = container?.querySelector(".board-new-item.inserting");
+        if (!field) return "none";
+
+        const element = card(noteId);
+        if (field.previousElementSibling === element) return "after";
+        if (field.nextElementSibling === element) return "before";
+        return "elsewhere";
+    }
 
     it("opens the note once for a double click, not once per click of it", async () => {
         const { first } = await renderBoard();
@@ -127,25 +240,6 @@ describe("Board card", () => {
         await act(async () => { element.querySelector<HTMLElement>(".edit-icon")?.click(); });
         expect(element.querySelector("textarea")).toBeTruthy();
         expect(openInPopup).not.toHaveBeenCalled();
-    });
-
-    it("carries its own id and column in the clipboard when a drag starts", async () => {
-        const { first } = await renderBoard();
-        const clipboard: Record<string, string> = {};
-        const dataTransfer = {
-            effectAllowed: "",
-            setData: (type: string, value: string) => { clipboard[type] = value; }
-        };
-
-        await act(async () => { fireDrag(card(first), "dragstart", dataTransfer); });
-
-        expect(JSON.parse(clipboard["trilium/board-card"]))
-            .toMatchObject({ noteId: first, fromColumn: "To Do", index: 0 });
-        expect(dataTransfer.effectAllowed).toBe("move");
-
-        // Dropping it anywhere clears the drag, which is what un-hides the card.
-        await act(async () => { fireDrag(card(first), "dragend", dataTransfer); });
-        expect(card(first).className).not.toContain("dragging");
     });
 
     it("offers the card menu on a right click", async () => {
@@ -214,6 +308,35 @@ describe("Board card", () => {
         await settle();
 
         return { note, component, first, second };
+    }
+
+    /** Moves a card to another column the way an edit made anywhere else reaches the board. */
+    async function changeStatus(component: Component, noteId: string, value: string) {
+        const attribute = (noteAttributeCache.attributes[noteId] ?? [])
+            .find(candidate => candidate.name === "status");
+        if (!attribute) throw new Error(`no status label on ${noteId}`);
+        attribute.value = value;
+
+        const entity = {
+            attributeId: attribute.attributeId, noteId, type: "label", name: "status", value,
+            isDeleted: false
+        };
+        const loadResults = new LoadResults([ {
+            entityName: "attributes", entityId: attribute.attributeId, entity, hash: "",
+            isSynced: true, isErased: false
+        } ]);
+        loadResults.addAttribute(attribute.attributeId, "someOtherComponent");
+
+        await act(async () => {
+            await component.handleEvent("entitiesReloaded", { loadResults });
+        });
+        await settle();
+    }
+
+    /** The columns the board is showing, in the order it draws them. */
+    function columnsOf(root: HTMLElement | undefined) {
+        return [ ...root?.querySelectorAll(".board-column") ?? [] ]
+            .map(column => column.getAttribute("data-column"));
     }
 
     /** Adds a label to a note already in froca and announces it the way a websocket message would. */
