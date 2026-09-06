@@ -60,6 +60,7 @@ export default function Column({
     isActive,
     isPeeked,
     isResizing,
+    standsAside,
     nested,
     limit,
     columnItems,
@@ -87,6 +88,14 @@ export default function Column({
     isPeeked?: boolean,
     /** Whether a column is still taking its new width, during which no column's cards move. */
     isResizing?: boolean,
+    /**
+     * How far the column stands aside for one being carried, in pixels.
+     *
+     * Written as a transform rather than drawn by putting the carried column's place among the
+     * others: the row is left as it stands for the length of the gesture, so a step of it costs
+     * the browser a transform apiece instead of laying out every card on the board again.
+     */
+    standsAside?: number,
     /** What a new card is made from, and how the reader picks something else. */
     cardTemplates: CardTemplates,
     /** Whether the inbox also collects notes deeper than the board's direct children. */
@@ -421,7 +430,10 @@ export default function Column({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            style={{ "--board-column-custom-hue": hue }}
+            style={{
+                "--board-column-custom-hue": hue,
+                transform: standsAside ? `translateX(${standsAside}px)` : undefined
+            }}
         >
             <h3
                 ref={headerRef}

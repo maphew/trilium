@@ -40,7 +40,7 @@ import { CollectionFilterInput, useCollectionFilter } from "../collection_filter
 import { ViewModeProps } from "../interface";
 import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api";
 import { useBoardDrag } from "./board_drag";
-import { movesColumn } from "./drag_geometry";
+import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geometry";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
@@ -130,6 +130,10 @@ interface ColumnDrag {
     index: number;
     /** What the column measures, so the gap held open for it is the size it will land in. */
     size?: { width: number, height: number };
+    /** How much room it takes out of the row, its width and the gap after it. */
+    stride?: number;
+    /** Where each column stood before it was taken out, and where one added at the end would. */
+    lefts?: number[];
 }
 
 /**
@@ -628,11 +632,30 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 revealColumn(position.column);
             }
         },
-        onColumnStart: (column, index, size) => setDraggedColumn({ column, index, size }),
+        onColumnStart: (column, index, size, row) => setDraggedColumn({
+            column, index, size, stride: row.stride, lefts: row.lefts
+        }),
         onColumnMove: setColumnDropPosition,
         onColumnEnd: (from, to) => {
+            // The row is drawn again as the gesture lets go, and the columns land where their
+            // transforms already had them. No card moves inside a column for that, so the same
+            // window that covers a column changing width covers this too.
+            columnResizingUntil.current = Date.now() + EXPAND_MS;
             if (to !== null && movesColumn(from, to)) {
-                handleColumnDrop(from, to);
+                // The transforms come off in the same frame the row is drawn in its new order,
+                // where each column already stands where that order puts it. Eased to zero they
+                // would carry it a column's width from a place it never stood in, so the frame
+                // that takes them off runs without a transition.
+                const container = containerRef.current;
+                container?.classList.add("board-columns-landing");
+
+                // Taken off a frame after the one that draws the row, not on it: a frame's
+                // callbacks run before the styles it paints are worked out, so putting the
+                // transition back in the first of them puts it back in time to be used.
+                requestAnimationFrame(() => requestAnimationFrame(
+                    () => container?.classList.remove("board-columns-landing")));
+                // Not animated either: the row puts the columns exactly where they already are.
+                handleColumnDrop(from, to, false);
             }
             setDraggedColumn(null);
             setColumnDropPosition(null);
@@ -665,8 +688,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         axis: "horizontal",
         // Only for a move the reader made, tracked by `columnMovedUntil`. A value change redraws
         // the columns, and the order churns while the cards, the definition and the stored config
-        // catch up with one another; sliding for that animates a rename as a move.
-        disabled: !draggedColumn && Date.now() > columnMovedUntil.current
+        // catch up with one another; sliding for that animates a rename as a move. A carried
+        // column is left out as well: the columns beside it are moved by their own transforms,
+        // which this would measure and then slide back from.
+        disabled: !!draggedColumn || Date.now() > columnMovedUntil.current
     });
 
     /**
@@ -723,8 +748,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The drag reports where the column landed among the ones on screen, which is not where it
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
-    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number) => {
-        columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
+        if (animate) {
+            columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+        }
         // The list the api holds, which is also the one it reorders. A column the board is not
         // showing is in neither, so indexing into `columns` would be off by one.
         const allColumns = api.columns;
@@ -809,10 +836,16 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                         <div className="board-columns">
                         {shownColumns.map((column, index) => (
                             <Fragment key={column}>
-                                {columnDropPosition === index && (
+                                {draggedColumn?.index === index && (
                                     <div
                                         className="column-drop-placeholder show"
-                                        style={placeholderSize}
+                                        style={{
+                                            ...placeholderSize,
+                                            transform: `translateX(${columnGapStandsAside(
+                                                draggedColumn.index, columnDropPosition,
+                                                draggedColumn.lefts ?? [],
+                                                draggedColumn.stride ?? 0)}px)`
+                                        }}
                                     />
                                 )}
                                 <Column
@@ -828,6 +861,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     isActive={activeColumn === column}
                                     isPeeked={isPeekingAll}
                                     isResizing={isResizingColumns}
+                                    standsAside={draggedColumn
+                                        ? columnStandsAside(index, draggedColumn.index,
+                                            columnDropPosition, draggedColumn.stride ?? 0)
+                                        : 0}
                                     cardTemplates={cardTemplates}
                                     nested={storedColumns.get(column)?.nested}
                                     limit={storedColumns.get(column)?.limit}
@@ -842,9 +879,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                 />
                             </Fragment>
                         ))}
-                        {columnDropPosition === shownColumns.length && draggedColumn && (
-                            <div className="column-drop-placeholder show" style={placeholderSize} />
-                        )}
+
                         </div>
 
                         <AddNewColumn

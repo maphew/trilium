@@ -487,6 +487,61 @@ describe("Board column reordering", () => {
         expect(placeholder?.style.width).toBe("");
     });
 
+    /**
+     * The row is left as it stands for the length of the gesture: the carried column's place is
+     * held open where it was lifted from, and the columns it is carried past step aside by a
+     * transform. Reordering the elements per step would lay out every card on the board again.
+     */
+    it("holds the gap where the column was lifted from and steps the others aside", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Carried over the third column, which spans 200 to 300, past its middle.
+        await carryColumn(columns[0], 280, { release: false });
+
+        // The copy being carried is a column too, and it follows the pointer rather than the row.
+        const drawn = [ ...board.querySelectorAll<HTMLElement>(
+            ".board-column:not(.board-drag-preview)") ];
+        const placeholder = board.querySelector<HTMLElement>(".column-drop-placeholder");
+        // Still the first thing in the row, where the column it stands for was picked up.
+        expect(placeholder?.previousElementSibling).toBeNull();
+        // The two it passes close up by what it takes out of the row, which is its own 100px:
+        // happy-dom computes no styles, so the gap between columns reads as nothing here.
+        expect(drawn.map(column => column.style.transform))
+            .toEqual([ "", "translateX(-100px)", "translateX(-100px)" ]);
+    });
+
+    /**
+     * The transforms come off in the same frame the row is drawn in its new order, where every
+     * column already stands where that order puts it. Eased to nothing they would each carry a
+     * column's width from a place it never stood in, which reads as the row sliding after the drop.
+     */
+    it("takes the transforms off without a transition once a column has landed", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Watched rather than read afterwards: the frame that puts the transition back has run by
+        // the time the gesture returns.
+        expect(await classesWhile(board, () => carryColumn(columns[0], 280)))
+            .toContain("board-columns-landing");
+    });
+
+    it("eases the columns back where the drag is called off, having moved nothing", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Let go where it started, which places the column back where it came from: the columns
+        // that stepped aside slide back, so the transition has to stay on.
+        expect(await classesWhile(board, () => carryColumn(columns[0], 20)))
+            .not.toContain("board-columns-landing");
+    });
+
+    it("puts the columns back once the gesture is over", async () => {
+        const { columns, board } = await renderColumns();
+
+        await carryColumn(columns[0], 280);
+
+        expect([ ...board.querySelectorAll<HTMLElement>(".board-column") ]
+            .map(column => column.style.transform)).toEqual([ "", "", "" ]);
+    });
+
     /** A copy of it is carried, capped so a tall column does not cover the board it is placed on. */
     it("carries a copy, hiding the column until it is let go", async () => {
         const { columns, board } = await renderColumns();
@@ -596,6 +651,20 @@ describe("Board column reordering", () => {
     });
 
     /** Takes hold of a column by its heading, carries it to `clientX` and lets it go there. */
+    /** Every class the element wears at any point while `run` is going on. */
+    async function classesWhile(element: HTMLElement, run: () => Promise<void>) {
+        const seen = new Set<string>();
+        const watch = new MutationObserver(() => {
+            for (const name of element.classList) {
+                seen.add(name);
+            }
+        });
+        watch.observe(element, { attributes: true, attributeFilter: [ "class" ] });
+        await run();
+        watch.disconnect();
+        return [ ...seen ];
+    }
+
     async function carryColumn(
         column: HTMLElement,
         clientX: number,

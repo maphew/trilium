@@ -769,7 +769,8 @@ body.mobile .board-view-container .board-add-column {
   border-radius: 8px;
   background-color: rgba(0, 0, 0, 0.1);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  /* Carried to where the column would land, the same way the columns it passes step aside. */
+  transition: opacity 0.15s ease, transform 0.2s ease;
 }
 
 body.mobile .column-drop-placeholder {
@@ -920,6 +921,16 @@ body.mobile .column-drop-placeholder {
 .board-view-container .board-column.quick-expand:not(.board-drag-preview) {
   transition: border-color 0.2s ease, transform 0.2s ease,
     width var(--board-expand-duration) ease;
+}
+
+/* The one frame the row is drawn in after a column is dropped. Each column already stands where
+   that order puts it, carried there by the transform the drag wrote, so taking the transform off
+   has nothing left to ease: given a transition it would carry the column a full width from a place
+   it never stood in. Written against the selectors above, which it has to outweigh. */
+.board-view-container.board-columns-landing .board-column,
+.board-view-container.board-columns-landing .board-column.collapsed:not(.board-drag-preview),
+.board-view-container.board-columns-landing .board-column.quick-expand:not(.board-drag-preview) {
+  transition: none;
 }
 
 /*

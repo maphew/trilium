@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
     type CardBox, cardInsertionIndex, columnAt, type ColumnBox, columnCovers,
-    columnInsertionIndex, movesColumn
+    columnInsertionIndex, columnStandsAside, movesColumn
 } from "./drag_geometry";
 
 /** Three 100px columns with a 20px gap, standing 400 tall from the top of the page. */
@@ -170,5 +170,35 @@ describe("movesColumn", () => {
         expect(movesColumn(0, 0)).toBe(false);
         expect(movesColumn(0, 1)).toBe(false);
         expect(movesColumn(0, 2)).toBe(true);
+    });
+});
+
+describe("columnStandsAside", () => {
+    // Six columns, the third one carried, each standing 266px wide with the gap after it.
+    const aside = (index: number, to: number | null) => columnStandsAside(index, 2, to, 266);
+
+    it("moves the columns between where it left and where it lands, and no others", () => {
+        // Carried to the right: the ones it passes close up behind it.
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, 5)))
+            .toEqual([ 0, 0, 0, -266, -266, 0 ]);
+
+        // Carried to the left: the ones it passes stand aside for it.
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, 0)))
+            .toEqual([ 266, 266, 0, 0, 0, 0 ]);
+    });
+
+    it("holds everything still where the column would land back in its own place", () => {
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, 2))).toEqual([ 0, 0, 0, 0, 0, 0 ]);
+        // The place just after its own is the same place: it is the only column out of the row.
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, 3))).toEqual([ 0, 0, 0, 0, 0, 0 ]);
+    });
+
+    it("holds everything still while the column is over nowhere it could land", () => {
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, null))).toEqual([ 0, 0, 0, 0, 0, 0 ]);
+    });
+
+    it("counts the place past the last column as the end of the row", () => {
+        expect([ 0, 1, 2, 3, 4, 5 ].map(index => aside(index, 6)))
+            .toEqual([ 0, 0, 0, -266, -266, -266 ]);
     });
 });

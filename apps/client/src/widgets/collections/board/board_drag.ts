@@ -66,8 +66,13 @@ export interface BoardDragCallbacks {
      * A column has been taken hold of by its heading.
      *
      * @param size what it measures, so the gap held open for it is the size it will land in.
+     * @param row where the columns stood before it was taken out of the row, and how much room it
+     * takes out of one, which is what the board moves the gap and the other columns against.
      */
-    onColumnStart(column: string, index: number, size: { width: number, height: number }): void;
+    onColumnStart(
+        column: string, index: number, size: { width: number, height: number },
+        row: { lefts: number[], stride: number }
+    ): void;
     /** Which place among the columns it would take, counting them as they stand. */
     onColumnMove(index: number | null): void;
     /** As {@link onCardEnd}, for a column: a place means let go, nothing means called off. */
@@ -175,7 +180,7 @@ export function useBoardDrag(
             if (held.kind === "card") {
                 latest.current.onCardStart(held.card);
             } else {
-                latest.current.onColumnStart(held.column, held.index, lifted.size);
+                latest.current.onColumnStart(held.column, held.index, lifted.size, row(held));
             }
             resolve(held);
         };
@@ -357,7 +362,25 @@ export function useBoardDrag(
             }
         };
 
-        /** Set between a tap and the `touchend` the browser would make mouse events from. */
+        /**
+ * Where the columns stood before the carried one was taken out of the row, which is what the board
+ * places the gap and the columns that step aside for it against.
+ */
+function row(held: Gesture & { kind: "column" }) {
+    const boxes = held.measurement?.columns ?? [];
+    const last = boxes[boxes.length - 1];
+    // Read off the row rather than from the stylesheet: what stands between two columns is the
+    // same everywhere, and one pair is enough to say how much.
+    const gap = boxes.length > 1 ? boxes[1].left - (boxes[0].left + boxes[0].width) : 0;
+    const lefts = boxes.map(({ left }) => left);
+    if (last) {
+        lefts.push(last.left + last.width + gap);
+    }
+
+    return { lefts, stride: (boxes[held.index]?.width ?? 0) + gap };
+}
+
+/** Set between a tap and the `touchend` the browser would make mouse events from. */
         let justTapped = false;
 
         const onTouchEnd = (event: TouchEvent) => {
