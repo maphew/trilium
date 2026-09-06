@@ -535,35 +535,28 @@ export default function Column({
                 style={scrollFade.style}
                 onWheel={handleScroll}
             >
-                {(columnItems ?? []).map(({ note, branch }, index) => {
-                    // The card being carried is out of the flow, so the gap stands in its own
-                    // place too: held still, which a touch does before it moves, that is where it
-                    // was picked up from.
-                    const showIndicatorBefore = dropIndex === index;
-
-                    return (
-                        <Fragment key={note.noteId}>
-                            {showIndicatorBefore && (
-                                <div className="board-drop-placeholder show" style={gapStyle} />
-                            )}
-                            {insertBefore?.branchId === branch.branchId && insertField}
-                            <Card
-                                api={api}
-                                note={note}
-                                branch={branch}
-                                column={column}
-                                index={index}
-                                statusAttribute={api.statusAttribute}
-                                isNew={note.noteId === createdNoteId}
-                                focusOnArrival={note.noteId === insertedNoteId}
-                                isDragging={draggedCard?.noteId === note.noteId}
-                                isEditing={branch.branchId === branchIdToEdit}
-                                onFocusCard={onFocusCard}
-                                onInsert={beginInsert}
-                            />
-                        </Fragment>
-                    );
-                })}
+                {(columnItems ?? []).map(({ note, branch }, index) => (
+                    <Fragment key={note.noteId}>
+                        {dropIndex === index && (
+                            <div className="board-drop-placeholder show" style={gapStyle} />
+                        )}
+                        {insertBefore?.branchId === branch.branchId && insertField}
+                        <Card
+                            api={api}
+                            note={note}
+                            branch={branch}
+                            column={column}
+                            index={index}
+                            statusAttribute={api.statusAttribute}
+                            isNew={note.noteId === createdNoteId}
+                            focusOnArrival={note.noteId === insertedNoteId}
+                            isDragging={draggedCard?.noteId === note.noteId}
+                            isEditing={branch.branchId === branchIdToEdit}
+                            onFocusCard={onFocusCard}
+                            onInsert={beginInsert}
+                        />
+                    </Fragment>
+                ))}
                 {insertBefore && !insertBefore.branchId && insertField}
                 {dropIndex === (columnItems?.length ?? 0) && (
                     <div className="board-drop-placeholder show" style={gapStyle} />

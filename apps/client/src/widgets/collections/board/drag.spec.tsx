@@ -521,7 +521,7 @@ describe("Board column reordering", () => {
         // Watched rather than read afterwards: the frame that puts the transition back has run by
         // the time the gesture returns.
         expect(await classesWhile(board, () => carryColumn(columns[0], 280)))
-            .toContain("board-columns-landing");
+            .toContain("board-landing");
     });
 
     it("eases the columns back where the drag is called off, having moved nothing", async () => {
@@ -530,7 +530,7 @@ describe("Board column reordering", () => {
         // Let go where it started, which places the column back where it came from: the columns
         // that stepped aside slide back, so the transition has to stay on.
         expect(await classesWhile(board, () => carryColumn(columns[0], 20)))
-            .not.toContain("board-columns-landing");
+            .not.toContain("board-landing");
     });
 
     it("puts the columns back once the gesture is over", async () => {

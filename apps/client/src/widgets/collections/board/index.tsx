@@ -655,14 +655,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 // where each column already stands where that order puts it. Eased to zero they
                 // would carry it a column's width from a place it never stood in, so the frame
                 // that takes them off runs without a transition.
-                const container = containerRef.current;
-                container?.classList.add("board-columns-landing");
-
-                // Taken off a frame after the one that draws the row, not on it: a frame's
-                // callbacks run before the styles it paints are worked out, so putting the
-                // transition back in the first of them puts it back in time to be used.
-                requestAnimationFrame(() => requestAnimationFrame(
-                    () => container?.classList.remove("board-columns-landing")));
+                land();
                 // Not animated either: the row puts the columns exactly where they already are.
                 handleColumnDrop(from, to, false);
             }
@@ -757,6 +750,21 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The drag reports where the column landed among the ones on screen, which is not where it
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
+    /**
+     * Draws the next frame without transitions.
+     *
+     * What a drag carried aside it carried by a transform, and the board is about to draw it where
+     * that transform already had it. Eased instead, each element would set off from a place it
+     * never stood in. Taken off a frame later than the one that draws it, since a frame's
+     * callbacks run before the styles it paints are worked out.
+     */
+    const land = useCallback(() => {
+        const container = containerRef.current;
+        container?.classList.add("board-landing");
+        requestAnimationFrame(() => requestAnimationFrame(
+            () => container?.classList.remove("board-landing")));
+    }, []);
+
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
         if (animate) {
             columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;

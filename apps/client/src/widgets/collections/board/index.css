@@ -923,13 +923,13 @@ body.mobile .column-drop-placeholder {
     width var(--board-expand-duration) ease;
 }
 
-/* The one frame the row is drawn in after a column is dropped. Each column already stands where
-   that order puts it, carried there by the transform the drag wrote, so taking the transform off
-   has nothing left to ease: given a transition it would carry the column a full width from a place
-   it never stood in. Written against the selectors above, which it has to outweigh. */
-.board-view-container.board-columns-landing .board-column,
-.board-view-container.board-columns-landing .board-column.collapsed:not(.board-drag-preview),
-.board-view-container.board-columns-landing .board-column.quick-expand:not(.board-drag-preview) {
+/* The one frame the board is drawn in after something is dropped. Whatever was carried aside by a
+   transform already stands where the new order puts it, so taking the transform off has nothing
+   left to ease: given a transition it would carry the element a full width, or a card's height,
+   from a place it never stood in. Written against the selectors above, which it has to outweigh. */
+.board-view-container.board-landing .board-column,
+.board-view-container.board-landing .board-column.collapsed:not(.board-drag-preview),
+.board-view-container.board-landing .board-column.quick-expand:not(.board-drag-preview) {
   transition: none;
 }
 
