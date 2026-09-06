@@ -26,7 +26,7 @@ import { useScrollFade } from "../../react/scroll_fade";
 const HAND_OVER_MS = 2000;
 
 /** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
-const EXPAND_MS = 200;
+export const EXPAND_MS = 200;
 import NoteLink from "../../react/NoteLink";
 import { BoardActionsContext, BoardDragStateContext, TitleEditor } from ".";
 import BoardApi from "./api";
@@ -59,6 +59,7 @@ export default function Column({
     keepCollapsed,
     isActive,
     isPeeked,
+    isResizing,
     nested,
     limit,
     columnItems,
@@ -84,6 +85,8 @@ export default function Column({
     isActive?: boolean,
     /** Whether the board is showing every collapsed column at once, which opens this one too. */
     isPeeked?: boolean,
+    /** Whether a column is still taking its new width, during which no column's cards move. */
+    isResizing?: boolean,
     /** What a new card is made from, and how the reader picks something else. */
     cardTemplates: CardTemplates,
     /** Whether the inbox also collects notes deeper than the board's direct children. */
@@ -145,7 +148,8 @@ export default function Column({
     const [ isRevealed, setIsRevealed ] = useState(false);
     const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn } =
         useContext(BoardActionsContext);
-    const { branchIdToEdit, columnNameToEdit, draggedCard } = useContext(BoardDragStateContext);
+    const { branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn } =
+        useContext(BoardDragStateContext);
     // Asked about this column alone: where the gap stands changes on every step of a drag, and a
     // column that the answer does not concern is left as it is rather than drawn again.
     const dropIndex = useDropIndex(column);
@@ -163,6 +167,9 @@ export default function Column({
     // of any column the gap has stood in. The rest are left unmeasured, measuring one costing a
     // layout of the whole board; paused rather than switched off, so a column the gap reaches in
     // one step still knows where its cards stood and slides them from there.
+    //
+    // A column being carried, and a column changing width, move no card inside any column, so
+    // every column is left unmeasured for the length of either.
     const heldGap = useRef(false);
     if (!draggedCard) {
         heldGap.current = false;
@@ -171,7 +178,9 @@ export default function Column({
     }
     useFlip(contentRef, {
         selector: ".board-note",
-        paused: !!draggedCard && column !== draggedCard.fromColumn && !heldGap.current
+        paused: draggedCard
+            ? column !== draggedCard.fromColumn && !heldGap.current
+            : !!draggedColumn || !!isResizing
     });
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
         column, columnIndex, columnItems, isEditing, api, parentNote

@@ -9,12 +9,16 @@ export interface BoardMeasurement {
 }
 
 /**
- * Measures every column and card on the board.
+ * Measures every column on the board, and the cards in each of them.
  *
  * Called once when a drag starts. A gesture reads two rectangles per move afterwards, whatever the
  * board holds, where measuring per move would read one for every card on it.
+ *
+ * @param withCards whether to measure the cards as well, which only a card is placed against. A
+ * column is placed against the column boxes alone, and reading a rectangle per card for one is a
+ * pass over the whole board that nothing goes on to look at.
  */
-export function measureBoard(container: HTMLElement): BoardMeasurement {
+export function measureBoard(container: HTMLElement, withCards = true): BoardMeasurement {
     const origin = container.getBoundingClientRect().left - container.scrollLeft;
     const columns: ColumnBox[] = [];
     const areas = new Map<string, HTMLElement>();
@@ -38,7 +42,7 @@ export function measureBoard(container: HTMLElement): BoardMeasurement {
             width: rect.width,
             top: rect.top,
             height: rect.height,
-            cards: measureCards(area)
+            cards: withCards ? measureCards(area) : []
         });
     }
 

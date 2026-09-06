@@ -44,7 +44,7 @@ import { movesColumn } from "./drag_geometry";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
-import Column from "./column";
+import Column, { EXPAND_MS } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
@@ -470,6 +470,21 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
 
+    // Which columns stand narrow, as a line, so that one opening or closing is read off a single
+    // comparison. A column changing width hides or shows its own cards and moves no card inside
+    // any other, so there is nothing for any column to measure while it is happening.
+    const columnResizingUntil = useRef(0);
+    const columnWidths = useRef<string>();
+    const widths = shownColumns
+        .map(column => storedColumns.get(column)?.collapsed
+            && column !== activeColumn && !isPeekingAll ? "1" : "0")
+        .join("");
+    if (columnWidths.current !== undefined && columnWidths.current !== widths) {
+        columnResizingUntil.current = Date.now() + EXPAND_MS;
+    }
+    columnWidths.current = widths;
+    const isResizingColumns = Date.now() < columnResizingUntil.current;
+
     const boardDragState = useMemo<BoardDragState>(() => ({
         branchIdToEdit,
         columnNameToEdit,
@@ -812,6 +827,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     keepCollapsed={storedColumns.get(column)?.keepCollapsed}
                                     isActive={activeColumn === column}
                                     isPeeked={isPeekingAll}
+                                    isResizing={isResizingColumns}
                                     cardTemplates={cardTemplates}
                                     nested={storedColumns.get(column)?.nested}
                                     limit={storedColumns.get(column)?.limit}

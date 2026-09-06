@@ -147,8 +147,9 @@ export function useBoardDrag(
 
             held.active = true;
             // Measured before what is carried is taken out of the flow, so the places it can land
-            // are the ones the board is showing.
-            held.measurement = measureBoard(container);
+            // are the ones the board is showing. A column is placed among the columns alone, so
+            // the cards are left unmeasured for one.
+            held.measurement = measureBoard(container, held.kind === "card");
             // Held from here on, so the gesture keeps the pointer wherever it goes. Taken at the
             // press instead, it would carry the click away from what was pressed.
             container.setPointerCapture?.(held.pointerId);
@@ -428,7 +429,7 @@ export function useBoardDrag(
             return;
         }
 
-        const measurement = measureBoard(container);
+        const measurement = measureBoard(container, held.kind === "card");
         // A column that was measured with cards keeps them. The board now holds the gap where the
         // carried card was, which stands every card below it one place lower, so reading them again
         // would take the drag's own doing for a move of its own and the places would creep away
