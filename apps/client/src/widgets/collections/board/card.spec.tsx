@@ -31,7 +31,14 @@ const draws = vi.hoisted(() => new Map<string, number>());
 vi.mock("../../attribute_widgets/UserAttributesList", () => ({
     default: ({ note }: { note: { noteId: string } }) => {
         draws.set(note.noteId, (draws.get(note.noteId) ?? 0) + 1);
-        return null;
+        // What a relation draws: a link to the note it points at, and beside it one to a page of
+        // its own, which is not the card's to open.
+        return (
+            <span className="user-attributes">
+                <a className="relation-link" href="#root/targetNote">Target</a>
+                <a className="outside-link" href="https://example.invalid">Elsewhere</a>
+            </span>
+        );
     }
 }));
 
@@ -122,22 +129,80 @@ describe("Board card", () => {
             .toHaveBeenCalledWith("openInPopup", { noteIdOrPath: first });
     });
 
-    /** Enter adds a card where a spreadsheet would add a row, and Shift puts it above instead. */
-    it("adds a card under the focused one for Enter, and over it for Shift and Enter", async () => {
-        const insert = vi.spyOn(BoardApi.prototype, "insertRowAtPosition")
-            .mockResolvedValue(undefined as never);
-        const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+    /**
+     * A relation on a card is drawn as a link to the note it points at. The page's own link handler
+     * would open that in a tab, and the card underneath would open itself over the top of it.
+     */
+    it("opens what a link inside it points at, and only that", async () => {
         const { first } = await renderBoard();
+        const opened = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        const link = card(first).querySelector<HTMLElement>(".relation-link");
+        if (!link) throw new Error("expected the relation link");
 
-        await act(async () => { press(card(first), "Enter"); });
-        expect(insert).toHaveBeenLastCalledWith("To Do", expect.any(String), "after");
+        const reachedPage = vi.fn();
+        document.addEventListener("click", reachedPage);
+        const press = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+        await act(async () => { link.dispatchEvent(press); });
+        document.removeEventListener("click", reachedPage);
 
-        await act(async () => { press(card(first), "Enter", { shiftKey: true }); });
-        expect(insert).toHaveBeenLastCalledWith("To Do", expect.any(String), "before");
-
-        // The card it was pressed on stays where it is; Space is what opens one.
-        expect(openInPopup).not.toHaveBeenCalled();
+        expect(opened).toHaveBeenCalledTimes(1);
+        expect(opened).toHaveBeenCalledWith("openInPopup", { noteIdOrPath: "root/targetNote" });
+        // Taken here, so `goToLink` never sees it and opens no tab for it.
+        expect(press.defaultPrevented).toBe(true);
+        expect(reachedPage).not.toHaveBeenCalled();
     });
+
+    /**
+     * A link naming no note is `goToLink`'s to open, and the card neither opens itself over it nor
+     * takes the press away from the handler that would follow it.
+     */
+    it("leaves a link that names no note to the page's own handler", async () => {
+        const { first } = await renderBoard();
+        const opened = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        opened.mockClear();
+        const link = card(first).querySelector<HTMLElement>(".outside-link");
+        if (!link) throw new Error("expected the outside link");
+
+        const reachedPage = vi.fn();
+        document.addEventListener("click", reachedPage);
+        const press = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+        await act(async () => { link.dispatchEvent(press); });
+        document.removeEventListener("click", reachedPage);
+
+        expect(opened).not.toHaveBeenCalled();
+        // Reaches `goToLink`, which is what follows an address of its own.
+        expect(reachedPage).toHaveBeenCalled();
+    });
+
+    /**
+     * Enter opens the field a card is named in where a spreadsheet would add a row, and Shift puts
+     * it above instead. The card itself is made by that field, once it has been given a title.
+     */
+    it("opens the field under the focused card for Enter, and over it for Shift and Enter",
+        async () => {
+            const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+            const { first } = await renderBoard();
+
+            await act(async () => { press(card(first), "Enter"); });
+            expect(fieldBeside(first)).toBe("after");
+
+            await act(async () => { press(card(first), "Enter", { shiftKey: true }); });
+            expect(fieldBeside(first)).toBe("before");
+
+            // The card it was pressed on stays where it is; Space is what opens one.
+            expect(openInPopup).not.toHaveBeenCalled();
+        });
+
+    /** Which side of a card the field for a new one stands on, or that none is open. */
+    function fieldBeside(noteId: string) {
+        const field = container?.querySelector(".board-new-item.inserting");
+        if (!field) return "none";
+
+        const element = card(noteId);
+        if (field.previousElementSibling === element) return "after";
+        if (field.nextElementSibling === element) return "before";
+        return "elsewhere";
+    }
 
     it("opens the note once for a double click, not once per click of it", async () => {
         const { first } = await renderBoard();

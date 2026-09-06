@@ -5,14 +5,15 @@ import {
 import FBranch from "../../../entities/fbranch";
 import FNote from "../../../entities/fnote";
 import BoardApi from "./api";
-import { BoardActionsContext, TitleEditor } from ".";
+import { BoardActionsContext, BoardPromotedAttributesContext, TitleEditor } from ".";
 import { ContextMenuEvent } from "../../../menus/context_menu";
 import { openNoteContextMenu } from "./context_menu";
 import { t } from "../../../services/i18n";
 import UserAttributesDisplay from "../../attribute_widgets/UserAttributesList";
+import { parseNavigationStateFromUrl } from "../../../services/link";
 import { FLIP_SETTLE_MS } from "../../react/flip";
 import {
-    useNoteColorClass, useNoteIcon, useNoteLabelBoolean, useTriliumEvent
+    useNoteColorClass, useNoteIcon, useNoteLabel, useNoteLabelBoolean, useTriliumEvent
 } from "../../react/hooks";
 
 function Card({
@@ -27,7 +28,7 @@ function Card({
     isDragging,
     isEditing,
     onFocusCard,
-    onCreated
+    onInsert
 }: {
     api: BoardApi,
     note: FNote,
@@ -41,7 +42,7 @@ function Card({
     statusAttribute: string,
     /** Whether this is the card just made, which is revealed on arrival. */
     isNew: boolean,
-    /** Whether the card just made is also left focused, which an insert's is and the footer's is not. */
+    /** Whether the card just made is also left focused, which one made among the others is. */
     focusOnArrival: boolean,
     isDragging: boolean,
     /**
@@ -51,15 +52,20 @@ function Card({
     isEditing: boolean,
     /** Puts focus back on this card once a change of column has drawn it under another one. */
     onFocusCard: (noteId: string) => void,
-    /** Names the card inserted next to this one, which the column reveals as it draws it. */
-    onCreated: (noteId: string | undefined) => void
+    /**
+     * Opens the field a new card is named in at a place in the column, which is what makes the
+     * card. The index is where the field stands among the cards.
+     */
+    onInsert: (index: number) => void
 }) {
     const { setBranchIdToEdit } = useContext(BoardActionsContext);
+    const shownAttributes = useContext(BoardPromotedAttributesContext);
     // Tracks the `color` label, which the board does not redraw a card for.
     const colorClass = useNoteColorClass(note) || "";
     const editorRef = useRef<HTMLInputElement>(null);
     const cardRef = useRef<HTMLDivElement>(null);
     const [ isArchived ] = useNoteLabelBoolean(note, "archived");
+    const [ iconClass, setIconClass ] = useNoteLabel(note, "iconClass");
     // The card stays the one just made until another is, so what has already been shown is
     // remembered here rather than played again by every redraw of the column.
     const [ isRevealed, setIsRevealed ] = useState(false);
@@ -77,13 +83,28 @@ function Card({
     });
 
     const handleContextMenu = useCallback((e: ContextMenuEvent) => {
-        openNoteContextMenu(api, e, note, branch.branchId, column, onFocusCard, onCreated);
-    }, [ api, note, branch, column, onFocusCard, onCreated ]);
+        openNoteContextMenu(api, e, note, branch.branchId, column, index, onFocusCard, onInsert);
+    }, [ api, note, branch, column, index, onFocusCard, onInsert ]);
 
     const handleOpen = useCallback((e: MouseEvent) => {
         // A double click is one gesture, and its second click would open the note over itself: the
         // popup already standing is taken as the one to stack on, and closing that leaves neither.
         if (e.detail > 1) return;
+
+        // A link to a note, such as a relation's target, opens in the popup. Cancelled here so that
+        // `goToLink` does not open a tab for it as well; a link naming no note is left alone.
+        const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("a[href]");
+        if (link) {
+            const { notePath } = parseNavigationStateFromUrl(link.getAttribute("href") ?? undefined);
+            if (!notePath) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            api.openNote(notePath);
+            return;
+        }
 
         api.openNote(note.noteId);
     }, [ api, note ]);
@@ -98,19 +119,18 @@ function Card({
             // Enter adds a card the way it adds a row in a spreadsheet, and Space is what opens
             // one. Shift adds it above instead of below.
             e.preventDefault();
-            api.insertRowAtPosition(column, branch.branchId, e.shiftKey ? "before" : "after")
-                .then(created => onCreated(created?.noteId));
+            onInsert(e.shiftKey ? index : index + 1);
         } else if (e.key === "F2") {
             setBranchIdToEdit(branch.branchId);
         }
-    }, [ api, column, branch, setBranchIdToEdit, onCreated ]);
+    }, [ branch, index, setBranchIdToEdit, onInsert ]);
 
     useEffect(() => {
         editorRef.current?.focus();
     }, [ isEditing ]);
 
-    // An insert opens the new card's title editor, which holds focus while a title is typed. The
-    // card takes it from there, so that the arrow keys carry on from where the reader is.
+    // The field a card is named in closes as the card is made, so the card takes focus as it is
+    // drawn and the arrow keys carry on from there.
     useEffect(() => {
         if (focusOnArrival && !isEditing) {
             cardRef.current?.focus();
@@ -179,7 +199,11 @@ function Card({
                         title={t("board_view.edit-note-title")}
                         onClick={handleEdit}
                     />
-                    <UserAttributesDisplay note={note} ignoredAttributes={[statusAttribute]} />
+                    <UserAttributesDisplay
+                        note={note}
+                        ignoredAttributes={[statusAttribute]}
+                        shownAttributes={shownAttributes}
+                    />
                 </>
             ) : (
                 <TitleEditor
@@ -191,6 +215,11 @@ function Card({
                     }}
                     dismiss={() => api.dismissEditingTitle()}
                     mode="multiline"
+                    icon={{
+                        current: icon ?? "",
+                        onSelect: setIconClass,
+                        onReset: iconClass ? () => setIconClass(null) : undefined
+                    }}
                 />
             )}
         </div>
