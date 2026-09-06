@@ -486,11 +486,9 @@ function getArrowBlockAtPointer(editor: Editor, data: ViewDocumentDomEventData<M
 function toggleCollapsed(editor: Editor, block: ModelElement): void {
     const collapse = !block.getAttribute(LIST_COLLAPSED_ATTRIBUTE);
     const itemBlocks = getItemBlocks(block);
-    const selectionBlock = editor.model.document.selection.getFirstPosition()?.parent;
-    const hidesSelection = collapse
-        && !!selectionBlock
-        && selectionBlock.is("element")
-        && getNestedBlocks(block).includes(selectionBlock);
+    const nestedBlocks = getNestedBlocks(block);
+    const hidesSelection = collapse && [ ...editor.model.document.selection.getSelectedBlocks() ]
+        .some((selectedBlock) => nestedBlocks.includes(selectedBlock));
 
     editor.model.change((writer) => {
         for (const itemBlock of itemBlocks) {

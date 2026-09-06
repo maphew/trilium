@@ -137,6 +137,24 @@ describe("CollapsibleListItems", () => {
         expect(position?.offset).toBe(parentBlock.maxOffset);
     });
 
+    it("moves a selection that ends in a hidden child when collapsing (#11256)", () => {
+        editor.model.change((writer) => {
+            writer.setSelection(writer.createRange(
+                writer.createPositionAt(getBlock(editor, 0), 2),
+                writer.createPositionAt(getBlock(editor, 1), 3)
+            ));
+        });
+
+        editor.execute("toggleListCollapse");
+
+        const parentBlock = getBlock(editor, 0);
+        const selection = editor.model.document.selection;
+        expect(parentBlock.getAttribute(LIST_COLLAPSED_ATTRIBUTE)).toBe(true);
+        expect(selection.isCollapsed).toBe(true);
+        expect(selection.getFirstPosition()?.parent).toBe(parentBlock);
+        expect(selection.getFirstPosition()?.offset).toBe(parentBlock.maxOffset);
+    });
+
     it("expands automatically when an item is indented under a collapsed parent", () => {
         editor.execute("toggleListCollapse");
         setSelectionIn(editor, 3); // "Sibling", still visible at indent 0
