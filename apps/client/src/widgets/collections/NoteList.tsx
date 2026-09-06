@@ -130,8 +130,11 @@ export function CustomNoteList({ note, viewType, isEnabled: shouldEnable, conten
 
         // there seems to be a race condition on Firefox which triggers the observer only before the widget is visible
         // (intersection is false). https://github.com/zadam/trilium/issues/4165
-        setTimeout(() => widgetRef.current && observer.observe(widgetRef.current), 10);
-        return () => observer.disconnect();
+        const observeTimeout = setTimeout(() => widgetRef.current && observer.observe(widgetRef.current), 10);
+        return () => {
+            clearTimeout(observeTimeout);
+            observer.disconnect();
+        };
     }, [ widgetRef, isFullHeight, displayOnlyCollections, note, contentReady ]);
 
     // Preload the configuration.
