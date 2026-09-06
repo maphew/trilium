@@ -1,6 +1,25 @@
 import "../theme/collapsible_list_items.css";
 
-import { Command, DomEventObserver, FindAndReplaceEditing, ListEditing, MouseObserver, Plugin, type Editor, type EnterCommand, type FindResultType, type ListSplitCommand, type ModelElement, type ModelNode, type ModelWriter, type ViewDocumentDomEventData, type ViewDocumentEnterEvent, type ViewDocumentMouseDownEvent, type ViewDocumentMouseOutEvent, type ViewElement } from "ckeditor5";
+import {
+    Command,
+    DomEventObserver,
+    FindAndReplaceEditing,
+    ListEditing,
+    MouseObserver,
+    Plugin,
+    type Editor,
+    type EnterCommand,
+    type FindResultType,
+    type ListSplitCommand,
+    type ModelElement,
+    type ModelNode,
+    type ModelWriter,
+    type ViewDocumentDomEventData,
+    type ViewDocumentEnterEvent,
+    type ViewDocumentMouseDownEvent,
+    type ViewDocumentMouseOutEvent,
+    type ViewElement
+} from "ckeditor5";
 
 export const LIST_COLLAPSED_ATTRIBUTE = "listCollapsed";
 
