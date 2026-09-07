@@ -595,6 +595,30 @@ describe("Board item context menu", () => {
             item && "uiIcon" in item && item.uiIcon === "bx bx-vertical-top")).toBe(false);
     });
 
+    /**
+     * A sorted column decides where its cards go, so the entries that name a place would promise
+     * something the column would not do.
+     */
+    it("offers no place to insert at, and no move to the head, in a sorted column", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isColumnSorted: () => true,
+            isFirstInColumn: () => false
+        } as unknown as BoardApi;
+
+        const icons = openItemMenu(api)
+            .map(item => (item && "uiIcon" in item ? item.uiIcon : undefined));
+
+        expect(icons).not.toContain("bx bx-list-plus");
+        expect(icons).not.toContain("bx bx-vertical-top");
+        // What the menu still offers, so the gate is about the places alone.
+        expect(icons).toContain("bx bx-rename");
+        expect(icons).toContain("bx bx-outline");
+    });
+
     it("copies a card into the board, after the one it was made from", async () => {
         const api = {
             columns: [ "To Do" ],
@@ -694,13 +718,14 @@ describe("Board item context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every item menu asks what the board calls its grouping field; a test says so only when
-        // that is what it is about.
+        // Every item menu asks what the board calls its grouping field and whether the column
+        // sorts itself; a test answers only where that is what it is about.
         const withDefaults = Object.assign(
             {
                 getStatusLabel: () => "Status",
                 getColumnTitle: (name: string) => name,
-                isFirstInColumn: () => false
+                isFirstInColumn: () => false,
+                isColumnSorted: () => false
             },
             api);
         openNoteContextMenu(

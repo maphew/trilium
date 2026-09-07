@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import FAttribute from "../../../entities/fattribute";
+import type FBranch from "../../../entities/fbranch";
 import branches from "../../../services/branches";
 import attributes from "../../../services/attributes";
 import { executeBulkActions } from "../../../services/bulk_action";
@@ -1845,5 +1846,100 @@ describe("how a column orders its cards", () => {
         await api.setColumnSort("Doing", "title");
         expect(saved.at(-1)?.columns)
             .toEqual([ { value: "To Do" }, { value: "Doing", orderBy: "title" } ]);
+    });
+});
+
+/**
+ * A sorted column places its own cards, so nothing writes a branch position for one. The branch
+ * order is the order the reader arranged, which the column goes back to when it is sorted by hand
+ * again.
+ */
+describe("moving a card into or inside a sorted column", () => {
+    let setLabel: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        setLabel = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined as never);
+        vi.mocked(branches.moveBeforeBranch).mockClear();
+        vi.mocked(branches.moveAfterBranch).mockClear();
+    });
+
+    function board(cards: Record<string, string[]>): ColumnMap {
+        return new Map(Object.entries(cards).map(([ column, ids ]) => [
+            column,
+            ids.map((noteId) => {
+                buildNote({ id: noteId, title: noteId });
+                return {
+                    note: froca.notes[noteId],
+                    branch: { branchId: `b_${noteId}` } as FBranch
+                };
+            })
+        ]));
+    }
+
+    function sortedApi(sortedColumns: string[]) {
+        return createApi(
+            {
+                columns: [ "To Do", "Done" ].map(value => ({
+                    value,
+                    ...(sortedColumns.includes(value) ? { orderBy: "title" } : {})
+                }))
+            },
+            [ "To Do", "Done" ],
+            undefined,
+            "status",
+            board({ "To Do": [ "a1", "a2", "a3" ], Done: [ "b1", "b2" ] }));
+    }
+
+    it("writes the value alone when a card crosses into one", async () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing at all for a move inside one", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveWithinBoard("a1", "b_a1", 0, 2, "To Do", "To Do");
+
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("still places a card in a column left in the manual order", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
+        expect(branches.moveBeforeBranch).toHaveBeenCalledWith([ "b_a2" ], "b_b1");
+    });
+
+    it("sends a card across to a sorted column by value alone", async () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        await api.moveToColumnEnd("a1", "b_a1", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a1", "status", "Done");
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("refuses to send a card to the head of a sorted column", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveToColumnStart("a3", "b_a3", "To Do");
+
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+    });
+
+    it("answers which columns order their own cards", () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        expect(api.isColumnSorted("Done")).toBe(true);
+        expect(api.isColumnSorted("To Do")).toBe(false);
     });
 });

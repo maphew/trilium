@@ -91,6 +91,80 @@ describe("Board drag and drop", () => {
         expect(columns[0].querySelector(".board-drop-placeholder")).toBeTruthy();
     });
 
+    /**
+     * A sorted column places the card itself, so there is no place to open a gap at. The border
+     * is what says the column would take the card.
+     */
+    it("opens no gap over a sorted column, and marks its border instead", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+        expect(columns[0].classList.contains("drag-over")).toBe(true);
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(card => card.style.transform !== "")).toEqual([ false, false ]);
+    });
+
+    it("adds a note dropped on a sorted column without placing it against a card", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+        const stranger = buildNote({ title: "Stranger" });
+
+        // Over the second card, which is where a manual column would clone it after.
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+        await drag(columns[0], "drop", {
+            types: [ TREE_CLIPBOARD_TYPE ],
+            data: { text: JSON.stringify([ { noteId: stranger.noteId, branchId: "far" } ]) }
+        });
+
+        expect(branches.cloneNoteToParentNote)
+            .toHaveBeenCalledWith(stranger.noteId, expect.any(String));
+        expect(branches.cloneNoteAfter).not.toHaveBeenCalled();
+    });
+
+    /** The reader chose a column, not a place in it, so the card says where it went. */
+    it("reveals the card a sorted column placed", async () => {
+        const { columns, cards } = await renderBoard({ orderBy: "title" });
+        expect(columns[0].querySelector(".board-note.appearing")).toBeNull();
+
+        // A card already on the board, so what is drawn afterwards is the one just dropped.
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+        await drag(columns[0], "drop", {
+            types: [ TREE_CLIPBOARD_TYPE ],
+            data: { text: JSON.stringify([ cards[1] ]) }
+        });
+        await act(async () => { await settle(); });
+
+        expect(columns[0].querySelector(".board-note.appearing")
+            ?.getAttribute("data-note-id")).toBe(cards[1].noteId);
+    });
+
+    /**
+     * The card is taken out of the flow the moment it is picked up. Without the gap, the cards
+     * below it close up and stay closed for the length of the gesture, even though the column
+     * cannot take the card anywhere the reader points it.
+     */
+    it("keeps the hole a card left in the sorted column it was picked up from", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+        await act(async () => { await settle(); });
+
+        const card = columns[0].querySelector<HTMLElement>(".board-note");
+        if (!card) throw new Error("expected a card");
+
+        await pointer(card, "pointerdown", 50, 50);
+        await pointer(columns[0], "pointermove", 50, 300);
+        await act(async () => { await settle(); });
+
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
+        // The card below the hole stands aside for it, as it does over a column sorted by hand.
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(other => other.style.transform !== "")).toEqual([ false, true ]);
+
+        await pointer(columns[0], "pointerup", 50, 300);
+        await act(async () => { await settle(); });
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+    });
+
     it("ignores a drag carrying something the board has no use for", async () => {
         const { columns } = await renderBoard();
 
@@ -402,7 +476,8 @@ describe("Board drag and drop", () => {
 
     /** A board of one column of two cards, each given a height the pointer can be placed in. */
     async function renderBoard(
-        { collapsed, saveConfig }: { collapsed?: boolean, saveConfig?: () => void } = {}
+        { collapsed, saveConfig, orderBy }:
+            { collapsed?: boolean, saveConfig?: () => void, orderBy?: string } = {}
     ) {
         const note = buildNote({
             title: "Board",
@@ -426,7 +501,7 @@ describe("Board drag and drop", () => {
                         notePath={`root/${note.noteId}`}
                         noteIds={[ ...note.getChildNoteIds() ]}
                         highlightedTokens={null}
-                        viewConfig={{ columns: [ { value: "To Do", collapsed } ] }}
+                        viewConfig={{ columns: [ { value: "To Do", collapsed, orderBy } ] }}
                         saveConfig={saveConfig ?? (() => {})}
                         media="screen"
                         onReady={() => {}}

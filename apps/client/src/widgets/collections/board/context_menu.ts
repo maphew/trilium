@@ -471,6 +471,9 @@ export function openNoteContextMenu(
     event.preventDefault();
     event.stopPropagation();
 
+    // A sorted column decides where its cards go, so nothing that names a place is offered.
+    const isSorted = api.isColumnSorted(column);
+
     contextMenu.show({
         x: event.pageX,
         y: event.pageY,
@@ -483,20 +486,22 @@ export function openNoteContextMenu(
                 handler: () => api.startEditing(branchId)
             },
             { kind: "separator" },
-            {
-                title: t("board_view.insert-above"),
-                uiIcon: "bx bx-list-plus",
-                shortcut: "Shift+Enter",
-                handler: () => onInsert(index)
-            },
-            {
-                title: t("board_view.insert-below"),
-                uiIcon: "bx bx-empty",
-                shortcut: "Enter",
-                handler: () => onInsert(index + 1)
-            },
+            ...(isSorted ? [] : [
+                {
+                    title: t("board_view.insert-above"),
+                    uiIcon: "bx bx-list-plus",
+                    shortcut: "Shift+Enter",
+                    handler: () => onInsert(index)
+                },
+                {
+                    title: t("board_view.insert-below"),
+                    uiIcon: "bx bx-empty",
+                    shortcut: "Enter",
+                    handler: () => onInsert(index + 1)
+                }
+            ]),
             // Left out for the card already at the head, which has nowhere to go.
-            ...(api.isFirstInColumn(branchId, column) ? [] : [ {
+            ...(isSorted || api.isFirstInColumn(branchId, column) ? [] : [ {
                 title: t("board_view.move-to-top"),
                 uiIcon: "bx bx-vertical-top",
                 shortcut: "Ctrl+Home",

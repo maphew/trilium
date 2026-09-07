@@ -1166,8 +1166,19 @@ export default class BoardApi {
         return attributes.removeOwnedLabelByName(note, this.statusAttribute);
     }
 
+    /** Whether a column orders its own cards, which leaves no place for a move to name. */
+    isColumnSorted(column: string) {
+        return !!this.getColumnSort(column).orderBy;
+    }
+
     /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */
     async moveToColumnEnd(noteId: string, branchId: string, targetColumn: string) {
+        // A sorted column places the card itself, so only the value it carries is written.
+        if (this.isColumnSorted(targetColumn)) {
+            await this.changeColumn(noteId, targetColumn);
+            return;
+        }
+
         // What is already at the end, as far as this instance can know: nothing waits for the board
         // to redraw between two keystrokes, so the column map still shows the target as it was
         // before the card the last press sent. Anything sent since is remembered here instead, and
@@ -1213,6 +1224,10 @@ export default class BoardApi {
      * a card, which knows the column it is in but not where it stands among the others.
      */
     async moveToColumnStart(noteId: string, branchId: string, column: string) {
+        if (this.isColumnSorted(column)) {
+            return;
+        }
+
         const items = this.byColumn?.get(column) ?? [];
         const at = items.findIndex(item => item.branch.branchId === branchId);
         if (at <= 0) {
@@ -1231,9 +1246,18 @@ export default class BoardApi {
         const note = froca.getNoteFromCache(noteId);
         if (!note) return;
 
+        // A sorted column places its own cards, so a move into or inside one writes the value
+        // alone. The branch order is left as it stands, which is the order the reader arranged
+        // and the one the column goes back to when it is sorted by hand again.
+        const isSortedTarget = this.isColumnSorted(targetColumn);
+
         if (sourceColumn !== targetColumn) {
             // Moving to a different column
             await this.changeColumn(noteId, targetColumn);
+
+            if (isSortedTarget) {
+                return;
+            }
 
             if (targetIndex < targetItems.length) {
                 const targetBranch = targetItems[targetIndex].branch;
@@ -1241,7 +1265,7 @@ export default class BoardApi {
             } else if (lastInTarget && lastInTarget !== sourceBranchId) {
                 await branches.moveAfterBranch([ sourceBranchId ], lastInTarget);
             }
-        } else if (sourceIndex !== targetIndex) {
+        } else if (!isSortedTarget && sourceIndex !== targetIndex) {
             // Reordering within the same column
             let targetBranchId: string | null = null;
 

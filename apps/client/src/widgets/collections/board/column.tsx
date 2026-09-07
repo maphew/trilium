@@ -78,6 +78,8 @@ export default function Column({
     totalCount,
     isNew,
     cardTemplates,
+    isSorted,
+    landedNoteId,
     api,
     parentNote,
     isInRelationMode
@@ -113,6 +115,13 @@ export default function Column({
     /** The note limit, absent if disabled. */
     limit?: number,
     /**
+     * Whether the column orders its own cards. Such a column places a dropped card itself, so it
+     * opens no gap for a carried one and offers nothing that would put a card in a chosen place.
+     */
+    isSorted?: boolean,
+    /** The card just dropped here, which is revealed where the sort put it. */
+    landedNoteId?: string,
+    /**
      * How many cards the column really holds, when an active filter leaves `columnItems` with
      * fewer. The badge counts what is shown; the limit is about the real column.
      */
@@ -145,8 +154,16 @@ export default function Column({
      */
     const itemsRef = useRef(columnItems);
     itemsRef.current = columnItems;
+    // A ref for the same reason: `beginInsert` below keeps one identity.
+    const isSortedRef = useRef(isSorted);
+    isSortedRef.current = isSorted;
     /** Opens the field at a place among the cards, which is the index the card it makes takes. */
     const beginInsert = useCallback((index: number) => {
+        // A sorted column decides where a card goes, so there is no place to open a field at.
+        if (isSortedRef.current) {
+            return;
+        }
+
         setInsertBefore({ branchId: itemsRef.current?.[index]?.branch.branchId });
     }, []);
     /** The card the footer just made, which is revealed and scrolled to as it is drawn. */
@@ -171,7 +188,14 @@ export default function Column({
         useContext(BoardDragStateContext);
     // Asked about this column alone: where the gap stands changes on every step of a drag, and a
     // column that the answer does not concern is left as it is rather than drawn again.
-    const dropIndex = useDropIndex(column);
+    const standingDropIndex = useDropIndex(column);
+    // A sorted column shows only its border, since the card lands where the sort puts it. The
+    // column the card was picked up from keeps the hole it left, which the cards below would
+    // otherwise close up for the length of the gesture. The gap stands before the card whose
+    // place it names, so the carried card's own place is the one after it.
+    const dropIndex = !isSorted
+        ? standingDropIndex
+        : (draggedCard?.fromColumn === column ? draggedCard.index + 1 : null);
     const isDropTarget = useIsDropTarget(column);
     const isEditing = (columnNameToEdit === column);
     const editorRef = useRef<HTMLInputElement>(null);
@@ -221,7 +245,10 @@ export default function Column({
         // Read before anything is written, and `offsetTop` is no business of a transform anyway.
         if (dropIndex !== null) {
             const standing = cards[dropIndex];
-            const last = cards[cards.length - 1];
+            // The carried card is taken out of the flow, so a gap past the last one is measured
+            // against the last card still laid out.
+            const drawn = [ ...cards ].filter(card => card.style.display !== "none");
+            const last = drawn[drawn.length - 1];
             const top = standing
                 ? standing.offsetTop
                 : (last ? last.offsetTop + last.offsetHeight + cardSpacing() : 0);
@@ -265,7 +292,7 @@ export default function Column({
         aside.current = { from, until, room };
     }, [ dropIndex, draggedCard, columnItems ]);
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
-        column, columnIndex, columnItems, isEditing, api, parentNote
+        column, columnIndex, columnItems, isEditing, api, parentNote, onLanded: setCreatedNoteId
     });
 
     // Read here rather than in the badge: the column body shows an outline as well.
@@ -482,7 +509,7 @@ export default function Column({
         <div
             data-column={column}
             className={clsx("board-column", {
-                "drag-over": isDropTarget && draggedCard?.fromColumn !== column,
+                "drag-over": isDropTarget && (isSorted || draggedCard?.fromColumn !== column),
                 // The class the themes key a hue off, worn here as anywhere else that carries one.
                 "with-hue": hue !== undefined,
                 "board-column-archived": archived,
@@ -619,7 +646,8 @@ export default function Column({
                             column={column}
                             index={index}
                             statusAttribute={api.statusAttribute}
-                            isNew={note.noteId === createdNoteId}
+                            isNew={note.noteId === createdNoteId
+                                || note.noteId === landedNoteId}
                             focusOnArrival={note.noteId === insertedNoteId}
                             isDragging={draggedCard?.noteId === note.noteId}
                             isEditing={branch.branchId === branchIdToEdit}
@@ -639,6 +667,7 @@ export default function Column({
                 api={api}
                 cardTemplates={cardTemplates}
                 column={column}
+                isSorted={isSorted}
                 isCreating={isCreatingNewItem}
                 setIsCreating={setIsCreatingNewItem}
                 onCreated={setCreatedNoteId}
@@ -726,11 +755,13 @@ let restoring: number | undefined;
  * cards it is opened by a card's own menu, and `insert` says where it stands.
  */
 function AddNewItem({
-    column, api, cardTemplates, isCreating, setIsCreating, onCreated, insert
+    column, api, cardTemplates, isCreating, setIsCreating, onCreated, insert, isSorted
 }: {
     column: string,
     api: BoardApi,
     cardTemplates: CardTemplates,
+    /** Whether the column orders its own cards, which leaves the reader no end to pick. */
+    isSorted?: boolean,
     isCreating?: boolean,
     setIsCreating?: (isCreating: boolean) => void,
     /** Names the card just made, which the column shows once the board has drawn it. */
@@ -836,8 +867,9 @@ function AddNewItem({
                     }}
                     submitTitle={t("board_view.create-new-note")}
                     // Only the field below the column offers both ends. One standing among the
-                    // cards is already at the end the reader asked for.
-                    openPlacements={!insert ? openCreateCardMenu : undefined}
+                    // cards is already at the end the reader asked for, and a sorted column places
+                    // the card itself.
+                    openPlacements={!insert && !isSorted ? openCreateCardMenu : undefined}
                     footer={(hold) => <CardTemplatePill {...cardTemplates} {...hold} />}
                     icon={{
                         current: icon,
@@ -894,7 +926,15 @@ ${warning}` : counts}
     );
 }
 
-function useDragging({ column, columnIndex, columnItems, isEditing, api, parentNote }: DragContext & { isEditing: boolean, api: BoardApi, parentNote: FNote }) {
+function useDragging({
+    column, columnIndex, columnItems, isEditing, api, parentNote, onLanded
+}: DragContext & {
+    isEditing: boolean,
+    api: BoardApi,
+    parentNote: FNote,
+    /** Names a card a sorted column has just placed, which is revealed where it went. */
+    onLanded: (noteId: string) => void
+}) {
     const { setDraggedColumn, setDropTarget, setDropPosition, setActiveColumn } =
         useContext(BoardActionsContext);
     const { draggedColumn } = useContext(BoardDragStateContext);
@@ -994,9 +1034,14 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
             const parentNoteId = parentNote.noteId;
             if (!standing) return;
 
+            // A sorted column places the card itself, so the note is added at the end of the
+            // board's children and nothing is written against the card it was dropped over.
+            const isSorted = api.isColumnSorted(column);
             const targetIndex = standing.index - 1;
             const targetItems = columnItems || [];
-            const targetBranch = targetIndex >= 0 ? targetItems[targetIndex].branch : null;
+            const targetBranch = !isSorted && targetIndex >= 0
+                ? targetItems[targetIndex].branch
+                : null;
 
             await api.changeColumn(noteId, column);
 
@@ -1011,8 +1056,17 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
             } else if (targetBranch) {
                 await branches.moveAfterBranch([ branchId ], targetBranch.branchId);
             }
+
+            // The reader dropped the card on the column rather than at a place in it, so the
+            // reveal is what says where the sort put it.
+            if (isSorted) {
+                onLanded(noteId);
+            }
         }
-    }, [ api, draggedColumn, dropState, columnItems, column, setDropTarget, setDropPosition ]);
+    }, [
+        api, draggedColumn, dropState, columnItems, column, setDropTarget, setDropPosition,
+        onLanded
+    ]);
 
     return { handleColumnDragStart, handleColumnDragEnd, handleDragOver, handleDragLeave, handleDrop };
 }

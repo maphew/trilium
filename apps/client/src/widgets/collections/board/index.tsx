@@ -298,6 +298,13 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** The column just added, which is revealed once the board has drawn it. */
     const [ createdColumn, setCreatedColumn ] = useState<string>();
     /**
+     * The card just dropped on a sorted column, which is shown the way a new one is.
+     *
+     * The column places it rather than the reader, so it can land anywhere among the cards, and
+     * the reveal is what says where it went.
+     */
+    const [ landedNoteId, setLandedNoteId ] = useState<string>();
+    /**
      * Where the gap stands, kept out of the board's state so that a step of a drag draws no column
      * the gap is not near.
      */
@@ -688,15 +695,29 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             // separate frames the reader sees a gap open where nothing is being carried any more.
             closeGaps(containerRef.current);
             const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
+            const isSortedTarget = !!position && columnSorts.has(position.column);
+            // A card let go of over its own sorted column stands where the sort already puts it.
+            if (isSortedTarget && position?.column === card.fromColumn) {
+                setDraggedCard(null);
+                dropState.set({ position: null, target: null });
+                focusCard(card.noteId);
+                return;
+            }
+
             if (position && branchId && byColumn && allByColumn) {
                 // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
                 // the index `unfilteredCardIndex` translates rather than the visible drop index.
+                // A sorted column takes the card at any index: `sortColumnMap` runs afterwards and
+                // places it.
                 setAllByColumn(applyCardMove(
                     allByColumn, card.noteId, card.fromColumn, position.column,
                     unfilteredCardIndex(
                         byColumn.get(position.column) ?? [],
                         allByColumn.get(position.column) ?? [],
                         position.index)));
+                if (isSortedTarget) {
+                    setLandedNoteId(card.noteId);
+                }
                 movesInFlight.current++;
                 // Any refresh already on its way is about the board as it stood before the drop,
                 // and would put the card back where it came from as it resolves.
@@ -999,6 +1020,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     onFocusCard={focusCard}
                                     columnItems={byColumn.get(column)}
                                     totalCount={allByColumn?.get(column)?.length}
+                                    isSorted={columnSorts.has(column)}
+                                    landedNoteId={landedNoteId}
                                     isNew={column === createdColumn}
                                 />
                             </Fragment>
