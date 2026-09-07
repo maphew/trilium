@@ -228,11 +228,21 @@ describe("Board column context menu", () => {
         const titled = openMenu({} as BoardApi).filter(item => item && "uiIcon" in item);
         expect(titled.map(item => "uiIcon" in item ? item.uiIcon : undefined))
             .toEqual([
-                "bx bx-edit-alt", "bx bx-collapse-horizontal", "bx bx-lock-alt", "bx bx-tachometer",
-                "bx bx-plus", "bx bx-link",
-                "bx bx-columns", "bx bx-sort-alt-2", "bx bx-horizontal-left", "bx bx-archive",
-                "bx bx-trash"
+                "bx bx-edit-alt",
+                "bx bx-plus", "bx bx-link", "bx bx-columns",
+                "bx bx-collapse-horizontal", "bx bx-lock-alt", "bx bx-sort-alt-2",
+                "bx bx-tachometer",
+                "bx bx-horizontal-left",
+                "bx bx-archive", "bx bx-trash"
             ]);
+    });
+
+    /** A collapsed column offers no rename, so the group above the first divider is empty. */
+    it("opens on an entry rather than a divider when it has nothing to rename", () => {
+        const items = openMenu({} as BoardApi, { canRename: false, isCollapsed: true });
+
+        expect(items[0]).not.toMatchObject({ kind: "separator" });
+        expect(items[0]).toMatchObject({ uiIcon: "bx bx-plus" });
     });
 
     /** Every place offered has to actually move the column, or the menu promises nothing. */

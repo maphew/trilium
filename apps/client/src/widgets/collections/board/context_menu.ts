@@ -57,41 +57,29 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
     event.preventDefault();
     event.stopPropagation();
 
+    // What the column is, which a collapsed column that is not the inbox has nothing of. Kept in
+    // a group of its own only while it holds something, or the menu opens on a divider.
+    const identity: MenuItem<string>[] = [
+        ...(column.canRename ? [ {
+            title: t("board_view.rename-column"),
+            uiIcon: "bx bx-edit-alt",
+            shortcut: "F2",
+            handler: column.onEditTitle
+        } ] : []),
+        ...(isInbox ? [ {
+            title: t("board_view.inbox-nested"),
+            uiIcon: "bx bx-subdirectory-right",
+            checked: !!column.nested,
+            handler: () => api.setInboxNested(!column.nested)
+        } ] : [])
+    ];
+
     contextMenu.show({
         x: event.pageX,
         y: event.pageY,
         items: [
-            ...(column.canRename ? [ {
-                title: t("board_view.rename-column"),
-                uiIcon: "bx bx-edit-alt",
-                shortcut: "F2",
-                handler: column.onEditTitle
-            } ] : []),
-            // Already a strip, so there is nothing to collapse.
-            ...(column.isCollapsed ? [] : [ {
-                title: t("board_view.collapse-column"),
-                uiIcon: "bx bx-collapse-horizontal",
-                handler: () => column.onCollapse(true)
-            } ]),
-            {
-                title: t("board_view.keep-column-collapsed"),
-                uiIcon: "bx bx-lock-alt",
-                // At the trailing edge, so the entry keeps its own icon in front.
-                trailingIcon: column.keepCollapsed ? "bx bx-check" : undefined,
-                handler: () => column.onKeepCollapsed(!column.keepCollapsed)
-            },
-            {
-                title: t("board_view.set-limit"),
-                uiIcon: "bx bx-tachometer",
-                handler: column.onSetLimit
-            },
-            ...(isInbox ? [ {
-                title: t("board_view.inbox-nested"),
-                uiIcon: "bx bx-subdirectory-right",
-                checked: !!column.nested,
-                handler: () => api.setInboxNested(!column.nested)
-            } ] : []),
-            { kind: "separator" },
+            ...identity,
+            ...(identity.length ? [ { kind: "separator" } as MenuItem<string> ] : []),
             {
                 title: t("board_view.add-new-item"),
                 uiIcon: "bx bx-plus",
@@ -127,11 +115,30 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
                 ]
             },
             { kind: "separator" },
+            // Already a strip, so there is nothing to collapse.
+            ...(column.isCollapsed ? [] : [ {
+                title: t("board_view.collapse-column"),
+                uiIcon: "bx bx-collapse-horizontal",
+                handler: () => column.onCollapse(true)
+            } ]),
+            {
+                title: t("board_view.keep-column-collapsed"),
+                uiIcon: "bx bx-lock-alt",
+                // At the trailing edge, so the entry keeps its own icon in front.
+                trailingIcon: column.keepCollapsed ? "bx bx-check" : undefined,
+                handler: () => column.onKeepCollapsed(!column.keepCollapsed)
+            },
             {
                 title: t("board_view.sort"),
                 uiIcon: "bx bx-sort-alt-2",
                 items: buildSortItems(api, column.value)
             },
+            {
+                title: t("board_view.set-limit"),
+                uiIcon: "bx bx-tachometer",
+                handler: column.onSetLimit
+            },
+            { kind: "separator" },
             {
                 title: t("board_view.move-column"),
                 uiIcon: "bx bx-horizontal-left",
