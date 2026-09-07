@@ -309,6 +309,45 @@ describe("Board drag and drop", () => {
         expect(gap?.style.height).toBe("100px");
     });
 
+    /**
+     * The card leaves the flow as it is lifted, and the gap opens in its place by pushing the cards
+     * below it down again. Under their transition that reads as the column closing up and then
+     * sliding back open, where nothing has actually moved.
+     */
+    it("opens the gap without a transition as a card is lifted", async () => {
+        const { columns, board } = await renderBoard();
+        await act(async () => { await settle(); });
+        const second = columns[0].querySelectorAll<HTMLElement>(".board-note")[1];
+
+        // Watched rather than read afterwards: the frame that puts the transitions back has run by
+        // the time the gesture returns.
+        expect(await classesWhile(board, async () => {
+            await pointer(second, "pointerdown", 50, 150);
+            await pointer(columns[0], "pointermove", 50, 60);
+        })).toContain("board-still");
+    });
+
+    /**
+     * Cards below the gap carry a `translateY` that the drop replaces with the layout the reorder
+     * gives them. Cleared under their transition they slide up from a place they never stood in,
+     * which reads as the column settling after the card has landed.
+     */
+    it("takes the transforms off without a transition once a card has landed", async () => {
+        const { columns, board } = await renderBoard();
+        await act(async () => { await settle(); });
+        const second = columns[0].querySelectorAll<HTMLElement>(".board-note")[1];
+
+        await pointer(second, "pointerdown", 50, 150);
+        await pointer(columns[0], "pointermove", 50, 60);
+        await act(async () => { await frames(); });
+        // The lift suppresses transitions too, so the release is watched on its own: left running,
+        // this would pass on what the lift did.
+        expect(board.classList.contains("board-still")).toBe(false);
+
+        expect(await classesWhile(board, () => pointer(columns[0], "pointerup", 50, 60)))
+            .toContain("board-still");
+    });
+
     function place(
         element: HTMLElement | null,
         box: { left: number, top: number, width: number, height: number }
@@ -392,7 +431,9 @@ describe("Board drag and drop", () => {
         const cards = note.getChildBranches()
             .map(branch => ({ noteId: branch.noteId, branchId: branch.branchId }));
 
-        return { note, columns, cards };
+        if (!board) throw new Error("expected the board container");
+
+        return { note, columns, cards, board };
     }
 
     /** Dispatches one of the drag events, with the clipboard the board reads its payload from. */
@@ -430,6 +471,12 @@ describe("Board drag and drop", () => {
 
     function settle() {
         return new Promise((resolve) => setTimeout(resolve));
+    }
+
+    /** Waits out the two frames a suppressed transition is put back after. */
+    function frames() {
+        return new Promise<void>(resolve => requestAnimationFrame(
+            () => requestAnimationFrame(() => setTimeout(resolve))));
     }
 });
 
@@ -529,7 +576,7 @@ describe("Board column reordering", () => {
         // Watched rather than read afterwards: the frame that puts the transition back has run by
         // the time the gesture returns.
         expect(await classesWhile(board, () => carryColumn(columns[0], 280)))
-            .toContain("board-landing");
+            .toContain("board-still");
     });
 
     it("eases the columns back where the drag is called off, having moved nothing", async () => {
@@ -538,7 +585,7 @@ describe("Board column reordering", () => {
         // Let go where it started, which places the column back where it came from: the columns
         // that stepped aside slide back, so the transition has to stay on.
         expect(await classesWhile(board, () => carryColumn(columns[0], 20)))
-            .not.toContain("board-landing");
+            .not.toContain("board-still");
     });
 
     it("puts the columns back once the gesture is over", async () => {
@@ -659,20 +706,6 @@ describe("Board column reordering", () => {
     });
 
     /** Takes hold of a column by its heading, carries it to `clientX` and lets it go there. */
-    /** Every class the element wears at any point while `run` is going on. */
-    async function classesWhile(element: HTMLElement, run: () => Promise<void>) {
-        const seen = new Set<string>();
-        const watch = new MutationObserver(() => {
-            for (const name of element.classList) {
-                seen.add(name);
-            }
-        });
-        watch.observe(element, { attributes: true, attributeFilter: [ "class" ] });
-        await run();
-        watch.disconnect();
-        return [ ...seen ];
-    }
-
     async function carryColumn(
         column: HTMLElement,
         clientX: number,
@@ -812,3 +845,17 @@ describe("Board column reordering", () => {
         return new Promise((resolve) => setTimeout(resolve));
     }
 });
+
+/** Every class the element wears at any point while `run` is going on. */
+async function classesWhile(element: HTMLElement, run: () => Promise<void>) {
+    const seen = new Set<string>();
+    const watch = new MutationObserver(() => {
+        for (const name of element.classList) {
+            seen.add(name);
+        }
+    });
+    watch.observe(element, { attributes: true, attributeFilter: [ "class" ] });
+    await run();
+    watch.disconnect();
+    return [ ...seen ];
+}

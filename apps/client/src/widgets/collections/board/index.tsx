@@ -591,13 +591,20 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The gesture drives the same state a drag from the note tree does, so the placeholders and the
     // card's own dimming are drawn from one place whichever brought the card here.
     const { isDragging: isDraggingItem, remeasure } = useBoardDrag(containerRef, {
-        onCardStart: (card) => setDraggedCard({
-            noteId: card.noteId,
-            branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
-            fromColumn: card.fromColumn,
-            index: card.index,
-            height: card.height
-        }),
+        onCardStart: (card) => {
+            // The card leaves the flow as it is lifted, and the gap opens in its place by pushing
+            // the cards below it down again. Under their transition that reads as the column
+            // closing up and then sliding back open, so the frame the gap opens in runs without
+            // one and the column is left looking untouched.
+            holdStill();
+            setDraggedCard({
+                noteId: card.noteId,
+                branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
+                fromColumn: card.fromColumn,
+                index: card.index,
+                height: card.height
+            });
+        },
         onCardMove: (position, inside) => {
             // Written together: two writes would wake every column watching the gap twice over.
             dropState.set({ position, target: position?.column ?? null });
@@ -609,6 +616,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             }
         },
         onCardEnd: (card, position) => {
+            // The cards below the gap carry a `translateY` that the drop replaces with the layout
+            // the reorder gives them. Cleared under their transition, they slide up from a place
+            // they never stood in, so the frame the new order is drawn in runs without one.
+            holdStill();
             // Put back here rather than left to the columns to draw: the board is about to move a
             // card, hide the gap and close the room it took, and if those reach the screen in
             // separate frames the reader sees a gap open where nothing is being carried any more.
@@ -659,7 +670,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 // where each column already stands where that order puts it. Eased to zero they
                 // would carry it a column's width from a place it never stood in, so the frame
                 // that takes them off runs without a transition.
-                land();
+                holdStill();
                 // Not animated either: the row puts the columns exactly where they already are.
                 handleColumnDrop(from, to, false);
             }
@@ -757,16 +768,17 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /**
      * Draws the next frame without transitions.
      *
-     * What a drag carried aside it carried by a transform, and the board is about to draw it where
-     * that transform already had it. Eased instead, each element would set off from a place it
-     * never stood in. Taken off a frame later than the one that draws it, since a frame's
-     * callbacks run before the styles it paints are worked out.
+     * A drag opens its gap with transforms, and the board draws the elements those transforms
+     * already moved: at the lift the gap replaces the card that has left the flow, and at the drop
+     * the reorder replaces the gap. Eased, each element would set off from a place it never stood
+     * in. Taken off a frame later than the one that draws it, since a frame's callbacks run before
+     * the styles it paints are worked out.
      */
-    const land = useCallback(() => {
+    const holdStill = useCallback(() => {
         const container = containerRef.current;
-        container?.classList.add("board-landing");
+        container?.classList.add("board-still");
         requestAnimationFrame(() => requestAnimationFrame(
-            () => container?.classList.remove("board-landing")));
+            () => container?.classList.remove("board-still")));
     }, []);
 
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
