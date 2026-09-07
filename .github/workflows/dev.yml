@@ -452,7 +452,7 @@ jobs:
             --coverage.thresholds.lines=0 --coverage.thresholds.functions=0 \
             --coverage.thresholds.branches=0 --coverage.thresholds.statements=0
 
-      # Vitest names blobs `.vitest-reports/blob-<index>-<count>.json`, so the two
+      # Vitest names blobs `.vitest/blob/blob-<index>-<count>.json`, so the two
       # shards produce distinct filenames and merge-multiple cannot clobber them.
       # That directory is dot-prefixed, and upload-artifact skips hidden paths
       # unless told otherwise — without include-hidden-files it silently matches
@@ -462,7 +462,7 @@ jobs:
         if: ${{ !cancelled() && steps.test-ckeditor5.outcome == 'success' }}
         with:
           name: ckeditor5-blob-${{ matrix.shard }}
-          path: packages/ckeditor5/.vitest-reports/
+          path: packages/ckeditor5/.vitest/blob/
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 1
@@ -500,7 +500,7 @@ jobs:
         with:
           pattern: ckeditor5-blob-*
           merge-multiple: true
-          path: packages/ckeditor5/.vitest-reports
+          path: packages/ckeditor5/.vitest/blob
 
       # Re-runs no tests; it replays the blobs to produce the junit and lcov
       # output and to evaluate the package's real coverage thresholds over the
