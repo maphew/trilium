@@ -74,9 +74,9 @@ jobs:
       # CR. Git rewrites the files only when they are missing.
       - name: Normalize the line endings of patches/
         if: runner.os == 'Windows'
-        shell: bash
+        shell: powershell
         run: |
-          git ls-files -z patches | xargs -0 rm -f
+          git ls-files patches | ForEach-Object { Remove-Item -LiteralPath $_ -Force }
           git checkout -- patches
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - name: Set up node & dependencies
