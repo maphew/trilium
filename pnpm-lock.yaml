@@ -599,8 +599,8 @@ importers:
         specifier: 4.0.63
         version: 4.0.63(zod@4.5.4)
       '@ai-sdk/openai':
-        specifier: 4.0.57
-        version: 4.0.57(zod@4.5.4)
+        specifier: 4.0.58
+        version: 4.0.58(zod@4.5.4)
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.207
         version: 0.3.259(@anthropic-ai/sdk@0.111.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(zod@4.5.4)
@@ -608,8 +608,8 @@ importers:
         specifier: ^1.12.1
         version: 1.30.0(supports-color@10.2.2)(zod@4.5.4)
       ai:
-        specifier: 7.0.91
-        version: 7.0.91(zod@4.5.4)
+        specifier: 7.0.92
+        version: 7.0.92(zod@4.5.4)
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3
@@ -1385,8 +1385,8 @@ importers:
         specifier: 4.0.63
         version: 4.0.63(zod@4.5.4)
       '@ai-sdk/openai':
-        specifier: 4.0.57
-        version: 4.0.57(zod@4.5.4)
+        specifier: 4.0.58
+        version: 4.0.58(zod@4.5.4)
       '@braintree/sanitize-url':
         specifier: 7.1.2
         version: 7.1.2
@@ -1397,8 +1397,8 @@ importers:
         specifier: workspace:*
         version: link:../turndown-plugin-gfm
       ai:
-        specifier: 7.0.91
-        version: 7.0.91(zod@4.5.4)
+        specifier: 7.0.92
+        version: 7.0.92(zod@4.5.4)
       async-mutex:
         specifier: 0.5.0
         version: 0.5.0
@@ -1520,8 +1520,8 @@ packages:
     peerDependencies:
       zod: 4.5.4
 
-  '@ai-sdk/gateway@4.0.73':
-    resolution: {integrity: sha512-1Gp6QtVHfegKoMcf1pjk4fpgDg1cUdK5NnrEiUsYhLWa6owDMmF7kP+qL7ZgQNDYKTOijT+5cTeHrL281kUiiQ==}
+  '@ai-sdk/gateway@4.0.74':
+    resolution: {integrity: sha512-6hpLUtAD162KLyyj9LN2OuEyze7lzq4wwj7PyQPYdMmA8PBYwyMbmvmu1C7OzfexLSPltZK29pX8R6hrJsqBqA==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.5.4
@@ -1532,8 +1532,8 @@ packages:
     peerDependencies:
       zod: 4.5.4
 
-  '@ai-sdk/openai@4.0.57':
-    resolution: {integrity: sha512-akpj7mE4z3qmofk+fVlnASxFF6Fh8kuihk1AVsY09uf/sv4CxmiGDjMJrmSWffIx+JEAuZmGUq8uKxEXjw/7Xw==}
+  '@ai-sdk/openai@4.0.58':
+    resolution: {integrity: sha512-oO3vH0e8lhN3OrANukokI2rvUJV+RVwTwJ2y+eSK+IiKlauFza2Yyl/7hjErqkjOt/eMOobhNijo+CFsFt8T+g==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.5.4
@@ -5913,8 +5913,8 @@ packages:
     resolution: {integrity: sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==}
     engines: {node: '>= 20'}
 
-  ai@7.0.91:
-    resolution: {integrity: sha512-Hn0iIQY1FXow2wd+DxzdA/4ijY+6TP9CREqpN3aIs01wnBW9119yHW0Dvn53sTQzkk7+rSVXaXlDAYM5hhMJZA==}
+  ai@7.0.92:
+    resolution: {integrity: sha512-9xb8Xo6aw7YMxuROznR02q4Hpne1DJ7JbKurpcOsabSSY3sd3xGoTANSqEs4gYLRpIz27MmT3IMfH8X3+oK1CQ==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: 4.5.4
@@ -12293,7 +12293,7 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
       zod: 4.5.4
 
-  '@ai-sdk/gateway@4.0.73(zod@4.5.4)':
+  '@ai-sdk/gateway@4.0.74(zod@4.5.4)':
     dependencies:
       '@ai-sdk/provider': 4.0.10
       '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
@@ -12306,7 +12306,7 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
       zod: 4.5.4
 
-  '@ai-sdk/openai@4.0.57(zod@4.5.4)':
+  '@ai-sdk/openai@4.0.58(zod@4.5.4)':
     dependencies:
       '@ai-sdk/provider': 4.0.10
       '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
@@ -18665,9 +18665,9 @@ snapshots:
 
   agent-base@9.0.0: {}
 
-  ai@7.0.91(zod@4.5.4):
+  ai@7.0.92(zod@4.5.4):
     dependencies:
-      '@ai-sdk/gateway': 4.0.73(zod@4.5.4)
+      '@ai-sdk/gateway': 4.0.74(zod@4.5.4)
       '@ai-sdk/provider': 4.0.10
       '@ai-sdk/provider-utils': 5.0.36(zod@4.5.4)
       zod: 4.5.4
