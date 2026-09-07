@@ -45,7 +45,7 @@ import { forgetCardHeights } from "./drag_measure";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
-import Column, { EXPAND_MS, placeCard } from "./column";
+import Column, { EXPAND_MS, placeCard, settleCards } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
@@ -785,6 +785,15 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 container?.classList.remove("board-still");
             });
         });
+    }, []);
+
+    // A board taken off the page leaves nothing of a gesture behind it to run in a later frame.
+    useEffect(() => () => {
+        if (stillFor.current !== undefined) {
+            cancelAnimationFrame(stillFor.current);
+        }
+
+        settleCards();
     }, []);
 
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {

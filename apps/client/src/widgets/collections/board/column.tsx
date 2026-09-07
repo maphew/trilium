@@ -691,6 +691,20 @@ export function placeCard(card: HTMLElement, transform: string | null, atOnce: b
     });
 }
 
+/** Puts every suppressed transition back at once, for a board leaving the page. */
+export function settleCards() {
+    if (restoring !== undefined) {
+        cancelAnimationFrame(restoring);
+        restoring = undefined;
+    }
+
+    for (const held of settling) {
+        held.style.removeProperty("transition");
+    }
+
+    settling.clear();
+}
+
 /** The cards whose transition is suppressed, waiting for the frame that puts it back. */
 const settling = new Set<HTMLElement>();
 let restoring: number | undefined;
