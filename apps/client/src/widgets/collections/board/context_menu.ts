@@ -449,8 +449,34 @@ export function openNoteContextMenu(
     event.preventDefault();
     event.stopPropagation();
 
-    // A sorted column decides where its cards go, so nothing that names a place is offered.
-    const isSorted = api.isColumnSorted(column);
+    // Where a card goes among the others, which a sorted column decides for itself. Kept in a
+    // group of its own only while it holds something, or the menu shows a stray divider.
+    const placement: MenuItem<CommandNames>[] = api.isColumnSorted(column) ? [] : [
+        {
+            title: t("board_view.insert-above"),
+            uiIcon: "bx bx-list-plus",
+            shortcut: "Shift+Enter",
+            handler: () => onInsert(index)
+        },
+        {
+            title: t("board_view.insert-below"),
+            uiIcon: "bx bx-empty",
+            shortcut: "Enter",
+            handler: () => onInsert(index + 1)
+        },
+        // Left out for the card already at the head, which has nowhere to go.
+        ...(api.isFirstInColumn(branchId, column) ? [] : [ {
+            title: t("board_view.move-to-top"),
+            uiIcon: "bx bx-vertical-top",
+            shortcut: "Ctrl+Home",
+            handler: () => {
+                // Asked for before the write: the card is blurred as it is moved in the page, and
+                // the reveal that follows the focus is what shows where it went.
+                onFocusCard(note.noteId);
+                api.moveToColumnStart(note.noteId, branchId, column);
+            }
+        } ])
+    ];
 
     contextMenu.show({
         x: event.pageX,
@@ -463,33 +489,9 @@ export function openNoteContextMenu(
                 shortcut: "F2",
                 handler: () => api.startEditing(branchId)
             },
-            { kind: "separator" },
-            ...(isSorted ? [] : [
-                {
-                    title: t("board_view.insert-above"),
-                    uiIcon: "bx bx-list-plus",
-                    shortcut: "Shift+Enter",
-                    handler: () => onInsert(index)
-                },
-                {
-                    title: t("board_view.insert-below"),
-                    uiIcon: "bx bx-empty",
-                    shortcut: "Enter",
-                    handler: () => onInsert(index + 1)
-                }
-            ]),
-            // Left out for the card already at the head, which has nowhere to go.
-            ...(isSorted || api.isFirstInColumn(branchId, column) ? [] : [ {
-                title: t("board_view.move-to-top"),
-                uiIcon: "bx bx-vertical-top",
-                shortcut: "Ctrl+Home",
-                handler: () => {
-                    // Asked for before the write: the card is blurred as it is moved in the page,
-                    // and the reveal that follows the focus is what shows where it went.
-                    onFocusCard(note.noteId);
-                    api.moveToColumnStart(note.noteId, branchId, column);
-                }
-            } ]),
+            ...(placement.length
+                ? [ { kind: "separator" } as MenuItem<CommandNames>, ...placement ]
+                : []),
             { kind: "header", title: api.getStatusLabel() },
             ...buildColumnItems(api, note, column, onFocusCard),
             { kind: "separator" },

@@ -525,6 +525,22 @@ describe("Board item context menu", () => {
         expect(focusCard).toHaveBeenCalled();
     });
 
+    /** The group still holds the two inserts, so the divider that heads it stays. */
+    it("keeps the divider while the column is arranged by hand", () => {
+        const items = openItemMenu({
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isFirstInColumn: () => true
+        } as unknown as BoardApi);
+
+        const at = items.findIndex(item => item && "uiIcon" in item
+            && item.uiIcon === "bx bx-rename");
+        expect(items[at + 1]).toMatchObject({ kind: "separator" });
+        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-list-plus" });
+    });
+
     it("says nothing about moving up the card already at the head", () => {
         const api = {
             columns: [],
@@ -552,14 +568,19 @@ describe("Board item context menu", () => {
             isFirstInColumn: () => false
         } as unknown as BoardApi;
 
-        const icons = openItemMenu(api)
-            .map(item => (item && "uiIcon" in item ? item.uiIcon : undefined));
+        const items = openItemMenu(api);
+        const icons = items.map(item => (item && "uiIcon" in item ? item.uiIcon : undefined));
 
         expect(icons).not.toContain("bx bx-list-plus");
         expect(icons).not.toContain("bx bx-vertical-top");
         // What the menu still offers, so the gate is about the places alone.
         expect(icons).toContain("bx bx-rename");
         expect(icons).toContain("bx bx-outline");
+
+        // The divider goes with them: the heading below already breaks the menu there.
+        const at = items.findIndex(item => item && "uiIcon" in item
+            && item.uiIcon === "bx bx-rename");
+        expect(items[at + 1]).toMatchObject({ kind: "header" });
     });
 
     it("copies a card into the board, after the one it was made from", async () => {
