@@ -3508,7 +3508,10 @@
     },
     "status-alias": "Status",
     "filter-placeholder": "Filter board...",
-    "card-outside-filter": "This card is outside of the current filtering scope"
+    "card-outside-filter": "This card is outside of the current filtering scope",
+    "sort": "Sort",
+    "sort-manually": "Manually",
+    "sorted-no-reorder": "Cards cannot be reordered, since this is a sorted column."
   },
   "dashboard_view": {
     "refresh-widget": "Refresh",
@@ -4213,5 +4216,12 @@
     "clear": "Clear the filter",
     "fetch-error": "The filter could not be run.",
     "submit": "Apply the filter"
+  },
+  "sorting": {
+    "none": "None",
+    "title": "Title",
+    "creation-date": "Creation date & time",
+    "ascending": "Ascending",
+    "descending": "Descending"
   }
 }

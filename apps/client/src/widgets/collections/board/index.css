@@ -243,7 +243,8 @@ body.mobile .board-view-container .board-add-column {
   cursor: pointer;
 }
 
-.board-view-container .board-column h3 > .column-menu {
+.board-view-container .board-column h3 > .column-menu,
+.board-view-container .board-column h3 > .column-sort {
   flex-shrink: 0;
   margin-inline-start: 0.25em;
   color: var(--muted-text-color);
@@ -757,7 +758,6 @@ body.mobile .board-view-container .board-add-column {
   /* The gap below is the card's, in em, so it has to be read at the card's own font size. */
   font-size: var(--card-font-size);
   margin-block: 0 0.65em;
-  padding: 0.5em;
   border-radius: 5px;
   background-color: rgba(0, 0, 0, 0.15);
   opacity: 0;
@@ -777,6 +777,20 @@ body.mobile .board-view-container .board-add-column {
 
 .board-drop-placeholder.show {
   opacity: 0.6;
+}
+
+/* Clipped rather than spilling over the cards, since the box is only as tall as the card that
+   left it. */
+.board-drop-placeholder > .sorted-no-reorder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  overflow: hidden;
+  font-size: 0.75em;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--muted-text-color);
 }
 
 /* The space a carried column would take, so it must measure the same: the board spaces its columns
@@ -1039,6 +1053,7 @@ body.mobile .column-drop-placeholder {
 /* The header stacks, so margins meant for a row would throw these off centre. */
 .board-view-container .board-column.collapsed h3 > .column-icon,
 .board-view-container .board-column.collapsed h3 > .column-menu,
+.board-view-container .board-column.collapsed h3 > .column-sort,
 .board-view-container .board-column.collapsed h3 > .counter-badge {
   margin: 0;
 }
@@ -1049,6 +1064,12 @@ body.mobile .column-drop-placeholder {
 .board-view-container .board-column.collapsed h3 > .counter-badge {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+}
+
+/* The turn `writing-mode` gives the title and the count above, which an icon glyph in a button
+   does not take from it. */
+.board-view-container .board-column.collapsed h3 > .column-sort {
+  transform: rotate(-90deg);
 }
 
 /* Swapped: `padding` is physical, so it does not turn with the count. */

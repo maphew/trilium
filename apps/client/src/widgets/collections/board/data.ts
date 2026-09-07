@@ -1,5 +1,10 @@
 import FBranch from "../../../entities/fbranch";
 import FNote from "../../../entities/fnote";
+import type LoadResults from "../../../services/load_results";
+import type { PromotedAttribute } from "../promoted_attributes";
+import {
+    parseSortKey, sortedAttributeName, sortItems, type SortContext, type SortKey
+} from "../sorting";
 import { INBOX_COLUMN, resolveBoardColumns } from "./columns";
 import { BoardColumnData, BoardViewData } from "./index";
 
@@ -58,6 +63,119 @@ export function filterColumnMap(
         filtered.set(column, items.filter(item => shownNoteIds.has(item.note.noteId)));
     }
     return filtered;
+}
+
+/** How one column orders its cards. */
+export interface ColumnSort {
+    orderBy: SortKey;
+    isDescending: boolean;
+}
+
+/** What a sorted board reads, so it can be reloaded and watched for changes. */
+export interface SortWatch {
+    /** The cards in sorted columns, whose creation dates the tie-break reads. */
+    noteIds: Set<string>;
+    /** The relation targets whose titles a column sorts by. */
+    targetNoteIds: Set<string>;
+    /** The attribute names the columns sort by. */
+    attributeNames: Set<string>;
+}
+
+/** What each column sorts by, leaving out every column that keeps the manual order. */
+export function resolveColumnSorts(columns: BoardColumnData[] | undefined) {
+    const sorts = new Map<string, ColumnSort>();
+
+    for (const { value, orderBy, descendingOrder } of columns ?? []) {
+        const key = parseSortKey(orderBy);
+        if (key) {
+            sorts.set(value, { orderBy: key, isDescending: !!descendingOrder });
+        }
+    }
+
+    return sorts;
+}
+
+/**
+ * The columns with each sorted one in its own order.
+ *
+ * Returns the same map, and the same array per column, where nothing moves. `Column` reads a fresh
+ * array as its cards having moved and re-measures every one of them, so the identities matter.
+ */
+export function sortColumnMap(
+    byColumn: ColumnMap, sorts: ReadonlyMap<string, ColumnSort>, context: SortContext
+): ColumnMap {
+    let sorted: ColumnMap | undefined;
+
+    for (const [ column, { orderBy, isDescending } ] of sorts) {
+        const items = byColumn.get(column);
+        if (!items) {
+            continue;
+        }
+
+        const ordered = sortItems(items, orderBy, isDescending, context);
+        if (ordered !== items) {
+            sorted ??= new Map(byColumn);
+            sorted.set(column, ordered);
+        }
+    }
+
+    return sorted ?? byColumn;
+}
+
+/**
+ * The notes a sorted board reads, and the attributes it reads off them.
+ *
+ * @param definitions the board's promoted attributes by name, which say which keys are relations.
+ */
+export function resolveSortWatch(
+    byColumn: ColumnMap | undefined,
+    sorts: ReadonlyMap<string, ColumnSort>,
+    definitions: ReadonlyMap<string, PromotedAttribute>
+): SortWatch {
+    const noteIds = new Set<string>();
+    const targetNoteIds = new Set<string>();
+    const attributeNames = new Set<string>();
+
+    for (const [ column, { orderBy } ] of sorts) {
+        const name = sortedAttributeName(orderBy);
+        const relation = name && definitions.get(name)?.type === "relation" ? name : undefined;
+        if (name) {
+            attributeNames.add(name);
+        }
+
+        for (const { note } of byColumn?.get(column) ?? []) {
+            noteIds.add(note.noteId);
+
+            const target = relation && note.getRelationValue(relation);
+            if (target) {
+                targetNoteIds.add(target);
+            }
+        }
+    }
+
+    return { noteIds, targetNoteIds, attributeNames };
+}
+
+/**
+ * Whether a change can move a card in a sorted column.
+ *
+ * Deliberately broad: an autosave reports a note row just as a rename does, and
+ * {@link sortColumnMap} returns the same arrays when nothing moves, so a needless re-sort renders
+ * nothing.
+ */
+export function affectsSortOrder(loadResults: LoadResults, watch: SortWatch) {
+    if (!watch.noteIds.size) {
+        return false;
+    }
+
+    const isWatched = (noteId: string) =>
+        watch.noteIds.has(noteId) || watch.targetNoteIds.has(noteId);
+    if (loadResults.getNoteIds().some(isWatched)) {
+        return true;
+    }
+
+    return loadResults.getAttributeRows().some(attr =>
+        watch.attributeNames.has(attr.name ?? "") && watch.noteIds.has(attr.noteId ?? ""));
 }
 
 /**

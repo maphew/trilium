@@ -18,6 +18,7 @@ import {
     type PromotedAttribute, resolvePromotedAttributes, storedPromotedAttributes,
     visiblePromotedAttributeNames
 } from "../promoted_attributes";
+import { parseSortKey, type SortKey } from "../sorting";
 import { BoardColumnData, BoardViewData } from ".";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import {
@@ -615,6 +616,29 @@ export default class BoardApi {
         await this.updateColumn(column, { limit });
     }
 
+    /**
+     * How a column orders its cards.
+     *
+     * @returns the key to sort by, absent for the manual order, and its direction.
+     */
+    getColumnSort(column: string) {
+        const stored = this.viewConfig?.columns?.find(col => col.value === column);
+        return {
+            orderBy: parseSortKey(stored?.orderBy),
+            isDescending: !!stored?.descendingOrder
+        };
+    }
+
+    /** Sets what a column sorts by. Pass `undefined` for the manual order. */
+    async setColumnSort(column: string, orderBy: SortKey | undefined) {
+        await this.updateColumn(column, { orderBy });
+    }
+
+    /** Sets whether a column's order runs backwards. */
+    async setColumnSortDirection(column: string, isDescending: boolean) {
+        await this.updateColumn(column, { descendingOrder: isDescending });
+    }
+
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     async setInboxNested(nested: boolean) {
         await this.updateColumn(INBOX_COLUMN, { nested });
@@ -797,6 +821,8 @@ export default class BoardApi {
             if (!updated.keepCollapsed) delete updated.keepCollapsed;
             if (!updated.displayName) delete updated.displayName;
             if (!updated.limit) delete updated.limit;
+            if (!updated.orderBy) delete updated.orderBy;
+            if (!updated.descendingOrder) delete updated.descendingOrder;
             return updated;
         };
 
@@ -1140,8 +1166,19 @@ export default class BoardApi {
         return attributes.removeOwnedLabelByName(note, this.statusAttribute);
     }
 
+    /** Whether a column orders its own cards rather than keeping the order the user set. */
+    isColumnSorted(column: string) {
+        return !!this.getColumnSort(column).orderBy;
+    }
+
     /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */
     async moveToColumnEnd(noteId: string, branchId: string, targetColumn: string) {
+        // Only the grouping value is written: `sortColumnMap` decides where the card is drawn.
+        if (this.isColumnSorted(targetColumn)) {
+            await this.changeColumn(noteId, targetColumn);
+            return;
+        }
+
         // What is already at the end, as far as this instance can know: nothing waits for the board
         // to redraw between two keystrokes, so the column map still shows the target as it was
         // before the card the last press sent. Anything sent since is remembered here instead, and
@@ -1187,6 +1224,10 @@ export default class BoardApi {
      * a card, which knows the column it is in but not where it stands among the others.
      */
     async moveToColumnStart(noteId: string, branchId: string, column: string) {
+        if (this.isColumnSorted(column)) {
+            return;
+        }
+
         const items = this.byColumn?.get(column) ?? [];
         const at = items.findIndex(item => item.branch.branchId === branchId);
         if (at <= 0) {
@@ -1205,9 +1246,17 @@ export default class BoardApi {
         const note = froca.getNoteFromCache(noteId);
         if (!note) return;
 
+        // A move into or inside a sorted column writes the grouping value and no branch
+        // position. Clearing `orderBy` then restores the arrangement the user made.
+        const isSortedTarget = this.isColumnSorted(targetColumn);
+
         if (sourceColumn !== targetColumn) {
             // Moving to a different column
             await this.changeColumn(noteId, targetColumn);
+
+            if (isSortedTarget) {
+                return;
+            }
 
             if (targetIndex < targetItems.length) {
                 const targetBranch = targetItems[targetIndex].branch;
@@ -1215,7 +1264,7 @@ export default class BoardApi {
             } else if (lastInTarget && lastInTarget !== sourceBranchId) {
                 await branches.moveAfterBranch([ sourceBranchId ], lastInTarget);
             }
-        } else if (sourceIndex !== targetIndex) {
+        } else if (!isSortedTarget && sourceIndex !== targetIndex) {
             // Reordering within the same column
             let targetBranchId: string | null = null;
 

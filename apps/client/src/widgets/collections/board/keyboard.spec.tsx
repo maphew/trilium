@@ -466,6 +466,21 @@ describe("Board keyboard", () => {
                 .toHaveBeenCalledWith([ branchOf(board, "First") ], branchOf(board, "Second"));
         });
 
+        /** A sorted column decides its own order, so there is nowhere for a card to be sent. */
+        it("does not move a card up or down inside a sorted column", async () => {
+            const board = await renderBoard(undefined, "title");
+            focusCard(board, 0, 1);
+
+            press(board, "ArrowUp", { ctrlKey: true });
+            press(board, "Home", { ctrlKey: true });
+            focusCard(board, 0, 0);
+            press(board, "ArrowDown", { ctrlKey: true });
+            press(board, "End", { ctrlKey: true });
+
+            expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+            expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+        });
+
         it("sends a card to the end of the column beside it, keeping focus", async () => {
             const board = await renderBoard();
             focusCard(board, 0, 0);
@@ -856,7 +871,7 @@ describe("Board keyboard", () => {
     let boardNote: ReturnType<typeof buildNote>;
 
     /** Two columns of cards, one empty column, and the button that adds another. */
-    async function renderBoard(collapsed?: string) {
+    async function renderBoard(collapsed?: string, orderBy?: string) {
         boardNote = buildNote({
             title: "Board",
             "#collection": "",
@@ -883,7 +898,8 @@ describe("Board keyboard", () => {
                         viewConfig={{
                             columns: [ "To Do", "Doing", "Done" ].map(value => ({
                                 value,
-                                collapsed: value === collapsed ? true : undefined
+                                collapsed: value === collapsed ? true : undefined,
+                                orderBy: value === "To Do" ? orderBy : undefined
                             }))
                         }}
                         saveConfig={(config) => saved.push(config)}

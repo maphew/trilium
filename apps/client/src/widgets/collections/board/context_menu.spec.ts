@@ -7,6 +7,7 @@ import contextMenu, { ContextMenuEvent, MenuItem } from "../../../menus/context_
 import branches from "../../../services/branches";
 import dialog from "../../../services/dialog";
 import FNote from "../../../entities/fnote";
+import type { PromotedAttribute } from "../promoted_attributes";
 import { buildNote } from "../../../test/easy-froca";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON } from "./columns";
@@ -15,6 +16,13 @@ import { openBoardContextMenu, openColumnContextMenu, openNoteContextMenu } from
 // The card menu opens with the shared link items, which reach for the active note context.
 vi.mock("../../../menus/link_context_menu", () => ({
     default: { getItems: () => [], handleLinkContextMenuItem: () => {} }
+}));
+
+// i18next is never initialised under test, so `t` echoes the key it is given. The promise is what
+// the command registry awaits as `PromotedAttributesCard` is pulled in for the attribute icons.
+vi.mock("../../../services/i18n", () => ({
+    t: (key: string) => key,
+    translationsInitializedPromise: Promise.resolve()
 }));
 
 describe("Board column context menu", () => {
@@ -54,8 +62,13 @@ describe("Board column context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every column menu asks what a column is called; a test says so only when that matters.
-        const withDefaults = Object.assign({ getColumnTitle: (name: string) => name }, api);
+        // Every column menu asks what a column is called, how it is sorted and what it can sort
+        // by; a test answers only where that is what it is about.
+        const withDefaults = Object.assign({
+            getColumnTitle: (name: string) => name,
+            getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+            getPromotedAttributes: () => []
+        }, api);
         openColumnContextMenu(withDefaults, event, {
             value: "To Do",
             columns: [ "To Do" ],
@@ -222,10 +235,21 @@ describe("Board column context menu", () => {
         const titled = openMenu({} as BoardApi).filter(item => item && "uiIcon" in item);
         expect(titled.map(item => "uiIcon" in item ? item.uiIcon : undefined))
             .toEqual([
-                "bx bx-edit-alt", "bx bx-collapse-horizontal", "bx bx-lock-alt", "bx bx-tachometer",
-                "bx bx-plus", "bx bx-link",
-                "bx bx-columns", "bx bx-horizontal-left", "bx bx-archive", "bx bx-trash"
+                "bx bx-edit-alt",
+                "bx bx-plus", "bx bx-link", "bx bx-columns",
+                "bx bx-collapse-horizontal", "bx bx-lock-alt", "bx bx-sort-alt-2",
+                "bx bx-tachometer",
+                "bx bx-horizontal-left",
+                "bx bx-archive", "bx bx-trash"
             ]);
+    });
+
+    /** A collapsed column offers no rename, so the group above the first divider is empty. */
+    it("opens on an entry rather than a divider when it has nothing to rename", () => {
+        const items = openMenu({} as BoardApi, { canRename: false, isCollapsed: true });
+
+        expect(items[0]).not.toMatchObject({ kind: "separator" });
+        expect(items[0]).toMatchObject({ uiIcon: "bx bx-plus" });
     });
 
     /** Every place offered has to actually move the column, or the menu promises nothing. */
@@ -388,6 +412,51 @@ describe("Board column context menu", () => {
         await act(async () => picker.querySelector<HTMLElement>(".color-cell-reset")?.click());
         expect(api.setColumnColor).toHaveBeenLastCalledWith("To Do", null);
     });
+
+    /**
+     * The entries themselves are the shared builder's, tested in `collections/sort_menu.spec.ts`.
+     * What the board answers for is the column it names and what it calls the manual order.
+     */
+    describe("the sort submenu", () => {
+        function sortApi() {
+            return {
+                getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+                getPromotedAttributes: () => [],
+                setColumnSort: vi.fn(),
+                setColumnSortDirection: vi.fn()
+            } as unknown as BoardApi;
+        }
+
+        function sortItems(api: BoardApi, value = "To Do") {
+            const entry = openMenu(api, { value, columns: [ value ] })
+                .find(item => item && "uiIcon" in item && item.uiIcon === "bx bx-sort-alt-2");
+            if (!entry || !("items" in entry)) throw new Error("expected a sort entry");
+            return entry.items ?? [];
+        }
+
+        it("calls the unsorted order Manually rather than None", () => {
+            const first = sortItems(sortApi())[0];
+
+            expect(first && "title" in first ? first.title : "")
+                .toBe("board_view.sort-manually");
+        });
+
+        it("writes what is picked against the column the menu was opened on", () => {
+            const api = sortApi();
+            const items = sortItems(api, "Done");
+
+            pick(items[1]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("Done", "title");
+
+            pick(items.at(-1));
+            expect(api.setColumnSortDirection).toHaveBeenCalledWith("Done", true);
+        });
+
+        function pick(item: MenuItem<unknown> | undefined) {
+            if (!item || !("handler" in item)) throw new Error("expected a menu entry");
+            item.handler?.(item, {} as never);
+        }
+    });
 });
 
 describe("Board item context menu", () => {
@@ -456,6 +525,22 @@ describe("Board item context menu", () => {
         expect(focusCard).toHaveBeenCalled();
     });
 
+    /** The group still holds the two inserts, so the divider that heads it stays. */
+    it("keeps the divider while the column is arranged by hand", () => {
+        const items = openItemMenu({
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isFirstInColumn: () => true
+        } as unknown as BoardApi);
+
+        const at = items.findIndex(item => item && "uiIcon" in item
+            && item.uiIcon === "bx bx-rename");
+        expect(items[at + 1]).toMatchObject({ kind: "separator" });
+        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-list-plus" });
+    });
+
     it("says nothing about moving up the card already at the head", () => {
         const api = {
             columns: [],
@@ -467,6 +552,35 @@ describe("Board item context menu", () => {
 
         expect(openItemMenu(api).some(item =>
             item && "uiIcon" in item && item.uiIcon === "bx bx-vertical-top")).toBe(false);
+    });
+
+    /**
+     * A sorted column decides where its cards go, so the entries that name a place would promise
+     * something the column would not do.
+     */
+    it("offers no place to insert at, and no move to the head, in a sorted column", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isColumnSorted: () => true,
+            isFirstInColumn: () => false
+        } as unknown as BoardApi;
+
+        const items = openItemMenu(api);
+        const icons = items.map(item => (item && "uiIcon" in item ? item.uiIcon : undefined));
+
+        expect(icons).not.toContain("bx bx-list-plus");
+        expect(icons).not.toContain("bx bx-vertical-top");
+        // What the menu still offers, so the gate is about the places alone.
+        expect(icons).toContain("bx bx-rename");
+        expect(icons).toContain("bx bx-outline");
+
+        // The divider goes with them: the heading below already breaks the menu there.
+        const at = items.findIndex(item => item && "uiIcon" in item
+            && item.uiIcon === "bx bx-rename");
+        expect(items[at + 1]).toMatchObject({ kind: "header" });
     });
 
     it("copies a card into the board, after the one it was made from", async () => {
@@ -568,13 +682,14 @@ describe("Board item context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every item menu asks what the board calls its grouping field; a test says so only when
-        // that is what it is about.
+        // Every item menu asks what the board calls its grouping field and whether the column
+        // sorts itself; a test answers only where that is what it is about.
         const withDefaults = Object.assign(
             {
                 getStatusLabel: () => "Status",
                 getColumnTitle: (name: string) => name,
-                isFirstInColumn: () => false
+                isFirstInColumn: () => false,
+                isColumnSorted: () => false
             },
             api);
         openNoteContextMenu(

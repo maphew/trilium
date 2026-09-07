@@ -12,7 +12,9 @@ import {
 import type { HighlightedTokenInfo } from "@triliumnext/commons";
 
 import FNote from "../../../entities/fnote";
+import froca from "../../../services/froca";
 import { t } from "../../../services/i18n";
+import { getCreationDate, loadCreationDates } from "../../../services/note_dates";
 import type LoadResults from "../../../services/load_results";
 import { ContextMenuEvent } from "../../../menus/context_menu";
 import { isIMEComposing } from "../../../services/shortcuts";
@@ -20,7 +22,8 @@ import type { ShortcutHintDefinition } from "../../../services/shortcut_hints";
 import toast from "../../../services/toast";
 import { escapeHtml, isMobile } from "../../../services/utils";
 import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
-import type { PromotedAttributeSetting } from "../promoted_attributes";
+import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
+import type { SortContext } from "../sorting";
 import CollectionProperties from "../../note_bars/CollectionProperties";
 import FormTextArea from "../../react/FormTextArea";
 import FormTextBox from "../../react/FormTextBox";
@@ -51,7 +54,8 @@ import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
 import {
-    applyCardMove, ColumnMap, filterColumnMap, getBoardData, unfilteredCardIndex
+    affectsSortOrder, applyCardMove, ColumnMap, filterColumnMap, getBoardData, resolveColumnSorts,
+    resolveSortWatch, sortColumnMap, unfilteredCardIndex
 } from "./data";
 import { useBoardKeyboard } from "./keyboard";
 
@@ -115,6 +119,13 @@ export interface BoardColumnData {
     displayName?: string;
     /** The note limit, absent if disabled. */
     limit?: number;
+    /**
+     * How the column orders its cards, as `SortKey` in `collections/sorting` spells it. Absent for
+     * the manual order, which is the order of the board's children.
+     */
+    orderBy?: string;
+    /** Whether that order runs backwards. Absent while it runs forwards. */
+    descendingOrder?: boolean;
 }
 
 interface CardDrag {
@@ -287,6 +298,12 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** The column just added, which is revealed once the board has drawn it. */
     const [ createdColumn, setCreatedColumn ] = useState<string>();
     /**
+     * The card just dropped on a sorted column, drawn with the same reveal a new card gets.
+     *
+     * `sortColumnMap` can put it anywhere among the cards, so the reveal is how the user finds it.
+     */
+    const [ landedNoteId, setLandedNoteId ] = useState<string>();
+    /**
      * Where the gap stands, kept out of the board's state so that a step of a drag draws no column
      * the gap is not near.
      */
@@ -325,6 +342,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const movesInFlight = useRef(0);
     /** Bumped when the definition changes, since it is read off the note rather than held in state. */
     const [ definitionRevision, setDefinitionRevision ] = useState(0);
+    /** Bumped when the titles or dates a sort reads change, since neither is held in state. */
+    const [ sortRevision, setSortRevision ] = useState(0);
     // A ref rather than state: `api` is rebuilt on every refresh, and the map has to outlive those
     // instances to cover a rename (see BoardApi#retireColumn). Mutating it must not re-render.
     const pendingRenamesRef = useRef<{ board: string, writes: PendingColumnWrites }>({
@@ -369,13 +388,36 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         onQueryChanged: persistFilterQuery,
         collectionNoteIds: noteIds
     });
+    const statusAttribute = statusAttributeWithPrefix.replace(/^[~#]/, "");
+    // Every promoted attribute the board defines, hidden ones included: a column can sort by a
+    // field its cards do not draw.
+    const promotedAttributes = useMemo(
+        () => resolvePromotedAttributes(
+            parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
+        [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
+    const columnSorts = useMemo(
+        () => resolveColumnSorts(viewConfig?.columns), [ viewConfig ]);
+    const sortContext = useMemo<SortContext>(() => ({
+        definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
+        creationDate: getCreationDate,
+        noteTitle: (noteId) => froca.getNoteFromCache(noteId)?.title
+    }), [ promotedAttributes ]);
+    // Sorted before the filter: `filterColumnMap` keeps the order it is given, so a card the
+    // filter hides cannot change where the others stand. `sortRevision` is a dependency because
+    // the dates and titles `sortContext` reads live outside the render.
+    const sortedByColumn = useMemo(
+        () => (allByColumn ? sortColumnMap(allByColumn, columnSorts, sortContext) : undefined),
+        [ allByColumn, columnSorts, sortContext, sortRevision ]);
     // The cards as drawn. Derived rather than held, so what is shown cannot fall behind what the
     // filter matches, and withheld until a query stored in `board.json` has said what it matches.
     const byColumn = useMemo(
-        () => (allByColumn && !filter.isResolvingStoredQuery
-            ? filterColumnMap(allByColumn, filter.shownNoteIds)
+        () => (sortedByColumn && !filter.isResolvingStoredQuery
+            ? filterColumnMap(sortedByColumn, filter.shownNoteIds)
             : undefined),
-        [ allByColumn, filter.shownNoteIds, filter.isResolvingStoredQuery ]);
+        [ sortedByColumn, filter.shownNoteIds, filter.isResolvingStoredQuery ]);
+    const sortWatch = useMemo(
+        () => resolveSortWatch(allByColumn, columnSorts, sortContext.definitions),
+        [ allByColumn, columnSorts, sortContext ]);
 
     if (!apiRef.current || apiRef.current.board !== boardIdentity) {
         apiRef.current = {
@@ -474,6 +516,35 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const containerRef = useRef<HTMLDivElement>(null);
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
+
+    // Neither the creation dates the tie-break needs nor the targets of a sorted relation come
+    // with the board. Both are fetched here, and `sortRevision` redraws it once they land.
+    useEffect(() => {
+        if (!sortWatch.noteIds.size) {
+            return;
+        }
+
+        let isCancelled = false;
+        const settle = (isLoaded: boolean) => {
+            if (isLoaded && !isCancelled) {
+                setSortRevision(revision => revision + 1);
+            }
+        };
+
+        loadCreationDates(sortWatch.noteIds)
+            .then(settle)
+            .catch((error) => console.error("Failed to load the card creation dates:", error));
+
+        const missingTargets = [ ...sortWatch.targetNoteIds ]
+            .filter(noteId => !froca.getNoteFromCache(noteId));
+        if (missingTargets.length) {
+            froca.getNotes(missingTargets, true)
+                .then(() => settle(true))
+                .catch((error) => console.error("Failed to load the sorted relations:", error));
+        }
+
+        return () => { isCancelled = true; };
+    }, [ sortWatch ]);
 
     // What a card measures is kept between drags, which holds while a column is the width it was
     // measured at. A phone gives a column a share of the window, so a window that changes size
@@ -622,15 +693,29 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             // separate frames the reader sees a gap open where nothing is being carried any more.
             closeGaps(containerRef.current);
             const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
+            const isSortedTarget = !!position && columnSorts.has(position.column);
+            // A drop inside a sorted column changes nothing: `sortColumnMap` already placed it.
+            if (isSortedTarget && position?.column === card.fromColumn) {
+                setDraggedCard(null);
+                dropState.set({ position: null, target: null });
+                focusCard(card.noteId);
+                return;
+            }
+
             if (position && branchId && byColumn && allByColumn) {
                 // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
                 // the index `unfilteredCardIndex` translates rather than the visible drop index.
+                // The index does not matter for a sorted column: `sortColumnMap` reorders the
+                // map afterwards.
                 setAllByColumn(applyCardMove(
                     allByColumn, card.noteId, card.fromColumn, position.column,
                     unfilteredCardIndex(
                         byColumn.get(position.column) ?? [],
                         allByColumn.get(position.column) ?? [],
                         position.index)));
+                if (isSortedTarget) {
+                    setLandedNoteId(card.noteId);
+                }
                 movesInFlight.current++;
                 // Any refresh already on its way is about the board as it stood before the drop,
                 // and would put the card back where it came from as it resolves.
@@ -839,6 +924,12 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             setDefinitionRevision(revision => revision + 1);
         }
 
+        // `findRefreshReason` ignores a note row, since a card keeps its own title in step. A
+        // column sorting by title still has to reorder, and this does it without a refresh.
+        if (affectsSortOrder(loadResults, sortWatch)) {
+            setSortRevision(revision => revision + 1);
+        }
+
         if (findRefreshReason(loadResults, api.statusAttribute, noteIds, parentNote.noteId)) {
             refresh();
         }
@@ -927,6 +1018,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     onFocusCard={focusCard}
                                     columnItems={byColumn.get(column)}
                                     totalCount={allByColumn?.get(column)?.length}
+                                    sort={columnSorts.get(column)}
+                                    landedNoteId={landedNoteId}
                                     isNew={column === createdColumn}
                                 />
                             </Fragment>

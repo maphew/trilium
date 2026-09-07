@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import FAttribute from "../../../entities/fattribute";
+import type FBranch from "../../../entities/fbranch";
 import branches from "../../../services/branches";
 import attributes from "../../../services/attributes";
 import { executeBulkActions } from "../../../services/bulk_action";
@@ -1777,5 +1778,168 @@ describe("the promoted attributes a card shows", () => {
 
         expect(saved.at(-1)?.promotedAttributes)
             .toEqual([ { name: "dueDate" }, { name: "owner", hidden: true } ]);
+    });
+});
+
+describe("how a column orders its cards", () => {
+    it("reads a column nobody has sorted as the order the user arranged", () => {
+        const { api } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: undefined, isDescending: false });
+        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: undefined, isDescending: false });
+    });
+
+    it("stores what a column sorts by, and clears it back to the manual order", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ] },
+            [ "To Do", "Done" ]);
+
+        await api.setColumnSort("To Do", "attr:dueDate");
+        expect(saved.at(-1)?.columns).toEqual([
+            { value: "To Do", icon: "bx bx-list-ul", orderBy: "attr:dueDate" },
+            { value: "Done" }
+        ]);
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "attr:dueDate", isDescending: false });
+
+        // Strict, so the assertion catches the key being stored as undefined rather than dropped.
+        await api.setColumnSort("To Do", undefined);
+        expect(saved.at(-1)?.columns)
+            .toStrictEqual([ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ]);
+    });
+
+    it("stores the direction and clears it rather than storing it false", async () => {
+        const { api, saved } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        await api.setColumnSort("To Do", "title");
+        await api.setColumnSortDirection("To Do", true);
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do", orderBy: "title", descendingOrder: true } ]);
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: "title", isDescending: true });
+
+        await api.setColumnSortDirection("To Do", false);
+        expect(saved.at(-1)?.columns).toStrictEqual([ { value: "To Do", orderBy: "title" } ]);
+    });
+
+    it("keeps the direction while the key changes, and reads a stale key as manual", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do", orderBy: "creationDate", descendingOrder: true } ] },
+            [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "creationDate", isDescending: true });
+
+        await api.setColumnSort("To Do", "title");
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do", orderBy: "title", descendingOrder: true } ]);
+
+        // A key written by a newer version, or by hand, leaves the column in the manual order.
+        const stale = createApi(
+            { columns: [ { value: "To Do", orderBy: "dateModified" } ] }, [ "To Do" ]);
+        expect(stale.api.getColumnSort("To Do").orderBy).toBeUndefined();
+    });
+
+    it("writes an entry for a column that has none yet, where the board draws it", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do" } ] }, [ "To Do", "Doing", "Done" ]);
+
+        await api.setColumnSort("Doing", "title");
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do" }, { value: "Doing", orderBy: "title" } ]);
+    });
+});
+
+/**
+ * A sorted column places its own cards, so nothing writes a branch position for one. The branch
+ * order is the order the reader arranged, which the column goes back to when it is sorted by hand
+ * again.
+ */
+describe("moving a card into or inside a sorted column", () => {
+    let setLabel: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        setLabel = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined as never);
+        vi.mocked(branches.moveBeforeBranch).mockClear();
+        vi.mocked(branches.moveAfterBranch).mockClear();
+    });
+
+    function board(cards: Record<string, string[]>): ColumnMap {
+        return new Map(Object.entries(cards).map(([ column, ids ]) => [
+            column,
+            ids.map((noteId) => {
+                buildNote({ id: noteId, title: noteId });
+                return {
+                    note: froca.notes[noteId],
+                    branch: { branchId: `b_${noteId}` } as FBranch
+                };
+            })
+        ]));
+    }
+
+    function sortedApi(sortedColumns: string[]) {
+        return createApi(
+            {
+                columns: [ "To Do", "Done" ].map(value => ({
+                    value,
+                    ...(sortedColumns.includes(value) ? { orderBy: "title" } : {})
+                }))
+            },
+            [ "To Do", "Done" ],
+            undefined,
+            "status",
+            board({ "To Do": [ "a1", "a2", "a3" ], Done: [ "b1", "b2" ] }));
+    }
+
+    it("writes the value alone when a card crosses into one", async () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("writes nothing at all for a move inside one", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveWithinBoard("a1", "b_a1", 0, 2, "To Do", "To Do");
+
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("still places a card in a column left in the manual order", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
+        expect(branches.moveBeforeBranch).toHaveBeenCalledWith([ "b_a2" ], "b_b1");
+    });
+
+    it("sends a card across to a sorted column by value alone", async () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        await api.moveToColumnEnd("a1", "b_a1", "Done");
+
+        expect(setLabel).toHaveBeenCalledWith("a1", "status", "Done");
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+
+    it("refuses to send a card to the head of a sorted column", async () => {
+        const { api } = sortedApi([ "To Do" ]);
+
+        await api.moveToColumnStart("a3", "b_a3", "To Do");
+
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+    });
+
+    it("answers which columns order their own cards", () => {
+        const { api } = sortedApi([ "Done" ]);
+
+        expect(api.isColumnSorted("Done")).toBe(true);
+        expect(api.isColumnSorted("To Do")).toBe(false);
     });
 });

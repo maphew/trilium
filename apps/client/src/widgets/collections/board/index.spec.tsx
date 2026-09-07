@@ -3502,3 +3502,251 @@ describe("Board filtering", () => {
         expect(marks.map(el => el.textContent)).toEqual([ "First" ]);
     });
 });
+
+describe("a column that sorts its cards", () => {
+    let container: HTMLElement | undefined;
+
+    beforeEach(() => {
+        vi.spyOn(server, "post").mockImplementation(async (url) =>
+            (url === "notes/metadata" ? {} : undefined));
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws the sorted column in its own order and the others in branch order", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+        expect(cardTitlesIn(board, 1)).toEqual([ "Zulu", "Yankee" ]);
+    });
+
+    it("draws it backwards when the column asks for that", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("leaves every column in branch order while none of them sorts", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("asks for no creation dates at all while no column sorts", async () => {
+        await renderSortedBoard({});
+
+        expect(server.post).not.toHaveBeenCalledWith("notes/metadata", expect.anything());
+    });
+
+    it("draws the column again when a title it sorts by changes", async () => {
+        const { board, host, cards } = await renderSortedBoard({ orderBy: "title" });
+
+        cards.beta.title = "Omega";
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded",
+                { loadResults: noteRenamed(cards.beta.noteId, "Omega") });
+            await flush();
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Delta", "Omega" ]);
+    });
+
+    it("sorts by a promoted attribute, keeping the cards that have no value last", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)": "promoted,single,number",
+            values: { Alpha: "3", Beta: "1" }
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
+    it("sorts a select by the order its own definition offers the options in", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)":
+                "promoted,alias=Priority,single,select,options=Low;Medium;High;Urgent",
+            values: { Delta: "Urgent", Beta: "Low", Alpha: "High" }
+        });
+
+        // Alphabetically this would read High, Low, Urgent.
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
+    it("reorders the column as soon as the sort is picked from its menu", async () => {
+        const { board } = await renderSortedBoard({});
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-text");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+
+        await pickSort(board, "bx bx-sort-down");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-move-vertical");
+        expect(saved.at(-1)?.columns?.[0]).toStrictEqual({ value: "To Do", descendingOrder: true });
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("shows no sort button while the column is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    it("shows the way the order runs, and turns the arrow over for a descending one", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        // `ActionButton` puts the icon on the button itself.
+        expect(sortButton(board)?.classList.contains("bx-sort-up")).toBe(true);
+        // Only the sorted column carries one.
+        expect(board.querySelectorAll(".board-column h3 .column-sort")).toHaveLength(1);
+
+        const descending = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+        expect(sortButton(descending.board)?.classList.contains("bx-sort-down")).toBe(true);
+    });
+
+    it("opens the sort menu, and takes the column away once it is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        sortButton(board)?.click();
+        const items = show.mock.calls.at(-1)?.[0].items ?? [];
+        expect(items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator")))
+            .toEqual([
+                "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus", "separator",
+                "bx bx-sort-up", "bx bx-sort-down"
+            ]);
+        show.mockRestore();
+
+        // Picking the manual order is what takes the button away.
+        await pickSort(board, "bx bx-move-vertical");
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    /** A keyboard press carries no pointer position, which would put the menu at the origin. */
+    it("opens the menu against the button when a keyboard presses it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const button = sortButton(board);
+        if (!button) throw new Error("expected a sort button");
+        button.getBoundingClientRect = () =>
+            ({ right: 320, bottom: 48 }) as DOMRect;
+
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        // `detail` is 0 for the click a keyboard synthesises, and the coordinates are 0 with it.
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+
+        expect(show.mock.calls.at(-1)?.[0]).toMatchObject({ x: 320, y: 48 });
+        show.mockRestore();
+    });
+
+    /** A strip is too narrow to work in, and the menu would stand where it is about to widen. */
+    it("shows the button on a strip, with nothing to be done to it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", collapsed: true });
+
+        expect(board.querySelector(".board-column.collapsed")).toBeTruthy();
+        expect(sortButton(board)?.hasAttribute("disabled")).toBe(true);
+    });
+
+    /** The button the first column shows, which is the only sorted one in these boards. */
+    function sortButton(board: HTMLElement) {
+        return board.querySelector<HTMLElement>(".board-column h3 .column-sort");
+    }
+
+    /** Opens the first column's menu and picks the sort entry carrying the given icon. */
+    async function pickSort(board: HTMLElement, icon: string) {
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        board.querySelector(".board-column h3")
+            ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        const sort = (show.mock.calls.at(-1)?.[0].items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === "bx bx-sort-alt-2");
+        if (!sort || !("items" in sort)) throw new Error("expected a sort entry");
+
+        const entry = (sort.items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === icon);
+        if (!entry || !("handler" in entry)) throw new Error(`expected a ${icon} entry`);
+
+        await act(async () => {
+            entry.handler?.(entry, {} as never);
+            await flush();
+        });
+        show.mockRestore();
+    }
+
+    /** The note row a rename produces, which is what the card reads its new title from. */
+    function noteRenamed(noteId: string, title: string) {
+        const results = new LoadResults([ {
+            entityName: "notes",
+            entityId: noteId,
+            entity: { noteId, title }
+        } as never ]);
+        results.addNote(noteId, "other");
+        return results;
+    }
+
+    function cardTitlesIn(board: HTMLElement, column: number) {
+        const columns = [ ...board.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(el => el.textContent);
+    }
+
+    async function renderSortedBoard(
+        sort: { orderBy?: string, descendingOrder?: boolean, collapsed?: boolean },
+        promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> }
+    ) {
+        const priorities = promoted?.values ?? {};
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            ...(promoted
+                ? { "#label:priority(inheritable)": promoted["#label:priority(inheritable)"] }
+                : {}),
+            children: [
+                { title: "Delta", "#status": "To Do", ...priorityOf("Delta") },
+                { title: "Beta", "#status": "To Do", ...priorityOf("Beta") },
+                { title: "Alpha", "#status": "To Do", ...priorityOf("Alpha") },
+                { title: "Zulu", "#status": "Done" },
+                { title: "Yankee", "#status": "Done" }
+            ]
+        });
+
+        function priorityOf(title: string): Record<string, string> {
+            return priorities[title] ? { "#priority": priorities[title] } : {};
+        }
+
+        const host = new Component();
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [ { value: "To Do", ...sort }, { value: "Done" } ]
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        const byTitle = Object.fromEntries([ ...note.getChildNoteIds() ]
+            .map(noteId => froca.notes[noteId])
+            .map(child => [ child.title.toLowerCase(), child ]));
+
+        return { board: mountPoint, host, cards: byTitle };
+    }
+});

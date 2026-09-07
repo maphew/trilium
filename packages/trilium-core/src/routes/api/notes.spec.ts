@@ -44,6 +44,31 @@ describe("Notes API (core)", () => {
             });
         });
 
+        it("returns the timestamps of several notes at once, skipping the ones it cannot find", async () => {
+            const note = await createTextNote(api, { title: "Bulk metadata" });
+
+            const res = await api.post<Record<string, { utcDateCreated: string }>>(
+                "/api/notes/metadata",
+                { body: { noteIds: [ "root", note.noteId, "missingNote123" ] } });
+
+            expect(res.status).toBe(200);
+            expect(Object.keys(res.body).sort()).toEqual([ note.noteId, "root" ].sort());
+            expect(res.body[note.noteId]).toMatchObject({
+                dateCreated: expect.any(String),
+                utcDateCreated: expect.any(String),
+                dateModified: expect.any(String),
+                utcDateModified: expect.any(String)
+            });
+        });
+
+        it("400s a bulk metadata request whose noteIds are not a list of strings", async () => {
+            expect((await api.post("/api/notes/metadata", { body: {} })).status).toBe(400);
+            expect((await api.post("/api/notes/metadata", { body: { noteIds: "root" } })).status)
+                .toBe(400);
+            expect((await api.post("/api/notes/metadata", { body: { noteIds: [ 1 ] } })).status)
+                .toBe(400);
+        });
+
         it("returns the note blob", async () => {
             const res = await api.get<{ blobId: string; content: string }>("/api/notes/root/blob");
             expect(res.status).toBe(200);
