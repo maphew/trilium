@@ -757,7 +757,9 @@
     "card-templates-hint": "新しいボードカードを作成する際に使用するノートタイプとノートテンプレートを選択してください。",
     "promoted-attributes": "カードの属性",
     "promoted-attributes-hint": "カードに表示する属性を選択し、表示順序をドラッグして並べ替えます。",
-    "new-template-name": "新しいカードテンプレート"
+    "new-template-name": "新しいカードテンプレート",
+    "filter-placeholder": "ボードをフィルター…",
+    "card-outside-filter": "このカードは現在のフィルタリング範囲外です"
   },
   "code_buttons": {
     "execute_button_title": "スクリプトを実行",
@@ -2395,11 +2397,15 @@
   },
   "note_autocomplete": {
     "search-for": "「{{term}}」を検索",
-    "create-note": "子ノート「{{term}}」を作成してリンクする",
+    "create-note": "ノート \"{{term}}\" を作成",
     "insert-external-link": "「{{term}}」への外部リンクを挿入",
     "clear-text-field": "テキストフィールドをクリア",
     "show-recent-notes": "最近のノートを表示",
-    "full-text-search": "全文検索"
+    "full-text-search": "全文検索",
+    "create-note-into": "{{parentTitle}} 内にノート \"{{term}}\" を作成",
+    "create-note-into-day-note": "今日の日ノート内にノート \"{{term}}\" を作成",
+    "create-note-into-root": "トップレベルにノート \"{{term}}\" を作成",
+    "create-child-note": "子ノート \"{{term}}\" を作成"
   },
   "geo-map": {
     "create-child-note-title": "新しい子ノートを作成し、マップに追加する",
@@ -2435,7 +2441,15 @@
     "next-result": "次の結果",
     "result-position": "{{total}} 件中 {{index}} 件目の結果、クリックして戻る",
     "results-on-map": "この地図上",
-    "go-to-coordinates": "{{- coordinates}} へ移動"
+    "go-to-coordinates": "{{- coordinates}} へ移動",
+    "locate": "現在地を表示",
+    "locate-waiting": "現在地を検索中…",
+    "locate-following": "現在地の追跡を停止",
+    "locate-return": "現在地に戻る",
+    "locate-error": "現在地が見つかりませんでした。もう一度押すと検索を停止します。",
+    "locate-unavailable": "現在地情報は利用できません",
+    "location-denied": "位置情報へのアクセスが拒否されました。マップ上に現在地を表示するには、ブラウザまたはシステムの設定で Trilium の位置情報へのアクセスを許可してください。",
+    "location-unavailable": "現在地を特定できませんでした。"
   },
   "geo-map-context": {
     "open-location": "現在位置を表示",
@@ -2473,7 +2487,8 @@
     "cluster-markers": "近くのマーカーをグループ化",
     "presentation-theme": "テーマ",
     "board-inbox-column": "インボックス列を表示",
-    "board-inbox-column-help": "インボックス列を表示します。この列には、どの列にも割り当てられていない子ノートが一覧表示されます。"
+    "board-inbox-column-help": "インボックス列を表示します。この列には、どの列にも割り当てられていない子ノートが一覧表示されます。",
+    "vector_auto": "Vector (自動)"
   },
   "call_to_action": {
     "next_theme_title": "新しいTriliumテーマをお試しください",
@@ -4128,5 +4143,11 @@
   },
   "sortable_card": {
     "reorder": "ドラッグして並べ替え"
+  },
+  "collection_filter": {
+    "placeholder": "フィルター…",
+    "clear": "フィルターを解除",
+    "fetch-error": "フィルターを実行できませんでした。",
+    "submit": "フィルターを適用"
   }
 }
