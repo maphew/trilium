@@ -2268,11 +2268,15 @@
   },
   "note_autocomplete": {
     "search-for": "搜索 \"{{term}}\"",
-    "create-note": "创建并链接子笔记 \"{{term}}\"",
+    "create-note": "创建笔记 \"{{term}}\"",
     "insert-external-link": "插入指向 \"{{term}}\" 的外部链接",
     "clear-text-field": "清除文本字段",
     "show-recent-notes": "显示最近的笔记",
-    "full-text-search": "全文搜索"
+    "full-text-search": "全文搜索",
+    "create-note-into": "在 {{parentTitle}} 中创建笔记 \"{{term}}\"",
+    "create-note-into-day-note": "在今天的日记笔记中创建笔记 \"{{term}}\"",
+    "create-note-into-root": "在顶层创建笔记 \"{{term}}\"",
+    "create-child-note": "创建子笔记 \"{{term}}\""
   },
   "note_tooltip": {
     "note-has-been-deleted": "笔记已被删除。",
@@ -2312,7 +2316,15 @@
     "next-result": "下一个结果",
     "result-position": "第 {{index}} 个结果，共 {{total}} 个，点击返回该结果",
     "results-on-map": "当前地图上",
-    "go-to-coordinates": "前往{{- coordinates}}"
+    "go-to-coordinates": "前往{{- coordinates}}",
+    "locate": "显示你的位置",
+    "locate-waiting": "正在查找你的位置…",
+    "locate-following": "停止跟随你的位置",
+    "locate-return": "回到你的位置",
+    "locate-error": "无法找到你的位置。再次按下即可停止查找。",
+    "locate-unavailable": "你的位置不可用",
+    "location-denied": "位置访问被拒绝。如需在地图上显示你的位置，请在浏览器或系统设置中允许 Trilium 访问位置。",
+    "location-unavailable": "目前无法确定你的位置。"
   },
   "geo-map-context": {
     "open-location": "打开位置",
@@ -2465,7 +2477,8 @@
     "cluster-markers": "聚合附近的标记",
     "presentation-theme": "主题",
     "board-inbox-column": "显示收件箱列",
-    "board-inbox-column-help": "显示收件箱列，其中列出所有未被分配到某一列的子笔记。"
+    "board-inbox-column-help": "显示收件箱列，其中列出所有未被分配到某一列的子笔记。",
+    "vector_auto": "矢量（自动）"
   },
   "table_context_menu": {
     "delete_row": "删除行"
@@ -2568,7 +2581,9 @@
     "general": "常规",
     "show-archived": "显示已归档卡片和列",
     "properties-title": "看板属性",
-    "card-templates": "卡片模板"
+    "card-templates": "卡片模板",
+    "filter-placeholder": "筛选看板...",
+    "card-outside-filter": "此卡片在当前筛选范围之外"
   },
   "command_palette": {
     "tree-action-name": "树形：{{name}}",
@@ -4128,5 +4143,11 @@
   },
   "sortable_card": {
     "reorder": "拖拽以重新排序"
+  },
+  "collection_filter": {
+    "placeholder": "筛选...",
+    "clear": "清除筛选",
+    "fetch-error": "无法运行筛选。",
+    "submit": "应用筛选"
   }
 }

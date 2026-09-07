@@ -69,15 +69,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      # Self-hosted Windows runners keep a workspace where patches/ is still
-      # CRLF from before .gitattributes pinned it to LF, and pnpm 12 rejects the
-      # CR. Git rewrites the files only when they are missing.
-      - name: Normalize the line endings of patches/
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          git ls-files -z patches | xargs -0 rm -f
-          git checkout -- patches
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - name: Set up node & dependencies
         uses: actions/setup-node@v7

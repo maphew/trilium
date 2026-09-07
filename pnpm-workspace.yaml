@@ -125,6 +125,7 @@ patchedDependencies:
   '@excalidraw/excalidraw@0.18.1': patches/@excalidraw__excalidraw@0.18.1.patch
 
 allowBuilds:
+  "@parcel/watcher": false
   better-sqlite3: false
   core-js: false
   edgedriver: false
