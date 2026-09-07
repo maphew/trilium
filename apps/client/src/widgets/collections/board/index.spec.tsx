@@ -3593,6 +3593,55 @@ describe("a column that sorts its cards", () => {
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
     });
 
+    it("shows no sort button while the column is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    it("shows the way the order runs, and turns the arrow over for a descending one", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        // `ActionButton` puts the icon on the button itself.
+        expect(sortButton(board)?.classList.contains("bx-sort-up")).toBe(true);
+        // Only the sorted column carries one.
+        expect(board.querySelectorAll(".board-column h3 .column-sort")).toHaveLength(1);
+
+        const descending = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+        expect(sortButton(descending.board)?.classList.contains("bx-sort-down")).toBe(true);
+    });
+
+    it("opens the sort menu, and takes the column away once it is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        sortButton(board)?.click();
+        const items = show.mock.calls.at(-1)?.[0].items ?? [];
+        expect(items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator")))
+            .toEqual([
+                "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus", "separator",
+                "bx bx-sort-up", "bx bx-sort-down"
+            ]);
+        show.mockRestore();
+
+        // Picking the manual order is what takes the button away.
+        await pickSort(board, "bx bx-move-vertical");
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    /** A strip is too narrow to work in, and the menu would stand where it is about to widen. */
+    it("shows the button on a strip, with nothing to be done to it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", collapsed: true });
+
+        expect(board.querySelector(".board-column.collapsed")).toBeTruthy();
+        expect(sortButton(board)?.hasAttribute("disabled")).toBe(true);
+    });
+
+    /** The button the first column shows, which is the only sorted one in these boards. */
+    function sortButton(board: HTMLElement) {
+        return board.querySelector<HTMLElement>(".board-column h3 .column-sort");
+    }
+
     /** Opens the first column's menu and picks the sort entry carrying the given icon. */
     async function pickSort(board: HTMLElement, icon: string) {
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
@@ -3632,7 +3681,7 @@ describe("a column that sorts its cards", () => {
     }
 
     async function renderSortedBoard(
-        sort: { orderBy?: string, descendingOrder?: boolean },
+        sort: { orderBy?: string, descendingOrder?: boolean, collapsed?: boolean },
         promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> }
     ) {
         const priorities = promoted?.values ?? {};

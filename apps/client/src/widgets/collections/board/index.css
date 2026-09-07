@@ -243,7 +243,8 @@ body.mobile .board-view-container .board-add-column {
   cursor: pointer;
 }
 
-.board-view-container .board-column h3 > .column-menu {
+.board-view-container .board-column h3 > .column-menu,
+.board-view-container .board-column h3 > .column-sort {
   flex-shrink: 0;
   margin-inline-start: 0.25em;
   color: var(--muted-text-color);
@@ -1039,6 +1040,7 @@ body.mobile .column-drop-placeholder {
 /* The header stacks, so margins meant for a row would throw these off centre. */
 .board-view-container .board-column.collapsed h3 > .column-icon,
 .board-view-container .board-column.collapsed h3 > .column-menu,
+.board-view-container .board-column.collapsed h3 > .column-sort,
 .board-view-container .board-column.collapsed h3 > .counter-badge {
   margin: 0;
 }
@@ -1049,6 +1051,12 @@ body.mobile .column-drop-placeholder {
 .board-view-container .board-column.collapsed h3 > .counter-badge {
   writing-mode: vertical-rl;
   transform: rotate(180deg);
+}
+
+/* The turn `writing-mode` gives the title and the count above, which an icon glyph in a button
+   does not take from it. */
+.board-view-container .board-column.collapsed h3 > .column-sort {
+  transform: rotate(-90deg);
 }
 
 /* Swapped: `padding` is physical, so it does not turn with the count. */

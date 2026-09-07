@@ -11,7 +11,7 @@ import { getArchiveMenuItem } from "../../../menus/context_menu_utils";
 import { t } from "../../../services/i18n";
 import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
-import { buildSortMenuItems } from "../sort_menu";
+import { buildSortMenuItems, type SortMenuOptions } from "../sort_menu";
 import Api from "./api";
 import { INBOX_COLUMN } from "./columns";
 
@@ -130,15 +130,7 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
             {
                 title: t("board_view.sort"),
                 uiIcon: "bx bx-sort-alt-2",
-                items: buildSortMenuItems<string>({
-                    ...api.getColumnSort(column.value),
-                    attributes: api.getPromotedAttributes(),
-                    // A board arranges its cards by hand rather than leaving them unsorted.
-                    noneTitle: t("board_view.sort-manually"),
-                    onSelect: (orderBy) => api.setColumnSort(column.value, orderBy),
-                    onDirectionChange: (isDescending) =>
-                        api.setColumnSortDirection(column.value, isDescending)
-                })
+                items: buildSortMenuItems<string>(sortMenuOptions(api, column.value))
             },
             {
                 title: t("board_view.set-limit"),
@@ -243,6 +235,34 @@ export function openBoardContextMenu(event: ContextMenuEvent, board: BoardMenuTa
         ],
         selectMenuItemHandler() {}
     });
+}
+
+/**
+ * The sort menu on its own, for the button a sorted column shows in its heading.
+ *
+ * Opened leftwards, since the button sits at the trailing edge of a column that can stand against
+ * the window edge.
+ */
+export function openColumnSortMenu(api: Api, x: number, y: number, column: string) {
+    contextMenu.show({
+        x,
+        y,
+        orientation: "left",
+        items: buildSortMenuItems<string>(sortMenuOptions(api, column)),
+        selectMenuItemHandler() {}
+    });
+}
+
+/** What the board asks the shared sort menu for, wherever it is opened. */
+function sortMenuOptions(api: Api, column: string): SortMenuOptions {
+    return {
+        ...api.getColumnSort(column),
+        attributes: api.getPromotedAttributes(),
+        // A board arranges its cards by hand rather than leaving them unsorted.
+        noneTitle: t("board_view.sort-manually"),
+        onSelect: (orderBy) => api.setColumnSort(column, orderBy),
+        onDirectionChange: (isDescending) => api.setColumnSortDirection(column, isDescending)
+    };
 }
 
 /** Offers both ends of a column for the card its button is about to create. */

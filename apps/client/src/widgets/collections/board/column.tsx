@@ -44,7 +44,8 @@ import Card from "./card";
 import CardTemplatePill from "./card_template_pill";
 import { type CardTemplates } from "./card_templates";
 import { DEFAULT_CARD_ICON, DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
-import { openColumnContextMenu, openCreateCardMenu } from "./context_menu";
+import { openColumnContextMenu, openColumnSortMenu, openCreateCardMenu } from "./context_menu";
+import type { ColumnSort } from "./data";
 import { cardSpacing } from "./drag_measure";
 import { BoardDropStateContext, useDropIndex, useIsDropTarget } from "./drop_state";
 
@@ -78,7 +79,7 @@ export default function Column({
     totalCount,
     isNew,
     cardTemplates,
-    isSorted,
+    sort,
     landedNoteId,
     api,
     parentNote,
@@ -115,10 +116,11 @@ export default function Column({
     /** The note limit, absent if disabled. */
     limit?: number,
     /**
-     * Whether the column orders its own cards. Such a column places a dropped card itself, so it
-     * opens no gap for a carried one and offers nothing that would put a card in a chosen place.
+     * How the column orders its own cards, absent while the reader arranges them. A sorted column
+     * places a dropped card itself, so it opens no gap for a carried one and offers nothing that
+     * would put a card in a chosen place.
      */
-    isSorted?: boolean,
+    sort?: ColumnSort,
     /** The card just dropped here, which is revealed where the sort put it. */
     landedNoteId?: string,
     /**
@@ -136,6 +138,7 @@ export default function Column({
     onFocusColumn: (column: string) => void,
     onFocusCard: (noteId: string) => void
 } & DragContext) {
+    const isSorted = !!sort;
     const [ isCreatingNewItem, setIsCreatingNewItem ] = useState(false);
     /**
      * The card a field standing among the cards makes its own above, absent while no such field is
@@ -393,6 +396,25 @@ export default function Column({
         setActiveColumn(isPeeked ? column : undefined);
     }, [ column, isActive, isPeeked, setActiveColumn ]);
 
+    // Shown only while the column sorts itself, so its absence is what says the order is the
+    // reader's own. The arrow says which way the order runs.
+    const sortButton = sort && (
+        <ActionButton
+            className="column-sort"
+            icon={sort.isDescending ? "bx bx-sort-down" : "bx bx-sort-up"}
+            text={t("board_view.sort")}
+            // A strip has room to say which way the order runs but not to be worked in: the menu
+            // it would open stands where the column is about to widen.
+            disabled={isCollapsed}
+            onClick={(e) => {
+                // The heading is the column's drag handle and opens its own menu on a right
+                // click; neither should also fire from the button.
+                e.stopPropagation();
+                openColumnSortMenu(api, e.pageX, e.pageY, column);
+            }}
+        />
+    );
+
     const openMenu = useCallback((e: ContextMenuEvent) => {
         openColumnContextMenu(api, e, {
             value: column,
@@ -573,6 +595,7 @@ export default function Column({
                             }}
                         />
                         <CountBadge items={columnItems} limit={limit} isOver={isOverLimit} />
+                        {sortButton}
                         <span className="title">
                             {isInRelationMode
                                 ? <NoteLink notePath={column} />
@@ -604,6 +627,7 @@ export default function Column({
                                 : api.getColumnTitle(column)}
                         </span>
                         <div className="spacer" />
+                        {sortButton}
                         <CountBadge items={columnItems} limit={limit} isOver={isOverLimit} />
                         <ActionButton
                             className="column-menu"

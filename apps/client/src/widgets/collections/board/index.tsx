@@ -1020,7 +1020,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     onFocusCard={focusCard}
                                     columnItems={byColumn.get(column)}
                                     totalCount={allByColumn?.get(column)?.length}
-                                    isSorted={columnSorts.has(column)}
+                                    sort={columnSorts.get(column)}
                                     landedNoteId={landedNoteId}
                                     isNew={column === createdColumn}
                                 />
