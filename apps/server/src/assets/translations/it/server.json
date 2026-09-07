@@ -302,7 +302,7 @@
   "login": {
     "title": "Accedi",
     "heading": "Trilium",
-    "incorrect-totp": "Il codice TOTP è errato. Riprovare.",
+    "incorrect-totp": "Il codice TOTP è errato. Per favore riprova.",
     "incorrect-password": "La password non è corretta. Riprova.",
     "password": "Password",
     "remember-me": "Ricordami",
