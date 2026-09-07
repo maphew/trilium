@@ -6,6 +6,20 @@ import clipperRoute, { processContent } from "./clipper";
 
 const { buildNote } = becca_easy_mocking;
 
+vi.mock("../../services/image.js", () => ({
+    default: {
+        saveImageToAttachment() {
+            return {
+                attachmentId: "foo",
+                title: "encodedTitle",
+            };
+        },
+        // The clipping is read as soon as this answers, so the picture has to be stored by
+        // then; nothing here defers, so there is nothing for the wait to do.
+        awaitImageWrite: async () => {}
+    }
+}));
+
 let note!: BNote;
 
 describe("processContent", () => {
@@ -14,19 +28,6 @@ describe("processContent", () => {
             content: "Hi there"
         });
         note.saveAttachment = () => {};
-        vi.mock("../../services/image.js", () => ({
-            default: {
-                saveImageToAttachment() {
-                    return {
-                        attachmentId: "foo",
-                        title: "encodedTitle",
-                    };
-                },
-                // The clipping is read as soon as this answers, so the picture has to be stored by
-                // then; nothing here defers, so there is nothing for the wait to do.
-                awaitImageWrite: async () => {}
-            }
-        }));
     });
 
     it("processes basic note", async () => {
