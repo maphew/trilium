@@ -3502,3 +3502,139 @@ describe("Board filtering", () => {
         expect(marks.map(el => el.textContent)).toEqual([ "First" ]);
     });
 });
+
+describe("a column that sorts its cards", () => {
+    let container: HTMLElement | undefined;
+
+    beforeEach(() => {
+        vi.spyOn(server, "post").mockImplementation(async (url) =>
+            (url === "notes/metadata" ? {} : undefined));
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws the sorted column in its own order and the others in branch order", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+        expect(cardTitlesIn(board, 1)).toEqual([ "Zulu", "Yankee" ]);
+    });
+
+    it("draws it backwards when the column asks for that", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("leaves every column in branch order while none of them sorts", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("asks for no creation dates at all while no column sorts", async () => {
+        await renderSortedBoard({});
+
+        expect(server.post).not.toHaveBeenCalledWith("notes/metadata", expect.anything());
+    });
+
+    it("draws the column again when a title it sorts by changes", async () => {
+        const { board, host, cards } = await renderSortedBoard({ orderBy: "title" });
+
+        cards.beta.title = "Omega";
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded",
+                { loadResults: noteRenamed(cards.beta.noteId, "Omega") });
+            await flush();
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Delta", "Omega" ]);
+    });
+
+    it("sorts by a promoted attribute, keeping the cards that have no value last", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)": "promoted,single,number",
+            values: { Alpha: "3", Beta: "1" }
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
+    /** The note row a rename produces, which is what the card reads its new title from. */
+    function noteRenamed(noteId: string, title: string) {
+        const results = new LoadResults([ {
+            entityName: "notes",
+            entityId: noteId,
+            entity: { noteId, title }
+        } as never ]);
+        results.addNote(noteId, "other");
+        return results;
+    }
+
+    function cardTitlesIn(board: HTMLElement, column: number) {
+        const columns = [ ...board.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(el => el.textContent);
+    }
+
+    async function renderSortedBoard(
+        sort: { orderBy?: string, descendingOrder?: boolean },
+        promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> }
+    ) {
+        const priorities = promoted?.values ?? {};
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            ...(promoted
+                ? { "#label:priority(inheritable)": promoted["#label:priority(inheritable)"] }
+                : {}),
+            children: [
+                { title: "Delta", "#status": "To Do", ...priorityOf("Delta") },
+                { title: "Beta", "#status": "To Do", ...priorityOf("Beta") },
+                { title: "Alpha", "#status": "To Do", ...priorityOf("Alpha") },
+                { title: "Zulu", "#status": "Done" },
+                { title: "Yankee", "#status": "Done" }
+            ]
+        });
+
+        function priorityOf(title: string): Record<string, string> {
+            return priorities[title] ? { "#priority": priorities[title] } : {};
+        }
+
+        const host = new Component();
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [ { value: "To Do", ...sort }, { value: "Done" } ]
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        const byTitle = Object.fromEntries([ ...note.getChildNoteIds() ]
+            .map(noteId => froca.notes[noteId])
+            .map(child => [ child.title.toLowerCase(), child ]));
+
+        return { board: mountPoint, host, cards: byTitle };
+    }
+});

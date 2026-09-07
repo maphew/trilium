@@ -2,9 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import FBranch from "../../../entities/fbranch";
 import froca from "../../../services/froca";
+import LoadResults from "../../../services/load_results";
+import type { EntityChange } from "../../../server_types";
 import { buildNote } from "../../../test/easy-froca";
+import type { PromotedAttribute } from "../promoted_attributes";
+import type { SortContext, SortKey } from "../sorting";
 import {
-    applyCardMove, type ColumnMap, filterColumnMap, getBoardData, unfilteredCardIndex
+    affectsSortOrder, applyCardMove, type ColumnMap, type ColumnSort, filterColumnMap,
+    getBoardData, resolveColumnSorts, resolveSortWatch, sortColumnMap, unfilteredCardIndex
 } from "./data";
 
 describe("applyCardMove", () => {
@@ -455,3 +460,210 @@ describe("the inbox column", () => {
             .toEqual([ "Deep", "Unfiled" ]);
     });
 });
+
+describe("sorting the cards of a column", () => {
+    describe("resolveColumnSorts", () => {
+        it("reads the columns that sort, and leaves out the ones that do not", () => {
+            const sorts = resolveColumnSorts([
+                { value: "To Do", orderBy: "title" },
+                { value: "Doing" },
+                { value: "Done", orderBy: "attr:dueDate", descendingOrder: true },
+                { value: "Later", orderBy: "dateModified" }
+            ]);
+
+            expect([ ...sorts.keys() ]).toEqual([ "To Do", "Done" ]);
+            expect(sorts.get("To Do")).toEqual({ orderBy: "title", isDescending: false });
+            expect(sorts.get("Done")).toEqual({ orderBy: "attr:dueDate", isDescending: true });
+        });
+
+        it("reads a board with no stored columns as one that sorts nothing", () => {
+            expect(resolveColumnSorts(undefined).size).toBe(0);
+        });
+    });
+
+    describe("sortColumnMap", () => {
+        it("orders only the columns that ask for it, in the direction they ask for", () => {
+            const board = cards({ A: [ "Beta", "Alpha" ], B: [ "Delta", "Charlie" ] });
+            const sorted = sortColumnMap(board, sortedBy({ A: "title" }), context());
+
+            expect(titles(sorted, "A")).toEqual([ "Alpha", "Beta" ]);
+            expect(titles(sorted, "B")).toEqual([ "Delta", "Charlie" ]);
+
+            const descending = sortColumnMap(board, sortedBy({ A: "title" }, true), context());
+            expect(titles(descending, "A")).toEqual([ "Beta", "Alpha" ]);
+        });
+
+        /**
+         * The identities are what keeps a sorted board as cheap as an unsorted one: `Column` reads
+         * a fresh array as its cards having moved and measures every one of them.
+         */
+        it("hands back the same map when no column sorts", () => {
+            const board = cards({ A: [ "Beta", "Alpha" ] });
+
+            expect(sortColumnMap(board, new Map(), context())).toBe(board);
+        });
+
+        it("hands back the same map when every sorted column is already in order", () => {
+            const board = cards({ A: [ "Alpha", "Beta" ] });
+
+            expect(sortColumnMap(board, sortedBy({ A: "title" }), context())).toBe(board);
+        });
+
+        it("keeps the array of every column it does not reorder", () => {
+            const board = cards({ A: [ "Beta", "Alpha" ], B: [ "Delta", "Charlie" ] });
+            const sorted = sortColumnMap(board, sortedBy({ A: "title" }), context());
+
+            expect(sorted).not.toBe(board);
+            expect(sorted.get("A")).not.toBe(board.get("A"));
+            expect(sorted.get("B")).toBe(board.get("B"));
+        });
+
+        it("leaves a column the board no longer holds alone", () => {
+            const board = cards({ A: [ "Alpha" ] });
+
+            expect(sortColumnMap(board, sortedBy({ Gone: "title" }), context())).toBe(board);
+        });
+    });
+
+    describe("resolveSortWatch", () => {
+        it("watches the cards of the sorted columns and the attributes they sort by", () => {
+            const board = cards({ A: [ "Alpha", "Beta" ], B: [ "Charlie" ] });
+            const watch = resolveSortWatch(board, sortedBy({ A: "attr:dueDate" }), new Map());
+
+            expect(watch.noteIds).toEqual(new Set(noteIdsOf(board, "A")));
+            expect(watch.attributeNames).toEqual(new Set([ "dueDate" ]));
+            expect(watch.targetNoteIds.size).toBe(0);
+        });
+
+        it("watches the note a relation points at, whose title the sort reads", () => {
+            const owner = buildNote({ title: "Owner" });
+            const board = cards({ A: [ { title: "Alpha", "~owner": owner.noteId } ] });
+            const watch = resolveSortWatch(
+                board, sortedBy({ A: "attr:owner" }), definitions("owner", "relation"));
+
+            expect(watch.targetNoteIds).toEqual(new Set([ owner.noteId ]));
+        });
+
+        it("watches nothing while no column sorts", () => {
+            const watch = resolveSortWatch(cards({ A: [ "Alpha" ] }), new Map(), new Map());
+
+            expect(watch.noteIds.size).toBe(0);
+            expect(watch.attributeNames.size).toBe(0);
+        });
+    });
+
+    describe("affectsSortOrder", () => {
+        it("answers for a note the sort reads, and for one it does not", () => {
+            const board = cards({ A: [ "Alpha" ], B: [ "Beta" ] });
+            const watch = resolveSortWatch(board, sortedBy({ A: "title" }), new Map());
+            const [ sorted ] = noteIdsOf(board, "A");
+            const [ unsorted ] = noteIdsOf(board, "B");
+
+            expect(affectsSortOrder(changes({ notes: [ sorted ] }), watch)).toBe(true);
+            expect(affectsSortOrder(changes({ notes: [ unsorted ] }), watch)).toBe(false);
+        });
+
+        it("answers for the note a sorted relation points at", () => {
+            const owner = buildNote({ title: "Owner" });
+            const board = cards({ A: [ { title: "Alpha", "~owner": owner.noteId } ] });
+            const watch = resolveSortWatch(
+                board, sortedBy({ A: "attr:owner" }), definitions("owner", "relation"));
+
+            expect(affectsSortOrder(changes({ notes: [ owner.noteId ] }), watch)).toBe(true);
+        });
+
+        it("answers for the attribute a column sorts by, and for no other", () => {
+            const board = cards({ A: [ "Alpha" ] });
+            const watch = resolveSortWatch(board, sortedBy({ A: "attr:dueDate" }), new Map());
+            const [ card ] = noteIdsOf(board, "A");
+
+            expect(affectsSortOrder(changes({ attributes: [ [ "dueDate", card ] ] }), watch))
+                .toBe(true);
+            expect(affectsSortOrder(changes({ attributes: [ [ "owner", card ] ] }), watch))
+                .toBe(false);
+            expect(affectsSortOrder(changes({ attributes: [ [ "dueDate", "stranger" ] ] }), watch))
+                .toBe(false);
+        });
+
+        it("answers no for every change while nothing is sorted", () => {
+            const board = cards({ A: [ "Alpha" ] });
+            const watch = resolveSortWatch(board, new Map(), new Map());
+            const [ card ] = noteIdsOf(board, "A");
+
+            expect(affectsSortOrder(changes({ notes: [ card ] }), watch)).toBe(false);
+        });
+    });
+});
+
+/** One card, either by title alone or with the single attribute a test gives it. */
+type CardDraft = string | { title: string, "#field"?: string, "~owner"?: string };
+
+function cards(columns: Record<string, CardDraft[]>): ColumnMap {
+    return new Map(Object.entries(columns).map(([ column, drafts ]) => [
+        column,
+        drafts.map((draft) => {
+            const note = buildNote(typeof draft === "string" ? { title: draft } : draft);
+            return { note, branch: { branchId: `b_${note.noteId}` } as FBranch };
+        })
+    ]));
+}
+
+function sortedBy(byColumn: Record<string, string>, isDescending = false) {
+    return new Map<string, ColumnSort>(Object.entries(byColumn)
+        .map(([ column, orderBy ]) => [ column, { orderBy: orderBy as SortKey, isDescending } ]));
+}
+
+function definitions(name: string, type: "label" | "relation") {
+    return new Map<string, PromotedAttribute>([ [ name, {
+        name,
+        definitionName: `${type}:${name}`,
+        type,
+        title: name,
+        hidden: false,
+        definitionValue: "",
+        isOwned: true,
+        isInheritable: true
+    } ] ]);
+}
+
+function context(): SortContext {
+    return {
+        definitions: new Map(),
+        creationDate: () => undefined,
+        noteTitle: (noteId) => froca.notes[noteId]?.title
+    };
+}
+
+function titles(map: ColumnMap, column: string) {
+    return (map.get(column) ?? []).map(({ note }) => note.title);
+}
+
+function noteIdsOf(map: ColumnMap, column: string) {
+    return (map.get(column) ?? []).map(({ note }) => note.noteId);
+}
+
+/** Builds the `LoadResults` a websocket message would produce. See `refresh_reason.spec.ts`. */
+function changes({ notes = [], attributes = [] }: {
+    notes?: string[];
+    /** `[ name, noteId ]` pairs. */
+    attributes?: [ string, string ][];
+}) {
+    const entityChanges = attributes.map(([ name, noteId ], index) => entityChange(
+        `attr${index}`, { attributeId: `attr${index}`, name, noteId }));
+
+    const results = new LoadResults(entityChanges);
+    for (const noteId of notes) {
+        results.addNote(noteId, "componentId");
+    }
+    for (const [ index ] of attributes.entries()) {
+        results.addAttribute(`attr${index}`, "componentId");
+    }
+
+    return results;
+}
+
+function entityChange(entityId: string, entity: object): EntityChange {
+    return {
+        entityName: "attributes", entityId, entity, hash: "", isSynced: true, isErased: false
+    };
+}

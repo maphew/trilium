@@ -38,6 +38,11 @@ export function parseSortKey(orderBy: string | null | undefined): SortKey | unde
     return undefined;
 }
 
+/** The attribute a key sorts by, or undefined when the key names something else. */
+export function sortedAttributeName(key: SortKey) {
+    return key.startsWith(ATTRIBUTE_PREFIX) ? key.substring(ATTRIBUTE_PREFIX.length) : undefined;
+}
+
 /**
  * Orders items by one key, breaking ties on the creation date and then on the given order.
  *
@@ -95,7 +100,7 @@ function sortValueOf(note: FNote, key: SortKey, context: SortContext): SortValue
         return context.creationDate(note.noteId);
     }
 
-    const name = key.substring(ATTRIBUTE_PREFIX.length);
+    const name = sortedAttributeName(key) ?? "";
     const definition = context.definitions.get(name);
 
     if (definition?.type === "relation") {

@@ -12,7 +12,9 @@ import {
 import type { HighlightedTokenInfo } from "@triliumnext/commons";
 
 import FNote from "../../../entities/fnote";
+import froca from "../../../services/froca";
 import { t } from "../../../services/i18n";
+import { getCreationDate, loadCreationDates } from "../../../services/note_dates";
 import type LoadResults from "../../../services/load_results";
 import { ContextMenuEvent } from "../../../menus/context_menu";
 import { isIMEComposing } from "../../../services/shortcuts";
@@ -20,7 +22,8 @@ import type { ShortcutHintDefinition } from "../../../services/shortcut_hints";
 import toast from "../../../services/toast";
 import { escapeHtml, isMobile } from "../../../services/utils";
 import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
-import type { PromotedAttributeSetting } from "../promoted_attributes";
+import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
+import type { SortContext } from "../sorting";
 import CollectionProperties from "../../note_bars/CollectionProperties";
 import FormTextArea from "../../react/FormTextArea";
 import FormTextBox from "../../react/FormTextBox";
@@ -51,7 +54,8 @@ import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
 import {
-    applyCardMove, ColumnMap, filterColumnMap, getBoardData, unfilteredCardIndex
+    affectsSortOrder, applyCardMove, ColumnMap, filterColumnMap, getBoardData, resolveColumnSorts,
+    resolveSortWatch, sortColumnMap, unfilteredCardIndex
 } from "./data";
 import { useBoardKeyboard } from "./keyboard";
 
@@ -332,6 +336,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const movesInFlight = useRef(0);
     /** Bumped when the definition changes, since it is read off the note rather than held in state. */
     const [ definitionRevision, setDefinitionRevision ] = useState(0);
+    /** Bumped when the titles or dates a sort reads change, since neither is held in state. */
+    const [ sortRevision, setSortRevision ] = useState(0);
     // A ref rather than state: `api` is rebuilt on every refresh, and the map has to outlive those
     // instances to cover a rename (see BoardApi#retireColumn). Mutating it must not re-render.
     const pendingRenamesRef = useRef<{ board: string, writes: PendingColumnWrites }>({
@@ -376,13 +382,36 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         onQueryChanged: persistFilterQuery,
         collectionNoteIds: noteIds
     });
+    const statusAttribute = statusAttributeWithPrefix.replace(/^[~#]/, "");
+    // Every promoted attribute the board defines, hidden ones included: a column can sort by a
+    // field its cards do not draw.
+    const promotedAttributes = useMemo(
+        () => resolvePromotedAttributes(
+            parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
+        [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
+    const columnSorts = useMemo(
+        () => resolveColumnSorts(viewConfig?.columns), [ viewConfig ]);
+    const sortContext = useMemo<SortContext>(() => ({
+        definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
+        creationDate: getCreationDate,
+        noteTitle: (noteId) => froca.getNoteFromCache(noteId)?.title
+    }), [ promotedAttributes ]);
+    // Sorted before the filter: `filterColumnMap` keeps the order it is given, so a card the
+    // filter hides cannot change where the others stand. `sortRevision` is a dependency because
+    // the dates and titles `sortContext` reads live outside the render.
+    const sortedByColumn = useMemo(
+        () => (allByColumn ? sortColumnMap(allByColumn, columnSorts, sortContext) : undefined),
+        [ allByColumn, columnSorts, sortContext, sortRevision ]);
     // The cards as drawn. Derived rather than held, so what is shown cannot fall behind what the
     // filter matches, and withheld until a query stored in `board.json` has said what it matches.
     const byColumn = useMemo(
-        () => (allByColumn && !filter.isResolvingStoredQuery
-            ? filterColumnMap(allByColumn, filter.shownNoteIds)
+        () => (sortedByColumn && !filter.isResolvingStoredQuery
+            ? filterColumnMap(sortedByColumn, filter.shownNoteIds)
             : undefined),
-        [ allByColumn, filter.shownNoteIds, filter.isResolvingStoredQuery ]);
+        [ sortedByColumn, filter.shownNoteIds, filter.isResolvingStoredQuery ]);
+    const sortWatch = useMemo(
+        () => resolveSortWatch(allByColumn, columnSorts, sortContext.definitions),
+        [ allByColumn, columnSorts, sortContext ]);
 
     if (!apiRef.current || apiRef.current.board !== boardIdentity) {
         apiRef.current = {
@@ -481,6 +510,36 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const containerRef = useRef<HTMLDivElement>(null);
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
+
+    // Neither the creation dates the tie-break reads nor the notes a sorted relation points at
+    // are loaded with the board. Both are fetched here, and the board is drawn again once they
+    // arrive.
+    useEffect(() => {
+        if (!sortWatch.noteIds.size) {
+            return;
+        }
+
+        let isCancelled = false;
+        const settle = (isLoaded: boolean) => {
+            if (isLoaded && !isCancelled) {
+                setSortRevision(revision => revision + 1);
+            }
+        };
+
+        loadCreationDates(sortWatch.noteIds)
+            .then(settle)
+            .catch((error) => console.error("Failed to load the card creation dates:", error));
+
+        const missingTargets = [ ...sortWatch.targetNoteIds ]
+            .filter(noteId => !froca.getNoteFromCache(noteId));
+        if (missingTargets.length) {
+            froca.getNotes(missingTargets, true)
+                .then(() => settle(true))
+                .catch((error) => console.error("Failed to load the sorted relations:", error));
+        }
+
+        return () => { isCancelled = true; };
+    }, [ sortWatch ]);
 
     // What a card measures is kept between drags, which holds while a column is the width it was
     // measured at. A phone gives a column a share of the window, so a window that changes size
@@ -844,6 +903,12 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         // another split, or a synced instance. Re-reading it re-runs the refresh through the effect.
         if (loadResults.getAttributeRows().some(attr => attr.name === `label:${api.statusAttribute}`)) {
             setDefinitionRevision(revision => revision + 1);
+        }
+
+        // `findRefreshReason` ignores a note row, since a card keeps its own title in step. A
+        // column sorting by title still has to reorder, which this does without a full refresh.
+        if (affectsSortOrder(loadResults, sortWatch)) {
+            setSortRevision(revision => revision + 1);
         }
 
         if (findRefreshReason(loadResults, api.statusAttribute, noteIds, parentNote.noteId)) {
