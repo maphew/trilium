@@ -125,6 +125,9 @@ patchedDependencies:
   '@excalidraw/excalidraw@0.18.1': patches/@excalidraw__excalidraw@0.18.1.patch
 
 allowBuilds:
+  # pnpm 12 applies ignoredOptionalDependencies only when that list changes, not when it
+  # resolves a package afresh, so a sass bump reinstates @parcel/watcher and its build script.
+  "@parcel/watcher": false
   better-sqlite3: false
   core-js: false
   edgedriver: false
