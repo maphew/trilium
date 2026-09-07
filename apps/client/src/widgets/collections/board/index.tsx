@@ -45,7 +45,7 @@ import { forgetCardHeights } from "./drag_measure";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
-import Column, { EXPAND_MS } from "./column";
+import Column, { EXPAND_MS, placeCard } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
@@ -990,7 +990,7 @@ function closeGaps(container: HTMLElement | null) {
 
     for (const card of container.querySelectorAll<HTMLElement>(".board-note")) {
         if (card.style.transform) {
-            card.style.removeProperty("transform");
+            placeCard(card, null, true);
         }
     }
 

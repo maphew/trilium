@@ -221,9 +221,17 @@ export default function Column({
     // browser's to do.
     const gapRef = useRef<HTMLDivElement>(null);
     const roomRef = useRef<HTMLDivElement>(null);
+    /** Whether a card was being carried at the previous commit. */
+    const carried = useRef(false);
     /** Which cards were last told to stand aside, so only what changed is written. */
     const aside = useRef({ from: 0, until: 0, room: 0 });
     useLayoutEffect(() => {
+        // The two commits a drag opens and closes on. A card is drawn in either one in the place
+        // its own transform already had it, so easing would slide it from somewhere it never
+        // stood; every commit in between moves the cards for real and eases as usual.
+        const atOnce = carried.current !== !!draggedCard;
+        carried.current = !!draggedCard;
+
         const area = contentRef.current;
         const gap = gapRef.current;
         if (!area || !gap) return;
@@ -250,7 +258,7 @@ export default function Column({
         if (dropIndex === null) {
             for (const card of cards) {
                 if (card.style.transform) {
-                    card.style.removeProperty("transform");
+                    placeCard(card, null, atOnce);
                 }
             }
             aside.current = { from: 0, until: 0, room: 0 };
@@ -265,16 +273,19 @@ export default function Column({
         const afresh = last.room !== room;
         for (let index = last.from; index < last.until; index++) {
             if (afresh || index < from || index >= until) {
-                cards[index]?.style.removeProperty("transform");
+                const card = cards[index];
+                if (card) {
+                    placeCard(card, null, atOnce);
+                }
             }
         }
         for (let index = from; index < until; index++) {
             if (afresh || index < last.from || index >= last.until) {
-                cards[index].style.transform = `translateY(${room}px)`;
+                placeCard(cards[index], `translateY(${room}px)`, atOnce);
             }
         }
         aside.current = { from, until, room };
-    }, [ dropIndex, draggedCard?.height, columnItems ]);
+    }, [ dropIndex, draggedCard, columnItems ]);
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
         column, columnIndex, columnItems, isEditing, api, parentNote
     });
@@ -646,6 +657,47 @@ export default function Column({
         </div>
     );
 }
+
+/**
+ * Puts a card where a transform says, easing it there unless the board is drawing a still frame.
+ *
+ * A still frame is one the board draws an element in the place its own transform already had it,
+ * which is what a drag's lift and its drop both are. The transition is suppressed on the card
+ * rather than by a rule under the board's own class: such a rule matches every card on the board,
+ * and Chrome restyles all of them for the few that move.
+ *
+ * @param transform what to write, or `null` to put the card back where the column draws it.
+ */
+export function placeCard(card: HTMLElement, transform: string | null, atOnce: boolean) {
+    if (atOnce) {
+        card.style.transition = "none";
+        settling.add(card);
+    }
+
+    if (transform === null) {
+        card.style.removeProperty("transform");
+    } else {
+        card.style.transform = transform;
+    }
+
+    if (!atOnce || restoring !== undefined) {
+        return;
+    }
+
+    // Put back a frame later than the one that draws them, since a frame's callbacks run before
+    // the styles it paints are worked out.
+    restoring = requestAnimationFrame(() => requestAnimationFrame(() => {
+        restoring = undefined;
+        for (const held of settling) {
+            held.style.removeProperty("transition");
+        }
+        settling.clear();
+    }));
+}
+
+/** The cards whose transition is suppressed, waiting for the frame that puts it back. */
+const settling = new Set<HTMLElement>();
+let restoring: number | undefined;
 
 /**
  * The editor a new card is named in, standing below the column or between two of its cards.

@@ -507,11 +507,6 @@ body.mobile .board-view-container .board-add-column {
   box-shadow: 4px 8px 16px rgba(0, 0, 0, 0.5);
 }
 
-/* While a card is carried, so the page does not take the touch for a scroll. */
-.board-view-container.board-dragging {
-  touch-action: none;
-}
-
 /* Reaching the end of the board scrolls neither the page nor anything else. */
 .board-view-container {
   overscroll-behavior: contain;
@@ -949,10 +944,12 @@ body.mobile .column-drop-placeholder {
 /* The one frame the board is drawn in as a drag lifts something or lets it go. What the drag
    carried aside by a transform already stands where the gap, or the new order, puts it, so the
    transform has nothing left to ease: given a transition it would carry the element a full width,
-   or a card's height, from a place it never stood in. The gap is included so that it takes the
+   or a column's width, from a place it never stood in. The gap is included so that it takes the
    place of the card at once rather than fading into it. Written against the selectors above, which
-   it has to outweigh. */
-.board-view-container.board-still .board-note,
+   it has to outweigh.
+
+   The cards are left out: a rule here reaches every one of them, and Chrome restyles all of them
+   for the few that move. `placeCard` writes this on those few instead. */
 .board-view-container.board-still .board-drop-placeholder,
 .board-view-container.board-still .board-column,
 .board-view-container.board-still .board-column.collapsed:not(.board-drag-preview),
@@ -976,7 +973,11 @@ body.mobile .column-drop-placeholder {
   overflow: hidden;
 }
 
-.board-view-container .board-column.expanding > * {
+/* The children are named rather than matched with `> *`: a universal selector cannot be narrowed
+   into an invalidation set, so the class going on and off restyles the whole column. */
+.board-view-container .board-column.expanding > h3,
+.board-view-container .board-column.expanding > .board-column-content,
+.board-view-container .board-column.expanding > .board-new-item {
   width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 

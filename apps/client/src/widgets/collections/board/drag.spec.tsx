@@ -317,14 +317,21 @@ describe("Board drag and drop", () => {
     it("opens the gap without a transition as a card is lifted", async () => {
         const { columns, board } = await renderBoard();
         await act(async () => { await settle(); });
-        const second = columns[0].querySelectorAll<HTMLElement>(".board-note")[1];
+        const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
 
         // Watched rather than read afterwards: the frame that puts the transitions back has run by
         // the time the gesture returns.
-        expect(await classesWhile(board, async () => {
-            await pointer(second, "pointerdown", 50, 150);
-            await pointer(columns[0], "pointermove", 50, 60);
-        })).toContain("board-still");
+        const eased = await transitionsWhile(first, async () => {
+            expect(await classesWhile(board, async () => {
+                await pointer(second, "pointerdown", 50, 150);
+                await pointer(columns[0], "pointermove", 50, 60);
+            })).toContain("board-still");
+        });
+
+        // The card that steps aside carries the suppression itself: a rule under the board's class
+        // would reach every card on it.
+        expect(first.style.transform).toBe("translateY(100px)");
+        expect(eased).toContain("none");
     });
 
     /**
@@ -335,7 +342,7 @@ describe("Board drag and drop", () => {
     it("takes the transforms off without a transition once a card has landed", async () => {
         const { columns, board } = await renderBoard();
         await act(async () => { await settle(); });
-        const second = columns[0].querySelectorAll<HTMLElement>(".board-note")[1];
+        const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
 
         await pointer(second, "pointerdown", 50, 150);
         await pointer(columns[0], "pointermove", 50, 60);
@@ -343,10 +350,30 @@ describe("Board drag and drop", () => {
         // The lift suppresses transitions too, so the release is watched on its own: left running,
         // this would pass on what the lift did.
         expect(board.classList.contains("board-still")).toBe(false);
+        expect(first.style.transform).toBe("translateY(100px)");
 
-        expect(await classesWhile(board, () => pointer(columns[0], "pointerup", 50, 60)))
-            .toContain("board-still");
+        const eased = await transitionsWhile(first, async () => {
+            expect(await classesWhile(board, () => pointer(columns[0], "pointerup", 50, 60)))
+                .toContain("board-still");
+        });
+
+        // Put back where the column draws it, and without easing its way there.
+        expect(first.style.transform).toBe("");
+        expect(eased).toContain("none");
     });
+
+    it("puts the suppressed transitions back once the frame that moved the cards has passed",
+        async () => {
+            const { columns } = await renderBoard();
+            await act(async () => { await settle(); });
+            const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
+
+            await pointer(second, "pointerdown", 50, 150);
+            await pointer(columns[0], "pointermove", 50, 60);
+            await act(async () => { await frames(); });
+
+            expect(first.style.transition).toBe("");
+        });
 
     function place(
         element: HTMLElement | null,
@@ -847,14 +874,31 @@ describe("Board column reordering", () => {
 });
 
 /** Every class the element wears at any point while `run` is going on. */
-async function classesWhile(element: HTMLElement, run: () => Promise<void>) {
+function classesWhile(element: HTMLElement, run: () => Promise<void>) {
+    return seenWhile(element, "class", () => element.classList, run);
+}
+
+/** Every inline `transition` the element carries at any point while `run` is going on. */
+function transitionsWhile(element: HTMLElement, run: () => Promise<void>) {
+    return seenWhile(element, "style", () => [ element.style.transition ], run);
+}
+
+/**
+ * What `read` returns each time the watched attribute changes, gathered while `run` goes on.
+ *
+ * Read as it happens rather than afterwards: what a still frame writes is taken back a frame or
+ * two later, so by the time the gesture returns there is nothing left to find.
+ */
+async function seenWhile(
+    element: HTMLElement, attribute: string, read: () => Iterable<string>, run: () => Promise<void>
+) {
     const seen = new Set<string>();
     const watch = new MutationObserver(() => {
-        for (const name of element.classList) {
-            seen.add(name);
+        for (const value of read()) {
+            seen.add(value);
         }
     });
-    watch.observe(element, { attributes: true, attributeFilter: [ "class" ] });
+    watch.observe(element, { attributes: true, attributeFilter: [ attribute ] });
     await run();
     watch.disconnect();
     return [ ...seen ];
