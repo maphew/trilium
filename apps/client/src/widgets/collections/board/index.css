@@ -519,6 +519,10 @@ body.mobile .board-view-container .board-add-column {
   overscroll-behavior-y: contain;
   /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
   position: relative;
+  /* Pinned rather than left to stretch: a column animates its own width open, and a body that
+     follows it lays out every card in it on every frame, their titles rewrapping as it grows.
+     Matches the column's content box, so a column standing still is drawn no differently. */
+  width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
 /* And while something is carried, the end does not spring back either: the copy is positioned
@@ -976,17 +980,25 @@ body.mobile .column-drop-placeholder {
 /* The children are named rather than matched with `> *`: a universal selector cannot be narrowed
    into an invalidation set, so the class going on and off restyles the whole column. */
 .board-view-container .board-column.expanding > h3,
-.board-view-container .board-column.expanding > .board-column-content,
 .board-view-container .board-column.expanding > .board-new-item {
   width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
-/* The heading stays where it is, and is revealed with the column; only the cards wait. They fade
-   in as the class is dropped, through the transition each of them already carries: the scrolling
-   body cannot, its own `transition` being the scroll fade's. */
-.board-view-container .board-column.expanding .board-note,
+/* The heading stays where it is, and is revealed with the column; only the cards wait. Hidden by
+   one property on the body that scrolls them rather than by one on each card: a rule reaching
+   every card restyles the whole column. */
+.board-view-container .board-column.expanding > .board-column-content,
 .board-view-container .board-column.expanding > .board-new-item {
   opacity: 0;
+}
+
+/* Carries the fade the cards are revealed by. Restated rather than added to, `transition` being a
+   single property: the two fade entries must match `.scroll-fade` in scroll_fade.css. */
+.board-view-container .board-column-content {
+  transition:
+    --scroll-fade-start var(--scroll-fade-duration, 300ms) ease,
+    --scroll-fade-end var(--scroll-fade-duration, 300ms) ease,
+    opacity 0.15s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -997,9 +1009,14 @@ body.mobile .column-drop-placeholder {
   }
 
   /* The column is at its width already, so there is nothing for the cards to wait for. */
-  .board-view-container .board-column.expanding .board-note,
+  .board-view-container .board-column.expanding > .board-column-content,
   .board-view-container .board-column.expanding > .board-new-item {
     opacity: 1;
+  }
+
+  /* `.scroll-fade` turns its own off here, and the rule above outweighs it. */
+  .board-view-container .board-column-content {
+    transition: none;
   }
 }
 

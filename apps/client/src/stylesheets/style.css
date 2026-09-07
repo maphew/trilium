@@ -1096,10 +1096,6 @@ table.promoted-attributes-in-tooltip th {
     color: orange;
 }
 
-.multiplicity {
-    font-size: 1.3em;
-}
-
 /* this is because bootstrap (?) sets code color to red for some reason */
 code {
     color: inherit !important;
