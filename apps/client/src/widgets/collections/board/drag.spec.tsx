@@ -160,9 +160,20 @@ describe("Board drag and drop", () => {
         expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
             .map(other => other.style.transform !== "")).toEqual([ false, true ]);
 
+        // The hole says why it will not move, which no column sorted by hand has to.
+        expect(columns[0].querySelector(".board-drop-placeholder .sorted-no-reorder")).toBeTruthy();
+
         await pointer(columns[0], "pointerup", 50, 300);
         await act(async () => { await settle(); });
         expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+    });
+
+    it("says nothing about reordering in a column arranged by hand", async () => {
+        const { columns } = await renderBoard();
+
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+
+        expect(columns[0].querySelector(".board-drop-placeholder .sorted-no-reorder")).toBeNull();
     });
 
     it("ignores a drag carrying something the board has no use for", async () => {

@@ -683,7 +683,16 @@ export default function Column({
                 {insertBefore && !insertBefore.branchId && insertField}
                 {/* Both stand here for the length of the board's life: an element appearing
                     among the cards, or leaving them, is what a drag cannot afford. */}
-                <div ref={gapRef} className="board-drop-placeholder" />
+                <div ref={gapRef} className="board-drop-placeholder">
+                    {/* The gap a sorted column holds open is the one the card came out of, and it
+                        stays there: nothing the reader does moves the card to another place in
+                        this column. */}
+                    {isSorted && (
+                        <span className="sorted-no-reorder">
+                            {t("board_view.sorted-no-reorder")}
+                        </span>
+                    )}
+                </div>
                 <div ref={roomRef} className="board-drop-room" />
             </div>}
 
