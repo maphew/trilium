@@ -40,11 +40,12 @@ import { CollectionFilterInput, useCollectionFilter } from "../collection_filter
 import { ViewModeProps } from "../interface";
 import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api";
 import { useBoardDrag } from "./board_drag";
-import { movesColumn } from "./drag_geometry";
+import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geometry";
+import { forgetCardHeights } from "./drag_measure";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
-import Column from "./column";
+import Column, { EXPAND_MS, placeCard, settleCards } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
@@ -130,6 +131,10 @@ interface ColumnDrag {
     index: number;
     /** What the column measures, so the gap held open for it is the size it will land in. */
     size?: { width: number, height: number };
+    /** How much room it takes out of the row, its width and the gap after it. */
+    stride?: number;
+    /** Where each column stood before it was taken out, and where one added at the end would. */
+    lefts?: number[];
 }
 
 /**
@@ -470,6 +475,29 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
 
+    // What a card measures is kept between drags, which holds while a column is the width it was
+    // measured at. A phone gives a column a share of the window, so a window that changes size
+    // takes the heights with it.
+    useEffect(() => {
+        window.addEventListener("resize", forgetCardHeights);
+        return () => window.removeEventListener("resize", forgetCardHeights);
+    }, []);
+
+    // Which columns stand narrow, as a line, so that one opening or closing is read off a single
+    // comparison. A column changing width hides or shows its own cards and moves no card inside
+    // any other, so there is nothing for any column to measure while it is happening.
+    const columnResizingUntil = useRef(0);
+    const columnWidths = useRef<string>();
+    const widths = shownColumns
+        .map(column => storedColumns.get(column)?.collapsed
+            && column !== activeColumn && !isPeekingAll ? "1" : "0")
+        .join("");
+    if (columnWidths.current !== undefined && columnWidths.current !== widths) {
+        columnResizingUntil.current = Date.now() + EXPAND_MS;
+    }
+    columnWidths.current = widths;
+    const isResizingColumns = Date.now() < columnResizingUntil.current;
+
     const boardDragState = useMemo<BoardDragState>(() => ({
         branchIdToEdit,
         columnNameToEdit,
@@ -563,13 +591,18 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The gesture drives the same state a drag from the note tree does, so the placeholders and the
     // card's own dimming are drawn from one place whichever brought the card here.
     const { isDragging: isDraggingItem, remeasure } = useBoardDrag(containerRef, {
-        onCardStart: (card) => setDraggedCard({
-            noteId: card.noteId,
-            branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
-            fromColumn: card.fromColumn,
-            index: card.index,
-            height: card.height
-        }),
+        onCardStart: (card) => {
+            // The card leaves the flow and the gap opens in its place, which eased would read as
+            // the column closing up and sliding back open.
+            holdStill();
+            setDraggedCard({
+                noteId: card.noteId,
+                branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
+                fromColumn: card.fromColumn,
+                index: card.index,
+                height: card.height
+            });
+        },
         onCardMove: (position, inside) => {
             // Written together: two writes would wake every column watching the gap twice over.
             dropState.set({ position, target: position?.column ?? null });
@@ -581,6 +614,13 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             }
         },
         onCardEnd: (card, position) => {
+            // The reorder gives the cards below the gap the layout their `translateY` was
+            // standing in for, so clearing it under a transition would slide them up.
+            holdStill();
+            // Put back here rather than left to the columns to draw: the board is about to move a
+            // card, hide the gap and close the room it took, and if those reach the screen in
+            // separate frames the reader sees a gap open where nothing is being carried any more.
+            closeGaps(containerRef.current);
             const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
             if (position && branchId && byColumn && allByColumn) {
                 // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
@@ -613,11 +653,23 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 revealColumn(position.column);
             }
         },
-        onColumnStart: (column, index, size) => setDraggedColumn({ column, index, size }),
+        onColumnStart: (column, index, size, row) => setDraggedColumn({
+            column, index, size, stride: row.stride, lefts: row.lefts
+        }),
         onColumnMove: setColumnDropPosition,
         onColumnEnd: (from, to) => {
+            // The row is drawn again as the gesture lets go, and the columns land where their
+            // transforms already had them. No card moves inside a column for that, so the same
+            // window that covers a column changing width covers this too.
+            columnResizingUntil.current = Date.now() + EXPAND_MS;
             if (to !== null && movesColumn(from, to)) {
-                handleColumnDrop(from, to);
+                // The transforms come off in the same frame the row is drawn in its new order,
+                // where each column already stands where that order puts it. Eased to zero they
+                // would carry it a column's width from a place it never stood in, so the frame
+                // that takes them off runs without a transition.
+                holdStill();
+                // Not animated either: the row puts the columns exactly where they already are.
+                handleColumnDrop(from, to, false);
             }
             setDraggedColumn(null);
             setColumnDropPosition(null);
@@ -650,8 +702,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         axis: "horizontal",
         // Only for a move the reader made, tracked by `columnMovedUntil`. A value change redraws
         // the columns, and the order churns while the cards, the definition and the stored config
-        // catch up with one another; sliding for that animates a rename as a move.
-        disabled: !draggedColumn && Date.now() > columnMovedUntil.current
+        // catch up with one another; sliding for that animates a rename as a move. A carried
+        // column is left out as well: the columns beside it are moved by their own transforms,
+        // which this would measure and then slide back from.
+        disabled: !!draggedColumn || Date.now() > columnMovedUntil.current
     });
 
     /**
@@ -708,8 +762,48 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The drag reports where the column landed among the ones on screen, which is not where it
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
-    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number) => {
-        columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+    /**
+     * Draws the next frame without transitions, for the lift and the drop, where every element is
+     * already standing where it is about to be drawn.
+     *
+     * Let go a frame later than the one that draws it, a frame's callbacks running before the
+     * styles it paints are worked out.
+     */
+    const stillFor = useRef<number>();
+    const holdStill = useCallback(() => {
+        const container = containerRef.current;
+        container?.classList.add("board-still");
+        // Started afresh on every call: a lift and the drop that follows it a frame later would
+        // otherwise be let go on the first one's schedule, before the drop has been drawn.
+        if (stillFor.current !== undefined) {
+            cancelAnimationFrame(stillFor.current);
+        }
+
+        stillFor.current = requestAnimationFrame(() => {
+            stillFor.current = requestAnimationFrame(() => {
+                stillFor.current = undefined;
+                container?.classList.remove("board-still");
+            });
+        });
+    }, []);
+
+    // A board taken off the page leaves nothing of a gesture behind it to run in a later frame.
+    // The container is held from the mount: a ref is empty again by the time this is called.
+    useEffect(() => {
+        const container = containerRef.current;
+        return () => {
+            if (stillFor.current !== undefined) {
+                cancelAnimationFrame(stillFor.current);
+            }
+
+            settleCards(container);
+        };
+    }, []);
+
+    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
+        if (animate) {
+            columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+        }
         // The list the api holds, which is also the one it reorders. A column the board is not
         // showing is in neither, so indexing into `columns` would be off by one.
         const allColumns = api.columns;
@@ -794,10 +888,16 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                         <div className="board-columns">
                         {shownColumns.map((column, index) => (
                             <Fragment key={column}>
-                                {columnDropPosition === index && (
+                                {draggedColumn?.index === index && (
                                     <div
                                         className="column-drop-placeholder show"
-                                        style={placeholderSize}
+                                        style={{
+                                            ...placeholderSize,
+                                            transform: `translateX(${columnGapStandsAside(
+                                                draggedColumn.index, columnDropPosition,
+                                                draggedColumn.lefts ?? [],
+                                                draggedColumn.stride ?? 0)}px)`
+                                        }}
                                     />
                                 )}
                                 <Column
@@ -812,6 +912,11 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     keepCollapsed={storedColumns.get(column)?.keepCollapsed}
                                     isActive={activeColumn === column}
                                     isPeeked={isPeekingAll}
+                                    isResizing={isResizingColumns}
+                                    standsAside={draggedColumn
+                                        ? columnStandsAside(index, draggedColumn.index,
+                                            columnDropPosition, draggedColumn.stride ?? 0)
+                                        : 0}
                                     cardTemplates={cardTemplates}
                                     nested={storedColumns.get(column)?.nested}
                                     limit={storedColumns.get(column)?.limit}
@@ -826,9 +931,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                 />
                             </Fragment>
                         ))}
-                        {columnDropPosition === shownColumns.length && draggedColumn && (
-                            <div className="column-drop-placeholder show" style={placeholderSize} />
-                        )}
+
                         </div>
 
                         <AddNewColumn
@@ -890,6 +993,33 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
  * Naming the winning check, rather than returning a boolean, is what lets the profiler attribute a
  * redraw to a cause.
  */
+/**
+ * Puts every card back where the column draws it, closes every gap and gives back the room they
+ * took.
+ *
+ * The columns do this for themselves as they are drawn, but a drop is three changes at once and
+ * the reader sees a gap standing open if they reach the screen in separate frames.
+ */
+function closeGaps(container: HTMLElement | null) {
+    if (!container) {
+        return;
+    }
+
+    for (const card of container.querySelectorAll<HTMLElement>(".board-note")) {
+        if (card.style.transform) {
+            placeCard(card, null, true);
+        }
+    }
+
+    for (const gap of container.querySelectorAll(".board-drop-placeholder")) {
+        gap.classList.remove("show");
+    }
+
+    for (const room of container.querySelectorAll<HTMLElement>(".board-drop-room")) {
+        room.style.height = "0px";
+    }
+}
+
 export function findRefreshReason(loadResults: LoadResults, statusAttribute: string, noteIds: string[], parentNoteId: string): string | null {
     // A card moved between columns.
     if (loadResults.getAttributeRows().some(attr => attr.name === statusAttribute && noteIds.includes(attr.noteId ?? ""))) {

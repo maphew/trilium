@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { Fragment } from "preact";
 import { flushSync } from "preact/compat";
 import {
-    useCallback, useContext, useEffect, useMemo, useRef, useState
+    useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
 import { JSX } from "preact/jsx-runtime";
 
@@ -25,8 +25,18 @@ import { useScrollFade } from "../../react/scroll_fade";
 /** How long a field waits for the card it made, after which it is taken down regardless. */
 const HAND_OVER_MS = 2000;
 
+/** What a gap stands at when nothing carried says otherwise. Matches `.board-drop-placeholder`. */
+const STOCK_GAP_HEIGHT = 40;
+
+/**
+ * The least a card can stand, which is one line of its title with the padding and gap around it.
+ *
+ * Says how many cards a column can show at once, which is how many below the gap have to move.
+ */
+const MIN_CARD_HEIGHT = 32;
+
 /** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
-const EXPAND_MS = 200;
+export const EXPAND_MS = 200;
 import NoteLink from "../../react/NoteLink";
 import { BoardActionsContext, BoardDragStateContext, TitleEditor } from ".";
 import BoardApi from "./api";
@@ -35,6 +45,7 @@ import CardTemplatePill from "./card_template_pill";
 import { type CardTemplates } from "./card_templates";
 import { DEFAULT_CARD_ICON, DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
 import { openColumnContextMenu, openCreateCardMenu } from "./context_menu";
+import { cardSpacing } from "./drag_measure";
 import { BoardDropStateContext, useDropIndex, useIsDropTarget } from "./drop_state";
 
 interface DragContext {
@@ -59,6 +70,8 @@ export default function Column({
     keepCollapsed,
     isActive,
     isPeeked,
+    isResizing,
+    standsAside,
     nested,
     limit,
     columnItems,
@@ -84,6 +97,15 @@ export default function Column({
     isActive?: boolean,
     /** Whether the board is showing every collapsed column at once, which opens this one too. */
     isPeeked?: boolean,
+    /** Whether a column is still taking its new width, during which no column's cards move. */
+    isResizing?: boolean,
+    /**
+     * How far the column stands aside for one being carried, in pixels.
+     *
+     * The row keeps its order for the length of the gesture, so a step costs a transform per
+     * column rather than a fresh layout of every card on the board.
+     */
+    standsAside?: number,
     /** What a new card is made from, and how the reader picks something else. */
     cardTemplates: CardTemplates,
     /** Whether the inbox also collects notes deeper than the board's direct children. */
@@ -145,7 +167,8 @@ export default function Column({
     const [ isRevealed, setIsRevealed ] = useState(false);
     const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn } =
         useContext(BoardActionsContext);
-    const { branchIdToEdit, columnNameToEdit, draggedCard } = useContext(BoardDragStateContext);
+    const { branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn } =
+        useContext(BoardDragStateContext);
     // Asked about this column alone: where the gap stands changes on every step of a drag, and a
     // column that the answer does not concern is left as it is rather than drawn again.
     const dropIndex = useDropIndex(column);
@@ -155,34 +178,95 @@ export default function Column({
     const headerRef = useRef<HTMLHeadingElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const scrollFade = useScrollFade(contentRef);
-    // Cards slide to follow the drop gap opening and closing. No card opens out of nothing: one
-    // made in the footer is shown by the scroll to the end and by its fade, and one made among the
-    // others takes the place its field was standing in.
-    //
-    // While a card is carried, the cards that move are those of the column it came from and those
-    // of any column the gap has stood in. The rest are left unmeasured, measuring one costing a
-    // layout of the whole board; paused rather than switched off, so a column the gap reaches in
-    // one step still knows where its cards stood and slides them from there.
-    const heldGap = useRef(false);
-    if (!draggedCard) {
-        heldGap.current = false;
-    } else if (dropIndex !== null) {
-        heldGap.current = true;
-    }
+    // Cards slide to follow the drop gap opening and closing. Measured only when the column's own
+    // cards have changed: reading one position costs a layout of the whole board, and anything
+    // else that redraws it would have every column read one per card.
+    const measured = useRef<unknown>();
+    const cardsChanged = measured.current !== columnItems;
+    measured.current = columnItems;
     useFlip(contentRef, {
         selector: ".board-note",
-        paused: !!draggedCard && column !== draggedCard.fromColumn && !heldGap.current
+        // Paused where nothing has moved the cards, so the places it knows are still good.
+        paused: !cardsChanged,
+        // Off for the length of a gesture, so the commit that ends one records where the cards
+        // landed rather than sliding them there.
+        disabled: !!draggedCard || !!draggedColumn || !!isResizing
     });
+
+    // The gap is a standing element that slides, and the cards beside it are transformed: putting
+    // one among the cards, or taking one out, restyles every element the board holds.
+    const gapRef = useRef<HTMLDivElement>(null);
+    const roomRef = useRef<HTMLDivElement>(null);
+    /** Whether a card was being carried at the previous commit. */
+    const carried = useRef(false);
+    /** Which cards were last told to stand aside, so only what changed is written. */
+    const aside = useRef({ from: 0, until: 0, room: 0 });
+    useLayoutEffect(() => {
+        // The commits a drag opens and closes on, where a card is already standing where it is
+        // being drawn. Every commit in between moves the cards for real and eases as usual.
+        const atOnce = carried.current !== !!draggedCard;
+        carried.current = !!draggedCard;
+
+        const area = contentRef.current;
+        const gap = gapRef.current;
+        if (!area || !gap) return;
+
+        const cards = area.querySelectorAll<HTMLElement>(".board-note");
+        const height = draggedCard?.height ?? STOCK_GAP_HEIGHT;
+        const room = dropIndex === null ? 0 : height + cardSpacing();
+        // Read with the places below, before anything is written: every card the column can show
+        // moves, and the ones past its foot are left alone whatever it holds.
+        const reach = Math.ceil(area.clientHeight / MIN_CARD_HEIGHT) + 1;
+
+        // Read before anything is written, and `offsetTop` is no business of a transform anyway.
+        if (dropIndex !== null) {
+            const standing = cards[dropIndex];
+            const last = cards[cards.length - 1];
+            const top = standing
+                ? standing.offsetTop
+                : (last ? last.offsetTop + last.offsetHeight + cardSpacing() : 0);
+            gap.style.transform = `translateY(${top}px)`;
+            gap.style.height = `${height}px`;
+        }
+        gap.classList.toggle("show", dropIndex !== null);
+        roomRef.current?.style.setProperty("height", `${room}px`);
+
+        // Once the gap is gone, every card is put back, whichever ones they now are: a drop
+        // reorders the column, so the places that stood aside no longer name the same cards.
+        if (dropIndex === null) {
+            for (const card of cards) {
+                if (card.style.transform) {
+                    placeCard(card, null, atOnce);
+                }
+            }
+            aside.current = { from: 0, until: 0, room: 0 };
+            return;
+        }
+
+        const from = dropIndex;
+        const until = Math.min(cards.length, from + reach);
+        const last = aside.current;
+        // A step of a drag moves the gap by a card, so only the few cards it passed change what
+        // they are told; the rest of the window is already standing where it should.
+        const afresh = last.room !== room;
+        for (let index = last.from; index < last.until; index++) {
+            if (afresh || index < from || index >= until) {
+                const card = cards[index];
+                if (card) {
+                    placeCard(card, null, atOnce);
+                }
+            }
+        }
+        for (let index = from; index < until; index++) {
+            if (afresh || index < last.from || index >= last.until) {
+                placeCard(cards[index], `translateY(${room}px)`, atOnce);
+            }
+        }
+        aside.current = { from, until, room };
+    }, [ dropIndex, draggedCard, columnItems ]);
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
         column, columnIndex, columnItems, isEditing, api, parentNote
     });
-
-    // Measured rather than styled: the gap stands for the card being carried, which is whatever
-    // height its own content gave it. A drag from the note tree carries no card, so the stock
-    // height stands.
-    const gapStyle = draggedCard?.height
-        ? { height: `${draggedCard.height}px` }
-        : undefined;
 
     // Read here rather than in the badge: the column body shows an outline as well.
     const isOverLimit = limit !== undefined && (totalCount ?? columnItems?.length ?? 0) > limit;
@@ -200,6 +284,17 @@ export default function Column({
      * Unpainted rather than undrawn: the board focuses the card a keyboard open steps onto, and a
      * card that is not there yet is one it cannot hand focus to.
      */
+    /**
+     * Whether the cards have been drawn, which they stay once they have been.
+     *
+     * A column collapsed when the board opens draws none of them; past the first open they are
+     * hidden rather than taken out, which is what makes closing one cheap.
+     */
+    const [ isDrawn, setIsDrawn ] = useState(!isCollapsed);
+    if (!isDrawn && !isCollapsed) {
+        setIsDrawn(true);
+    }
+
     const [ isExpanding, setIsExpanding ] = useState(false);
     const [ wasCollapsed, setWasCollapsed ] = useState(isCollapsed);
     if (wasCollapsed !== isCollapsed) {
@@ -412,7 +507,10 @@ export default function Column({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            style={{ "--board-column-custom-hue": hue }}
+            style={{
+                "--board-column-custom-hue": hue,
+                transform: standsAside ? `translateX(${standsAside}px)` : undefined
+            }}
         >
             <h3
                 ref={headerRef}
@@ -505,45 +603,36 @@ export default function Column({
                 </>)}
             </h3>
 
-            {!isCollapsed && <div
+            {isDrawn && <div
                 ref={contentRef}
                 className={clsx("board-column-content", scrollFade.className)}
                 style={scrollFade.style}
                 onWheel={handleScroll}
             >
-                {(columnItems ?? []).map(({ note, branch }, index) => {
-                    // The card being carried is out of the flow, so the gap stands in its own
-                    // place too: held still, which a touch does before it moves, that is where it
-                    // was picked up from.
-                    const showIndicatorBefore = dropIndex === index;
-
-                    return (
-                        <Fragment key={note.noteId}>
-                            {showIndicatorBefore && (
-                                <div className="board-drop-placeholder show" style={gapStyle} />
-                            )}
-                            {insertBefore?.branchId === branch.branchId && insertField}
-                            <Card
-                                api={api}
-                                note={note}
-                                branch={branch}
-                                column={column}
-                                index={index}
-                                statusAttribute={api.statusAttribute}
-                                isNew={note.noteId === createdNoteId}
-                                focusOnArrival={note.noteId === insertedNoteId}
-                                isDragging={draggedCard?.noteId === note.noteId}
-                                isEditing={branch.branchId === branchIdToEdit}
-                                onFocusCard={onFocusCard}
-                                onInsert={beginInsert}
-                            />
-                        </Fragment>
-                    );
-                })}
+                {(columnItems ?? []).map(({ note, branch }, index) => (
+                    <Fragment key={note.noteId}>
+                        {insertBefore?.branchId === branch.branchId && insertField}
+                        <Card
+                            api={api}
+                            note={note}
+                            branch={branch}
+                            column={column}
+                            index={index}
+                            statusAttribute={api.statusAttribute}
+                            isNew={note.noteId === createdNoteId}
+                            focusOnArrival={note.noteId === insertedNoteId}
+                            isDragging={draggedCard?.noteId === note.noteId}
+                            isEditing={branch.branchId === branchIdToEdit}
+                            onFocusCard={onFocusCard}
+                            onInsert={beginInsert}
+                        />
+                    </Fragment>
+                ))}
                 {insertBefore && !insertBefore.branchId && insertField}
-                {dropIndex === (columnItems?.length ?? 0) && (
-                    <div className="board-drop-placeholder show" style={gapStyle} />
-                )}
+                {/* Both stand here for the length of the board's life: an element appearing
+                    among the cards, or leaving them, is what a drag cannot afford. */}
+                <div ref={gapRef} className="board-drop-placeholder" />
+                <div ref={roomRef} className="board-drop-room" />
             </div>}
 
             {!isCollapsed && <AddNewItem
@@ -557,6 +646,77 @@ export default function Column({
         </div>
     );
 }
+
+/**
+ * Puts a card where a transform says, easing it there unless the board is drawing a still frame.
+ *
+ * Suppressed on the card rather than by a rule under the board's own class, which would match
+ * every card on it.
+ *
+ * @param transform what to write, or `null` to put the card back where the column draws it.
+ * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
+ */
+export function placeCard(card: HTMLElement, transform: string | null, atOnce: boolean) {
+    if (atOnce) {
+        card.style.transition = "none";
+        settling.add(card);
+    }
+
+    if (transform === null) {
+        card.style.removeProperty("transform");
+    } else {
+        card.style.transform = transform;
+    }
+
+    if (!atOnce) {
+        return;
+    }
+
+    // Started afresh on every call: a lift and the drop that follows it a frame later would
+    // otherwise be put back on the first one's schedule, before the drop has been drawn.
+    if (restoring !== undefined) {
+        cancelAnimationFrame(restoring);
+    }
+
+    // Put back a frame later than the one that draws them, since a frame's callbacks run before
+    // the styles it paints are worked out.
+    restoring = requestAnimationFrame(() => {
+        restoring = requestAnimationFrame(() => {
+            restoring = undefined;
+            for (const held of settling) {
+                held.style.removeProperty("transition");
+            }
+            settling.clear();
+        });
+    });
+}
+
+/**
+ * Puts back at once the suppressed transitions of the cards one board holds, for a board leaving
+ * the page.
+ *
+ * Its own cards alone, and whatever has already left the page: another board can be part-way
+ * through a gesture, and the frame that would put its cards back is the same one.
+ */
+export function settleCards(container: HTMLElement | null) {
+    for (const held of settling) {
+        if (held.isConnected && !container?.contains(held)) {
+            continue;
+        }
+
+        held.style.removeProperty("transition");
+        settling.delete(held);
+    }
+
+    if (!settling.size && restoring !== undefined) {
+        cancelAnimationFrame(restoring);
+        restoring = undefined;
+    }
+}
+
+/** The cards whose transition is suppressed, waiting for the frame that puts it back. */
+const settling = new Set<HTMLElement>();
+let restoring: number | undefined;
 
 /**
  * The editor a new card is named in, standing below the column or between two of its cards.

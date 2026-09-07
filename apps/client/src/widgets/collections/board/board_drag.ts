@@ -66,8 +66,13 @@ export interface BoardDragCallbacks {
      * A column has been taken hold of by its heading.
      *
      * @param size what it measures, so the gap held open for it is the size it will land in.
+     * @param row where the columns stood before it was taken out of the row, and how much room it
+     * takes out of one, which is what the board moves the gap and the other columns against.
      */
-    onColumnStart(column: string, index: number, size: { width: number, height: number }): void;
+    onColumnStart(
+        column: string, index: number, size: { width: number, height: number },
+        row: { lefts: number[], stride: number }
+    ): void;
     /** Which place among the columns it would take, counting them as they stand. */
     onColumnMove(index: number | null): void;
     /** As {@link onCardEnd}, for a column: a place means let go, nothing means called off. */
@@ -147,8 +152,9 @@ export function useBoardDrag(
 
             held.active = true;
             // Measured before what is carried is taken out of the flow, so the places it can land
-            // are the ones the board is showing.
-            held.measurement = measureBoard(container);
+            // are the ones the board is showing. A column is placed among the columns alone, so
+            // the cards are left unmeasured for one.
+            held.measurement = measureBoard(container, held.kind === "card");
             // Held from here on, so the gesture keeps the pointer wherever it goes. Taken at the
             // press instead, it would carry the click away from what was pressed.
             container.setPointerCapture?.(held.pointerId);
@@ -174,7 +180,7 @@ export function useBoardDrag(
             if (held.kind === "card") {
                 latest.current.onCardStart(held.card);
             } else {
-                latest.current.onColumnStart(held.column, held.index, lifted.size);
+                latest.current.onColumnStart(held.column, held.index, lifted.size, row(held));
             }
             resolve(held);
         };
@@ -428,7 +434,7 @@ export function useBoardDrag(
             return;
         }
 
-        const measurement = measureBoard(container);
+        const measurement = measureBoard(container, held.kind === "card");
         // A column that was measured with cards keeps them. The board now holds the gap where the
         // carried card was, which stands every card below it one place lower, so reading them again
         // would take the drag's own doing for a move of its own and the places would creep away
@@ -445,6 +451,24 @@ export function useBoardDrag(
     }, [ container ]);
 
     return { isDragging, remeasure };
+}
+
+/**
+ * Where the columns stood before the carried one was taken out of the row, which is what the board
+ * places the gap and the columns that step aside for it against.
+ */
+function row(held: Gesture & { kind: "column" }) {
+    const boxes = held.measurement?.columns ?? [];
+    const last = boxes[boxes.length - 1];
+    // Read off the row rather than from the stylesheet: what stands between two columns is the
+    // same everywhere, and one pair is enough to say how much.
+    const gap = boxes.length > 1 ? boxes[1].left - (boxes[0].left + boxes[0].width) : 0;
+    const lefts = boxes.map(({ left }) => left);
+    if (last) {
+        lefts.push(last.left + last.width + gap);
+    }
+
+    return { lefts, stride: (boxes[held.index]?.width ?? 0) + gap };
 }
 
 /**

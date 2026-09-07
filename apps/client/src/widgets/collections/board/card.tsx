@@ -11,6 +11,7 @@ import {
     BoardPromotedAttributesContext, TitleEditor
 } from ".";
 import { ContextMenuEvent } from "../../../menus/context_menu";
+import { cardFollows } from "./columns";
 import { openNoteContextMenu } from "./context_menu";
 import { t } from "../../../services/i18n";
 import UserAttributesDisplay from "../../attribute_widgets/UserAttributesList";
@@ -164,7 +165,7 @@ function Card({
         }
 
         const bring = () => {
-            if (!card.nextElementSibling) {
+            if (!cardFollows(card)) {
                 content.scrollTop = content.scrollHeight;
             } else if (!card.previousElementSibling) {
                 content.scrollTop = 0;

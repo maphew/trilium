@@ -507,11 +507,6 @@ body.mobile .board-view-container .board-add-column {
   box-shadow: 4px 8px 16px rgba(0, 0, 0, 0.5);
 }
 
-/* While a card is carried, so the page does not take the touch for a scroll. */
-.board-view-container.board-dragging {
-  touch-action: none;
-}
-
 /* Reaching the end of the board scrolls neither the page nor anything else. */
 .board-view-container {
   overscroll-behavior: contain;
@@ -522,6 +517,11 @@ body.mobile .board-view-container .board-add-column {
    stops it at the column instead of passing it on, and the board never moves. */
 .board-view-container .board-column-content {
   overscroll-behavior-y: contain;
+  /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
+  position: relative;
+  /* Pinned rather than left to stretch, a body that follows the column's width laying out every
+     card in it on each frame of an open. Matches the column's content box. */
+  width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
 /* And while something is carried, the end does not spring back either: the copy is positioned
@@ -741,7 +741,18 @@ body.mobile .board-view-container .board-add-column {
   }
 }
 
+/* Outside the column's flow and standing there for good: carrying it into the cards, or out of
+   them, restyles every element the board holds. */
 .board-drop-placeholder {
+  position: absolute;
+  /* It stands over the cards whether it is showing or not, and a press belongs to the card under
+     it, not to the space being held open. */
+  pointer-events: none;
+  /* Anchored at the top of the column's content, which the transform then counts down from. Left
+     to its own place in the flow it would start below every card. */
+  top: 0;
+  left: 0;
+  right: 0;
   height: 40px;
   /* The gap below is the card's, in em, so it has to be read at the card's own font size. */
   font-size: var(--card-font-size);
@@ -751,9 +762,17 @@ body.mobile .board-view-container .board-add-column {
   background-color: rgba(0, 0, 0, 0.15);
   opacity: 0;
   /* Opacity only: the height is the carried card's, so any change in it is a mismatch to see
-     rather than a movement to smooth over. */
+     rather than a movement to smooth over, and it slides to follow the pointer rather than easing
+     after it. */
   transition: opacity 0.15s ease;
   box-sizing: border-box;
+}
+
+/* The room the gap takes out of the column, so it still scrolls past its last card while one is
+   held there. Grown from nothing rather than added, an element that stays put costing nothing. */
+.board-drop-room {
+  height: 0;
+  flex-shrink: 0;
 }
 
 .board-drop-placeholder.show {
@@ -769,7 +788,8 @@ body.mobile .board-view-container .board-add-column {
   border-radius: 8px;
   background-color: rgba(0, 0, 0, 0.1);
   opacity: 0;
-  transition: opacity 0.15s ease;
+  /* Carried to where the column would land, the same way the columns it passes step aside. */
+  transition: opacity 0.15s ease, transform 0.2s ease;
 }
 
 body.mobile .column-drop-placeholder {
@@ -899,6 +919,12 @@ body.mobile .column-drop-placeholder {
   overflow: hidden;
 }
 
+/* What stops a strip's cards being drawn while they stay in the page. Taking them out instead
+   lands on the frames the width is animating across. */
+.board-view-container .board-column.collapsed > .board-column-content {
+  content-visibility: hidden;
+}
+
 /* Width and not a transform: the columns beside it have to move with it. The copy being carried is
    left out, or it would ease towards each frame's position instead of taking it: its `transition:
    none` above carries no more weight than this rule and stands above it in the file. */
@@ -922,6 +948,17 @@ body.mobile .column-drop-placeholder {
     width var(--board-expand-duration) ease;
 }
 
+/* The one frame the board is drawn in as a drag lifts something or lets it go, where everything
+   already stands where it is about to be drawn. Written against the selectors above, which it has
+   to outweigh. The cards are left out, a rule here reaching every one of them: `placeCard` writes
+   the same thing on the few that move. */
+.board-view-container.board-still .board-drop-placeholder,
+.board-view-container.board-still .board-column,
+.board-view-container.board-still .board-column.collapsed:not(.board-drag-preview),
+.board-view-container.board-still .board-column.quick-expand:not(.board-drag-preview) {
+  transition: none;
+}
+
 /*
  * The column's contents are pinned at the width it is opening to, and clipped until it gets there.
  *
@@ -938,16 +975,27 @@ body.mobile .column-drop-placeholder {
   overflow: hidden;
 }
 
-.board-view-container .board-column.expanding > * {
+/* The children are named rather than matched with `> *`: a universal selector cannot be narrowed
+   into an invalidation set, so the class going on and off restyles the whole column. */
+.board-view-container .board-column.expanding > h3,
+.board-view-container .board-column.expanding > .board-new-item {
   width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
-/* The heading stays where it is, and is revealed with the column; only the cards wait. They fade
-   in as the class is dropped, through the transition each of them already carries: the scrolling
-   body cannot, its own `transition` being the scroll fade's. */
-.board-view-container .board-column.expanding .board-note,
+/* The heading is revealed with the column; only the cards wait. Hidden by one property on the
+   body that scrolls them, a rule reaching every card restyling the whole column. */
+.board-view-container .board-column.expanding > .board-column-content,
 .board-view-container .board-column.expanding > .board-new-item {
   opacity: 0;
+}
+
+/* Carries the fade the cards are revealed by. Restated rather than added to, `transition` being a
+   single property: the two fade entries must match `.scroll-fade` in scroll_fade.css. */
+.board-view-container .board-column-content {
+  transition:
+    --scroll-fade-start var(--scroll-fade-duration, 300ms) ease,
+    --scroll-fade-end var(--scroll-fade-duration, 300ms) ease,
+    opacity 0.15s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -958,9 +1006,14 @@ body.mobile .column-drop-placeholder {
   }
 
   /* The column is at its width already, so there is nothing for the cards to wait for. */
-  .board-view-container .board-column.expanding .board-note,
+  .board-view-container .board-column.expanding > .board-column-content,
   .board-view-container .board-column.expanding > .board-new-item {
     opacity: 1;
+  }
+
+  /* `.scroll-fade` turns its own off here, and the rule above outweighs it. */
+  .board-view-container .board-column-content {
+    transition: none;
   }
 }
 

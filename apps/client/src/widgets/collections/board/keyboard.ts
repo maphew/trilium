@@ -1,3 +1,4 @@
+import { cardFollows } from "./columns";
 import { RefObject } from "preact";
 import { useCallback, useLayoutEffect, useRef } from "preact/hooks";
 
@@ -502,7 +503,7 @@ function reveal(element: HTMLElement) {
         // The last card scrolls its column to the end rather than just into view: its own bottom
         // margin and the fade over the column's bottom edge would otherwise cover it.
         const content = element.closest<HTMLElement>(".board-column-content");
-        if (content && !element.nextElementSibling) {
+        if (content && !cardFollows(element)) {
             content.scrollTop = content.scrollHeight;
         }
 
@@ -577,5 +578,10 @@ function columnsOf(container: HTMLElement) {
 }
 
 function cardsOf(column: Element | undefined) {
-    return column ? [ ...column.querySelectorAll<HTMLElement>(".board-note") ] : [];
+    // A strip holds its cards in the page but draws none of them, so it offers none to walk onto.
+    if (!column || column.classList.contains("collapsed")) {
+        return [];
+    }
+
+    return [ ...column.querySelectorAll<HTMLElement>(".board-note") ];
 }
