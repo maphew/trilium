@@ -110,13 +110,17 @@ function sortValueOf(note: FNote, key: SortKey, context: SortContext): SortValue
 
     // The first value of a multi-value attribute, which is the one an item draws.
     const label = note.getLabel(name);
-    if (!label) {
-        return undefined;
+
+    // A boolean has no third state. The editor writes "false" for a box the user unchecked and
+    // leaves no label at all on a note nobody has touched, and both draw as an unchecked box, so
+    // neither may fall to the undefined group. An empty value is truthy, as `isLabelTruthy` reads
+    // it.
+    if (definition?.labelType === "boolean") {
+        return label && label.value !== "false" ? 1 : 0;
     }
 
-    // Trilium reads a label written without a value as true, so `#done` sorts as true.
-    if (definition?.labelType === "boolean") {
-        return label.value === "false" ? 0 : 1;
+    if (!label) {
+        return undefined;
     }
 
     return label.value ? labelValueOf(label.value, definition) : undefined;
@@ -172,11 +176,17 @@ function secondsOfDay(value: string) {
     return Number(parts[1]) * 3600 + Number(parts[2]) * 60 + Number(parts[3] ?? 0);
 }
 
-/** The hue of a colour. Grey has none, so it sorts with the items that have no value. */
+/** Below every hue, which runs 0 to 360, for the greys that have none. */
+const GREY = -1;
+
+/**
+ * The hue of a colour, or {@link GREY} for one with no saturation. A value nothing can be read
+ * from has no key at all, which sorts it with the items that carry no colour.
+ */
 function hueOf(value: string) {
     try {
         const color = Color(value.toLowerCase()).hsl();
-        return color.saturationl() > 0 ? color.hue() : undefined;
+        return color.saturationl() > 0 ? color.hue() : GREY;
     } catch {
         return undefined;
     }

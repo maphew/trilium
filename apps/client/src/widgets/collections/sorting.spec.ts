@@ -97,15 +97,23 @@ describe("sortItems", () => {
         expect(titles(sort(times, "attr:field", false, "time"))).toEqual([ "C", "B", "A" ]);
     });
 
-    it("sorts false before true, and reads a label with no value as true", () => {
+    /**
+     * An unchecked box is stored as "false" once the user has touched it and as nothing at all
+     * before that, so a boolean with no label must not sort with the values that are missing.
+     */
+    it("sorts an unset boolean with false, and reads a label with no value as true", () => {
         const items = build([
             { title: "Bare", "#field": "" },
+            { title: "Untouched" },
             { title: "True", "#field": "true" },
             { title: "False", "#field": "false" }
         ]);
 
         expect(titles(sort(items, "attr:field", false, "boolean")))
-            .toEqual([ "False", "Bare", "True" ]);
+            .toEqual([ "Untouched", "False", "Bare", "True" ]);
+        // Last in both directions is what a missing value does; nothing here is missing.
+        expect(titles(sort(items, "attr:field", true, "boolean")))
+            .toEqual([ "Bare", "True", "Untouched", "False" ]);
     });
 
     it("sorts a select by the order its options are declared in, not alphabetically", () => {
@@ -148,16 +156,23 @@ describe("sortItems", () => {
         expect(titles(sort(items, "attr:field", false, "select", []))).toEqual([ "B", "A" ]);
     });
 
-    it("sorts colours by hue and leaves grey with the items that have no value", () => {
+    it("sorts the greys ahead of the hues, and a colour it cannot read behind both", () => {
         const items = build([
             { title: "Blue", "#field": "#0000ff" },
             { title: "Red", "#field": "red" },
             { title: "Grey", "#field": "#808080" },
-            { title: "Green", "#field": "#00ff00" }
+            { title: "Green", "#field": "#00ff00" },
+            { title: "Black", "#field": "#000" },
+            { title: "Unreadable", "#field": "not a colour" },
+            { title: "None" }
         ]);
 
         expect(titles(sort(items, "attr:field", false, "color")))
-            .toEqual([ "Red", "Green", "Blue", "Grey" ]);
+            .toEqual([ "Grey", "Black", "Red", "Green", "Blue", "Unreadable", "None" ]);
+        // The greys are a value like any other, so they turn over with the hues; only the items
+        // with no colour to read stay last.
+        expect(titles(sort(items, "attr:field", true, "color")))
+            .toEqual([ "Blue", "Green", "Red", "Grey", "Black", "Unreadable", "None" ]);
     });
 
     it("sorts relations by the title of the note they point at", () => {
