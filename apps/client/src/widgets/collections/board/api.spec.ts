@@ -1779,3 +1779,71 @@ describe("the promoted attributes a card shows", () => {
             .toEqual([ { name: "dueDate" }, { name: "owner", hidden: true } ]);
     });
 });
+
+describe("how a column orders its cards", () => {
+    it("reads a column nobody has sorted as the order the user arranged", () => {
+        const { api } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: undefined, isDescending: false });
+        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: undefined, isDescending: false });
+    });
+
+    it("stores what a column sorts by, and clears it back to the manual order", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ] },
+            [ "To Do", "Done" ]);
+
+        await api.setColumnSort("To Do", "attr:dueDate");
+        expect(saved.at(-1)?.columns).toEqual([
+            { value: "To Do", icon: "bx bx-list-ul", orderBy: "attr:dueDate" },
+            { value: "Done" }
+        ]);
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "attr:dueDate", isDescending: false });
+
+        // Strict, so the assertion catches the key being stored as undefined rather than dropped.
+        await api.setColumnSort("To Do", undefined);
+        expect(saved.at(-1)?.columns)
+            .toStrictEqual([ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ]);
+    });
+
+    it("stores the direction and clears it rather than storing it false", async () => {
+        const { api, saved } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        await api.setColumnSort("To Do", "title");
+        await api.setColumnSortDirection("To Do", true);
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do", orderBy: "title", descendingOrder: true } ]);
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: "title", isDescending: true });
+
+        await api.setColumnSortDirection("To Do", false);
+        expect(saved.at(-1)?.columns).toStrictEqual([ { value: "To Do", orderBy: "title" } ]);
+    });
+
+    it("keeps the direction while the key changes, and reads a stale key as manual", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do", orderBy: "creationDate", descendingOrder: true } ] },
+            [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "creationDate", isDescending: true });
+
+        await api.setColumnSort("To Do", "title");
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do", orderBy: "title", descendingOrder: true } ]);
+
+        // A key written by a newer version, or by hand, leaves the column in the manual order.
+        const stale = createApi(
+            { columns: [ { value: "To Do", orderBy: "dateModified" } ] }, [ "To Do" ]);
+        expect(stale.api.getColumnSort("To Do").orderBy).toBeUndefined();
+    });
+
+    it("writes an entry for a column that has none yet, where the board draws it", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do" } ] }, [ "To Do", "Doing", "Done" ]);
+
+        await api.setColumnSort("Doing", "title");
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "To Do" }, { value: "Doing", orderBy: "title" } ]);
+    });
+});

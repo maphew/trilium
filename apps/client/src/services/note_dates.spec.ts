@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getCreationDate, loadCreationDates } from "./note-dates";
+import { getCreationDate, loadCreationDates } from "./note_dates";
 import server from "./server";
 
 /** Names notes uniquely per test: the cache is module-level and is never emptied. */

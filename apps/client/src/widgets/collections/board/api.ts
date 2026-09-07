@@ -18,6 +18,7 @@ import {
     type PromotedAttribute, resolvePromotedAttributes, storedPromotedAttributes,
     visiblePromotedAttributeNames
 } from "../promoted_attributes";
+import { parseSortKey, type SortKey } from "../sorting";
 import { BoardColumnData, BoardViewData } from ".";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import {
@@ -615,6 +616,29 @@ export default class BoardApi {
         await this.updateColumn(column, { limit });
     }
 
+    /**
+     * How a column orders its cards.
+     *
+     * @returns the key to sort by, absent for the manual order, and its direction.
+     */
+    getColumnSort(column: string) {
+        const stored = this.viewConfig?.columns?.find(col => col.value === column);
+        return {
+            orderBy: parseSortKey(stored?.orderBy),
+            isDescending: !!stored?.descendingOrder
+        };
+    }
+
+    /** Sets what a column sorts by. Pass `undefined` for the order the user arranges by hand. */
+    async setColumnSort(column: string, orderBy: SortKey | undefined) {
+        await this.updateColumn(column, { orderBy });
+    }
+
+    /** Sets whether a column's order runs backwards. */
+    async setColumnSortDirection(column: string, isDescending: boolean) {
+        await this.updateColumn(column, { descendingOrder: isDescending });
+    }
+
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     async setInboxNested(nested: boolean) {
         await this.updateColumn(INBOX_COLUMN, { nested });
@@ -797,6 +821,8 @@ export default class BoardApi {
             if (!updated.keepCollapsed) delete updated.keepCollapsed;
             if (!updated.displayName) delete updated.displayName;
             if (!updated.limit) delete updated.limit;
+            if (!updated.orderBy) delete updated.orderBy;
+            if (!updated.descendingOrder) delete updated.descendingOrder;
             return updated;
         };
 

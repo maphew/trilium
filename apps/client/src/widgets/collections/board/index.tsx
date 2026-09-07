@@ -115,6 +115,13 @@ export interface BoardColumnData {
     displayName?: string;
     /** The note limit, absent if disabled. */
     limit?: number;
+    /**
+     * How the column orders its cards, as `SortKey` in `collections/sorting` spells it. Absent for
+     * the manual order, which is the order of the board's children.
+     */
+    orderBy?: string;
+    /** Whether that order runs backwards. Absent while it runs forwards. */
+    descendingOrder?: boolean;
 }
 
 interface CardDrag {
