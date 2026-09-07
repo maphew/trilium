@@ -116,12 +116,11 @@ export default function Column({
     /** The note limit, absent if disabled. */
     limit?: number,
     /**
-     * How the column orders its own cards, absent while the reader arranges them. A sorted column
-     * places a dropped card itself, so it opens no gap for a carried one and offers nothing that
-     * would put a card in a chosen place.
+     * How the column orders its cards, absent for the manual order. A sorted column opens no drop
+     * gap and offers no control that puts a card at a chosen index.
      */
     sort?: ColumnSort,
-    /** The card just dropped here, which is revealed where the sort put it. */
+    /** The card just dropped here, drawn with the `appearing` reveal. */
     landedNoteId?: string,
     /**
      * How many cards the column really holds, when an active filter leaves `columnItems` with
@@ -162,7 +161,7 @@ export default function Column({
     isSortedRef.current = isSorted;
     /** Opens the field at a place among the cards, which is the index the card it makes takes. */
     const beginInsert = useCallback((index: number) => {
-        // A sorted column decides where a card goes, so there is no place to open a field at.
+        // A sorted column has no index to insert at.
         if (isSortedRef.current) {
             return;
         }
@@ -192,10 +191,9 @@ export default function Column({
     // Asked about this column alone: where the gap stands changes on every step of a drag, and a
     // column that the answer does not concern is left as it is rather than drawn again.
     const standingDropIndex = useDropIndex(column);
-    // A sorted column shows only its border, since the card lands where the sort puts it. The
-    // column the card was picked up from keeps the hole it left, which the cards below would
-    // otherwise close up for the length of the gesture. The gap stands before the card whose
-    // place it names, so the carried card's own place is the one after it.
+    // A sorted column draws only its border, since `sortColumnMap` decides where the card lands.
+    // The source column keeps the gap at the lifted card's own index, or the cards below close up
+    // for the length of the gesture. A gap stands before the card it indexes, hence the `+ 1`.
     const dropIndex = !isSorted
         ? standingDropIndex
         : (draggedCard?.fromColumn === column ? draggedCard.index + 1 : null);
@@ -248,8 +246,8 @@ export default function Column({
         // Read before anything is written, and `offsetTop` is no business of a transform anyway.
         if (dropIndex !== null) {
             const standing = cards[dropIndex];
-            // The carried card is taken out of the flow, so a gap past the last one is measured
-            // against the last card still laid out.
+            // `lift()` sets `display: none` on the carried card, so a gap past the last one
+            // measures against the last card still laid out.
             const drawn = [ ...cards ].filter(card => card.style.display !== "none");
             const last = drawn[drawn.length - 1];
             const top = standing
@@ -396,21 +394,20 @@ export default function Column({
         setActiveColumn(isPeeked ? column : undefined);
     }, [ column, isActive, isPeeked, setActiveColumn ]);
 
-    // Shown only while the column sorts itself, so its absence is what says the order is the
-    // reader's own. The arrow says which way the order runs.
+    // Only for a sorted column. The arrow shows which way the order runs.
     const sortButton = sort && (
         <ActionButton
             className="column-sort"
             icon={sort.isDescending ? "bx bx-sort-down" : "bx bx-sort-up"}
             text={t("board_view.sort")}
-            // A strip has room to say which way the order runs but not to be worked in: the menu
-            // it would open stands where the column is about to widen.
+            // Disabled on a strip: the menu would open over the space the column is about to
+            // take as it widens.
             disabled={isCollapsed}
             onClick={(e) => {
                 // The heading is the column's drag handle and opens its own menu on a right
                 // click; neither should also fire from the button.
                 e.stopPropagation();
-                openColumnSortMenu(api, e.pageX, e.pageY, column);
+                openColumnSortMenu(api, ...menuOrigin(e), column);
             }}
         />
     );
@@ -684,9 +681,8 @@ export default function Column({
                 {/* Both stand here for the length of the board's life: an element appearing
                     among the cards, or leaving them, is what a drag cannot afford. */}
                 <div ref={gapRef} className="board-drop-placeholder">
-                    {/* The gap a sorted column holds open is the one the card came out of, and it
-                        stays there: nothing the reader does moves the card to another place in
-                        this column. */}
+                    {/* The gap is the one the lifted card left, and it does not follow the
+                        pointer. */}
                     {isSorted && (
                         <span className="sorted-no-reorder">
                             {t("board_view.sorted-no-reorder")}
@@ -718,6 +714,19 @@ export default function Column({
  * @param transform what to write, or `null` to put the card back where the column draws it.
  * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
  */
+/**
+ * Where a menu opened from a button belongs: at the pointer, or against the button itself when a
+ * keyboard press opened it and carries no pointer position.
+ */
+function menuOrigin(e: JSX.TargetedMouseEvent<HTMLElement>): [ number, number ] {
+    if (e.detail) {
+        return [ e.pageX, e.pageY ];
+    }
+
+    const box = e.currentTarget.getBoundingClientRect();
+    return [ box.right + window.scrollX, box.bottom + window.scrollY ];
+}
+
 export function placeCard(card: HTMLElement, transform: string | null, atOnce: boolean) {
     if (atOnce) {
         card.style.transition = "none";
@@ -965,7 +974,7 @@ function useDragging({
     isEditing: boolean,
     api: BoardApi,
     parentNote: FNote,
-    /** Names a card a sorted column has just placed, which is revealed where it went. */
+    /** Reports a card a sorted column placed, for the `appearing` reveal. */
     onLanded: (noteId: string) => void
 }) {
     const { setDraggedColumn, setDropTarget, setDropPosition, setActiveColumn } =
@@ -1090,8 +1099,7 @@ function useDragging({
                 await branches.moveAfterBranch([ branchId ], targetBranch.branchId);
             }
 
-            // The reader dropped the card on the column rather than at a place in it, so the
-            // reveal is what says where the sort put it.
+            // The drop named a column, not an index, so the reveal shows where it landed.
             if (isSorted) {
                 onLanded(noteId);
             }

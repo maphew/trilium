@@ -24,8 +24,8 @@ export interface SortMenuOptions {
 /**
  * The entries a collection offers for how it orders its items.
  *
- * Built as a submenu for the caller to hang wherever it belongs. The direction sits at the foot,
- * disabled while nothing is sorted.
+ * A submenu for the caller to hang wherever it belongs. The direction sits at the foot, disabled
+ * while nothing is sorted.
  */
 export function buildSortMenuItems<T>({
     orderBy, isDescending, attributes, noneTitle, onSelect, onDirectionChange
@@ -52,8 +52,8 @@ export function buildSortMenuItems<T>({
             handler: () => onSelect("creationDate")
         },
         ...attributes.map<MenuItem<T>>((attribute) => ({
-            // The menu reads a title as markup, and an alias is the user's own text. The box is
-            // what clips a long one rather than letting it widen the menu.
+            // The menu reads a title as markup, and an alias is the user's own text. The box
+            // clips a long one instead of widening the menu.
             title: `<span class="sort-menu-name">${escapeHtml(attribute.title)}</span>`,
             className: "sort-menu-item",
             uiIcon: promotedAttributeType(attribute).icon,

@@ -98,8 +98,8 @@ export function resolveColumnSorts(columns: BoardColumnData[] | undefined) {
 /**
  * The columns with each sorted one in its own order.
  *
- * The map and every column array are handed back unchanged where nothing moves, so a board with
- * no sorted column costs one lookup per column and a card that has not moved is not drawn again.
+ * Returns the same map, and the same array per column, where nothing moves. `Column` reads a fresh
+ * array as its cards having moved and re-measures every one of them, so the identities matter.
  */
 export function sortColumnMap(
     byColumn: ColumnMap, sorts: ReadonlyMap<string, ColumnSort>, context: SortContext
@@ -159,9 +159,9 @@ export function resolveSortWatch(
 /**
  * Whether a change can move a card in a sorted column.
  *
- * Answered broadly: a card whose content was saved reports a note row like a renamed one does, and
- * {@link sortColumnMap} hands back the same arrays when the sort finds nothing to move, so a
- * needless re-sort draws nothing.
+ * Deliberately broad: an autosave reports a note row just as a rename does, and
+ * {@link sortColumnMap} returns the same arrays when nothing moves, so a needless re-sort renders
+ * nothing.
  */
 export function affectsSortOrder(loadResults: LoadResults, watch: SortWatch) {
     if (!watch.noteIds.size) {

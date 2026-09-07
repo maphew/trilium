@@ -298,10 +298,9 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** The column just added, which is revealed once the board has drawn it. */
     const [ createdColumn, setCreatedColumn ] = useState<string>();
     /**
-     * The card just dropped on a sorted column, which is shown the way a new one is.
+     * The card just dropped on a sorted column, drawn with the same reveal a new card gets.
      *
-     * The column places it rather than the reader, so it can land anywhere among the cards, and
-     * the reveal is what says where it went.
+     * `sortColumnMap` can put it anywhere among the cards, so the reveal is how the user finds it.
      */
     const [ landedNoteId, setLandedNoteId ] = useState<string>();
     /**
@@ -518,9 +517,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
 
-    // Neither the creation dates the tie-break reads nor the notes a sorted relation points at
-    // are loaded with the board. Both are fetched here, and the board is drawn again once they
-    // arrive.
+    // Neither the creation dates the tie-break needs nor the targets of a sorted relation come
+    // with the board. Both are fetched here, and `sortRevision` redraws it once they land.
     useEffect(() => {
         if (!sortWatch.noteIds.size) {
             return;
@@ -696,7 +694,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             closeGaps(containerRef.current);
             const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
             const isSortedTarget = !!position && columnSorts.has(position.column);
-            // A card let go of over its own sorted column stands where the sort already puts it.
+            // A drop inside a sorted column changes nothing: `sortColumnMap` already placed it.
             if (isSortedTarget && position?.column === card.fromColumn) {
                 setDraggedCard(null);
                 dropState.set({ position: null, target: null });
@@ -707,8 +705,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             if (position && branchId && byColumn && allByColumn) {
                 // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
                 // the index `unfilteredCardIndex` translates rather than the visible drop index.
-                // A sorted column takes the card at any index: `sortColumnMap` runs afterwards and
-                // places it.
+                // The index does not matter for a sorted column: `sortColumnMap` reorders the
+                // map afterwards.
                 setAllByColumn(applyCardMove(
                     allByColumn, card.noteId, card.fromColumn, position.column,
                     unfilteredCardIndex(
@@ -927,7 +925,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         }
 
         // `findRefreshReason` ignores a note row, since a card keeps its own title in step. A
-        // column sorting by title still has to reorder, which this does without a full refresh.
+        // column sorting by title still has to reorder, and this does it without a refresh.
         if (affectsSortOrder(loadResults, sortWatch)) {
             setSortRevision(revision => revision + 1);
         }

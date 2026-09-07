@@ -67,9 +67,13 @@ describe("sortItems", () => {
         const numbers = build([
             { title: "A", "#field": "10" },
             { title: "B", "#field": "9" },
-            { title: "C", "#field": "-3.5" }
+            { title: "C", "#field": "-3.5" },
+            // Imported values are not always what the field would have written. A value that is
+            // only partly a number is no number at all.
+            { title: "D", "#field": "1-2" }
         ]);
-        expect(titles(sort(numbers, "attr:field", false, "number"))).toEqual([ "C", "B", "A" ]);
+        expect(titles(sort(numbers, "attr:field", false, "number")))
+            .toEqual([ "C", "B", "A", "D" ]);
     });
 
     it("sorts dates, date-times and times by the instant they name", () => {

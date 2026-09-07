@@ -46,8 +46,8 @@ export function sortedAttributeName(key: SortKey) {
 /**
  * Orders items by one key, breaking ties on the creation date and then on the given order.
  *
- * An item with no value for the key sorts last in both directions. Returns the same array when
- * the items are already in order, so a caller can compare identities.
+ * An item with no value for the key sorts last in both directions. Returns the same array when the
+ * items are already in order, so a caller can compare identities.
  */
 export function sortItems<T extends { note: FNote }>(
     items: T[], key: SortKey, isDescending: boolean, context: SortContext
@@ -108,7 +108,7 @@ function sortValueOf(note: FNote, key: SortKey, context: SortContext): SortValue
         return targetId ? context.noteTitle(targetId) ?? targetId : undefined;
     }
 
-    // Uses the first value of a multi-value attribute, which is the one a card draws.
+    // The first value of a multi-value attribute, which is the one an item draws.
     const label = note.getLabel(name);
     if (!label) {
         return undefined;
@@ -125,7 +125,9 @@ function sortValueOf(note: FNote, key: SortKey, context: SortContext): SortValue
 function labelValueOf(value: string, definition: PromotedAttribute | undefined): SortValue {
     switch (definition?.labelType) {
         case "number":
-            return toNumber(parseFloat(value));
+            // `Number` rather than `parseFloat`, which would read "1-2" as 1 and sort it among
+            // the valid numbers.
+            return toNumber(Number(value));
         case "date":
         case "datetime":
             return toNumber(Date.parse(value));
@@ -141,18 +143,18 @@ function labelValueOf(value: string, definition: PromotedAttribute | undefined):
 }
 
 /**
- * Where a value stands among the options a select offers, so the field is read in the order it was
- * defined in rather than alphabetically: `options=Low;Medium;High;Urgent` sorts by rank.
+ * Where a value stands among the options a select offers, so `options=Low;Medium;High;Urgent`
+ * sorts by rank rather than alphabetically.
  */
 function optionIndex(value: string, options: string[] | undefined): SortValue {
     if (!options?.length) {
-        // A select that offers nothing has no order of its own, so the values compare as text.
+        // With no options declared there is no order to follow, so the values compare as text.
         return value;
     }
 
     const at = options.indexOf(value);
     // A value the definition no longer offers sorts after every option it does, rather than with
-    // the cards that carry no value at all.
+    // the items that have no value.
     return at >= 0 ? at : options.length;
 }
 

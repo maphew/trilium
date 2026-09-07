@@ -3629,6 +3629,22 @@ describe("a column that sorts its cards", () => {
         expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
     });
 
+    /** A keyboard press carries no pointer position, which would put the menu at the origin. */
+    it("opens the menu against the button when a keyboard presses it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const button = sortButton(board);
+        if (!button) throw new Error("expected a sort button");
+        button.getBoundingClientRect = () =>
+            ({ right: 320, bottom: 48 }) as DOMRect;
+
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        // `detail` is 0 for the click a keyboard synthesises, and the coordinates are 0 with it.
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+
+        expect(show.mock.calls.at(-1)?.[0]).toMatchObject({ x: 320, y: 48 });
+        show.mockRestore();
+    });
+
     /** A strip is too narrow to work in, and the menu would stand where it is about to widen. */
     it("shows the button on a strip, with nothing to be done to it", async () => {
         const { board } = await renderSortedBoard({ orderBy: "title", collapsed: true });

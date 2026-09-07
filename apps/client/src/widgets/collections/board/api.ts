@@ -629,7 +629,7 @@ export default class BoardApi {
         };
     }
 
-    /** Sets what a column sorts by. Pass `undefined` for the order the user arranges by hand. */
+    /** Sets what a column sorts by. Pass `undefined` for the manual order. */
     async setColumnSort(column: string, orderBy: SortKey | undefined) {
         await this.updateColumn(column, { orderBy });
     }
@@ -1166,14 +1166,14 @@ export default class BoardApi {
         return attributes.removeOwnedLabelByName(note, this.statusAttribute);
     }
 
-    /** Whether a column orders its own cards, which leaves no place for a move to name. */
+    /** Whether a column orders its own cards rather than keeping the order the user set. */
     isColumnSorted(column: string) {
         return !!this.getColumnSort(column).orderBy;
     }
 
     /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */
     async moveToColumnEnd(noteId: string, branchId: string, targetColumn: string) {
-        // A sorted column places the card itself, so only the value it carries is written.
+        // Only the grouping value is written: `sortColumnMap` decides where the card is drawn.
         if (this.isColumnSorted(targetColumn)) {
             await this.changeColumn(noteId, targetColumn);
             return;
@@ -1246,9 +1246,8 @@ export default class BoardApi {
         const note = froca.getNoteFromCache(noteId);
         if (!note) return;
 
-        // A sorted column places its own cards, so a move into or inside one writes the value
-        // alone. The branch order is left as it stands, which is the order the reader arranged
-        // and the one the column goes back to when it is sorted by hand again.
+        // A move into or inside a sorted column writes the grouping value and no branch
+        // position. Clearing `orderBy` then restores the arrangement the user made.
         const isSortedTarget = this.isColumnSorted(targetColumn);
 
         if (sourceColumn !== targetColumn) {
