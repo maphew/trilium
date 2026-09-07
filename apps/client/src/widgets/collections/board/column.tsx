@@ -691,18 +691,27 @@ export function placeCard(card: HTMLElement, transform: string | null, atOnce: b
     });
 }
 
-/** Puts every suppressed transition back at once, for a board leaving the page. */
-export function settleCards() {
-    if (restoring !== undefined) {
+/**
+ * Puts back at once the suppressed transitions of the cards one board holds, for a board leaving
+ * the page.
+ *
+ * Its own cards alone, and whatever has already left the page: another board can be part-way
+ * through a gesture, and the frame that would put its cards back is the same one.
+ */
+export function settleCards(container: HTMLElement | null) {
+    for (const held of settling) {
+        if (held.isConnected && !container?.contains(held)) {
+            continue;
+        }
+
+        held.style.removeProperty("transition");
+        settling.delete(held);
+    }
+
+    if (!settling.size && restoring !== undefined) {
         cancelAnimationFrame(restoring);
         restoring = undefined;
     }
-
-    for (const held of settling) {
-        held.style.removeProperty("transition");
-    }
-
-    settling.clear();
 }
 
 /** The cards whose transition is suppressed, waiting for the frame that puts it back. */

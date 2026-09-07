@@ -788,12 +788,16 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     }, []);
 
     // A board taken off the page leaves nothing of a gesture behind it to run in a later frame.
-    useEffect(() => () => {
-        if (stillFor.current !== undefined) {
-            cancelAnimationFrame(stillFor.current);
-        }
+    // The container is held from the mount: a ref is empty again by the time this is called.
+    useEffect(() => {
+        const container = containerRef.current;
+        return () => {
+            if (stillFor.current !== undefined) {
+                cancelAnimationFrame(stillFor.current);
+            }
 
-        settleCards();
+            settleCards(container);
+        };
     }, []);
 
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {

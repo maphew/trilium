@@ -14,6 +14,7 @@ import { buildNote } from "../../../test/easy-froca";
 import { TREE_CLIPBOARD_TYPE } from "../../note_tree";
 import { ParentComponent } from "../../react/react_utils";
 import BoardView, { BoardViewData } from ".";
+import { placeCard, settleCards } from "./column";
 
 vi.mock("../../../services/branches", () => ({
     default: {
@@ -870,6 +871,50 @@ describe("Board column reordering", () => {
 
     function settle() {
         return new Promise((resolve) => setTimeout(resolve));
+    }
+});
+
+describe("a board leaving the page", () => {
+    /**
+     * Boards stay mounted across tabs and splits, and the frame that puts a suppressed transition
+     * back is one they share. A board being taken off the page settles its own cards alone.
+     */
+    it("puts back only the cards it holds, leaving another board's gesture alone", () => {
+        const [ leaving, staying ] = [ board(), board() ];
+
+        placeCard(leaving.card, "translateY(10px)", true);
+        placeCard(staying.card, "translateY(10px)", true);
+        expect([ leaving.card.style.transition, staying.card.style.transition ])
+            .toEqual([ "none", "none" ]);
+
+        settleCards(leaving.container);
+
+        expect(leaving.card.style.transition).toBe("");
+        expect(staying.card.style.transition).toBe("none");
+
+        settleCards(staying.container);
+        expect(staying.card.style.transition).toBe("");
+        for (const { container } of [ leaving, staying ]) container.remove();
+    });
+
+    /** A card taken off the page with its board has nothing left to animate. */
+    it("puts back a card that has already left the page, whichever board held it", () => {
+        const gone = board();
+        placeCard(gone.card, "translateY(10px)", true);
+        gone.container.remove();
+
+        settleCards(document.createElement("div"));
+
+        expect(gone.card.style.transition).toBe("");
+    });
+
+    function board() {
+        const container = document.createElement("div");
+        const card = document.createElement("div");
+        card.className = "board-note";
+        container.appendChild(card);
+        document.body.appendChild(container);
+        return { container, card };
     }
 });
 
