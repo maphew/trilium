@@ -3567,6 +3567,17 @@ describe("a column that sorts its cards", () => {
         expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
     });
 
+    it("sorts a select by the order its own definition offers the options in", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)":
+                "promoted,alias=Priority,single,select,options=Low;Medium;High;Urgent",
+            values: { Delta: "Urgent", Beta: "Low", Alpha: "High" }
+        });
+
+        // Alphabetically this would read High, Low, Urgent.
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
     it("reorders the column as soon as the sort is picked from its menu", async () => {
         const { board } = await renderSortedBoard({});
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);

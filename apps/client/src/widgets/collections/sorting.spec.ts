@@ -104,6 +104,46 @@ describe("sortItems", () => {
             .toEqual([ "False", "Bare", "True" ]);
     });
 
+    it("sorts a select by the order its options are declared in, not alphabetically", () => {
+        const options = [ "Low", "Medium", "High", "Urgent" ];
+        const items = build([
+            { title: "A", "#field": "Urgent" },
+            { title: "B", "#field": "Low" },
+            { title: "C", "#field": "High" },
+            { title: "D", "#field": "Medium" }
+        ]);
+
+        expect(titles(sort(items, "attr:field", false, "select", options)))
+            .toEqual([ "B", "D", "C", "A" ]);
+        expect(titles(sort(items, "attr:field", true, "select", options)))
+            .toEqual([ "A", "C", "D", "B" ]);
+    });
+
+    it("sorts a value the select no longer offers after every option it does", () => {
+        const items = build([
+            { title: "Dropped", "#field": "Blocked" },
+            { title: "None" },
+            { title: "Urgent", "#field": "Urgent" },
+            { title: "Low", "#field": "Low" }
+        ]);
+
+        // Ahead of the card carrying no value at all, which stays last in both directions.
+        expect(titles(sort(items, "attr:field", false, "select", [ "Low", "Urgent" ])))
+            .toEqual([ "Low", "Urgent", "Dropped", "None" ]);
+        expect(titles(sort(items, "attr:field", true, "select", [ "Low", "Urgent" ])))
+            .toEqual([ "Dropped", "Urgent", "Low", "None" ]);
+    });
+
+    it("compares a select offering no options as text", () => {
+        const items = build([
+            { title: "A", "#field": "beta" },
+            { title: "B", "#field": "alpha" }
+        ]);
+
+        expect(titles(sort(items, "attr:field", false, "select"))).toEqual([ "B", "A" ]);
+        expect(titles(sort(items, "attr:field", false, "select", []))).toEqual([ "B", "A" ]);
+    });
+
     it("sorts colours by hue and leaves grey with the items that have no value", () => {
         const items = build([
             { title: "Blue", "#field": "#0000ff" },
@@ -198,7 +238,10 @@ function build(drafts: ItemDraft[]) {
     return drafts.map(({ createdAt, ...noteDef }) => ({ note: buildNote(noteDef), createdAt }));
 }
 
-function sort(items: Item[], key: SortKey, isDescending = false, fieldType?: FieldType) {
+function sort(
+    items: Item[], key: SortKey, isDescending = false, fieldType?: FieldType,
+    selectOptions?: string[]
+) {
     const dates = new Map(items.map(({ note, createdAt }) => [ note.noteId, createdAt ]));
     const definitions = new Map<string, PromotedAttribute>();
 
@@ -212,6 +255,7 @@ function sort(items: Item[], key: SortKey, isDescending = false, fieldType?: Fie
             hidden: false,
             definitionValue: "",
             labelType: isRelation ? undefined : fieldType,
+            selectOptions,
             isOwned: true,
             isInheritable: true
         });

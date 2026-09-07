@@ -119,11 +119,11 @@ function sortValueOf(note: FNote, key: SortKey, context: SortContext): SortValue
         return label.value === "false" ? 0 : 1;
     }
 
-    return label.value ? labelValueOf(label.value, definition?.labelType) : undefined;
+    return label.value ? labelValueOf(label.value, definition) : undefined;
 }
 
-function labelValueOf(value: string, labelType: string | undefined): SortValue {
-    switch (labelType) {
+function labelValueOf(value: string, definition: PromotedAttribute | undefined): SortValue {
+    switch (definition?.labelType) {
         case "number":
             return toNumber(parseFloat(value));
         case "date":
@@ -133,9 +133,27 @@ function labelValueOf(value: string, labelType: string | undefined): SortValue {
             return secondsOfDay(value);
         case "color":
             return hueOf(value);
+        case "select":
+            return optionIndex(value, definition.selectOptions);
         default:
             return value;
     }
+}
+
+/**
+ * Where a value stands among the options a select offers, so the field is read in the order it was
+ * defined in rather than alphabetically: `options=Low;Medium;High;Urgent` sorts by rank.
+ */
+function optionIndex(value: string, options: string[] | undefined): SortValue {
+    if (!options?.length) {
+        // A select that offers nothing has no order of its own, so the values compare as text.
+        return value;
+    }
+
+    const at = options.indexOf(value);
+    // A value the definition no longer offers sorts after every option it does, rather than with
+    // the cards that carry no value at all.
+    return at >= 0 ? at : options.length;
 }
 
 function toNumber(value: number) {

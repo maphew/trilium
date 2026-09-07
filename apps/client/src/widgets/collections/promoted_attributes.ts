@@ -26,6 +26,8 @@ export interface PromotedAttribute {
     definitionValue: string;
     /** What the field holds: `text`, `date`, `boolean` and the rest. Absent for a relation. */
     labelType?: string;
+    /** The values a `select` field offers, in the order it offers them. */
+    selectOptions?: string[];
     /** Whether the note that defines it is the collection itself rather than an ancestor. */
     isOwned: boolean;
     /**
@@ -71,6 +73,7 @@ export function resolvePromotedAttributes(
             type,
             title: parsed?.promotedAlias || name,
             labelType: parsed?.labelType,
+            selectOptions: parsed?.selectOptions,
             hidden: false,
             definitionValue: definition.value,
             isOwned: definition.noteId === note?.noteId,
