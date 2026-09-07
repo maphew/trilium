@@ -11,8 +11,7 @@ import { getArchiveMenuItem } from "../../../menus/context_menu_utils";
 import { t } from "../../../services/i18n";
 import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
-import { promotedAttributeType } from "../../react/PromotedAttributesCard";
-import type { SortKey } from "../sorting";
+import { buildSortMenuItems } from "../sort_menu";
 import Api from "./api";
 import { INBOX_COLUMN } from "./columns";
 
@@ -131,7 +130,15 @@ export function openColumnContextMenu(api: Api, event: ContextMenuEvent, column:
             {
                 title: t("board_view.sort"),
                 uiIcon: "bx bx-sort-alt-2",
-                items: buildSortItems(api, column.value)
+                items: buildSortMenuItems<string>({
+                    ...api.getColumnSort(column.value),
+                    attributes: api.getPromotedAttributes(),
+                    // A board arranges its cards by hand rather than leaving them unsorted.
+                    noneTitle: t("board_view.sort-manually"),
+                    onSelect: (orderBy) => api.setColumnSort(column.value, orderBy),
+                    onDirectionChange: (isDescending) =>
+                        api.setColumnSortDirection(column.value, isDescending)
+                })
             },
             {
                 title: t("board_view.set-limit"),
@@ -288,62 +295,6 @@ export function openCreateColumnMenu(x: number, y: number, create: (atStart: boo
         ],
         selectMenuItemHandler() {}
     });
-}
-
-/**
- * How a column orders its cards: by hand, or by one of the fields the board holds.
- *
- * The direction sits at the foot, disabled while the column is ordered by hand.
- */
-function buildSortItems(api: Api, column: string): MenuItem<string>[] {
-    const { orderBy, isDescending } = api.getColumnSort(column);
-    const checkFor = (key: SortKey | undefined) => (key === orderBy ? "bx bx-check" : undefined);
-
-    const attributes = api.getPromotedAttributes().map<MenuItem<string>>((attribute) => ({
-        // Boxed and escaped as the column names are: the alias is the user's own text.
-        title: `<span class="board-column-name">${escapeHtml(attribute.title)}</span>`,
-        className: "board-column-item",
-        uiIcon: promotedAttributeType(attribute).icon,
-        trailingIcon: checkFor(`attr:${attribute.name}`),
-        handler: () => api.setColumnSort(column, `attr:${attribute.name}`)
-    }));
-
-    return [
-        {
-            title: t("board_view.sort-manually"),
-            uiIcon: "bx bx-move-vertical",
-            trailingIcon: checkFor(undefined),
-            handler: () => api.setColumnSort(column, undefined)
-        },
-        {
-            title: t("board_view.sort-by-title"),
-            uiIcon: "bx bx-text",
-            trailingIcon: checkFor("title"),
-            handler: () => api.setColumnSort(column, "title")
-        },
-        {
-            title: t("board_view.sort-by-creation-date"),
-            uiIcon: "bx bx-calendar-plus",
-            trailingIcon: checkFor("creationDate"),
-            handler: () => api.setColumnSort(column, "creationDate")
-        },
-        ...attributes,
-        { kind: "separator" },
-        {
-            title: t("board_view.sort-ascending"),
-            uiIcon: "bx bx-sort-up",
-            enabled: !!orderBy,
-            trailingIcon: orderBy && !isDescending ? "bx bx-check" : undefined,
-            handler: () => api.setColumnSortDirection(column, false)
-        },
-        {
-            title: t("board_view.sort-descending"),
-            uiIcon: "bx bx-sort-down",
-            enabled: !!orderBy,
-            trailingIcon: orderBy && isDescending ? "bx bx-check" : undefined,
-            handler: () => api.setColumnSortDirection(column, true)
-        }
-    ];
 }
 
 /**
