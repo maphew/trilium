@@ -37,8 +37,8 @@ export interface FlipOptions {
      * Whether to stop measuring the children while keeping the places they were last measured at.
      *
      * For a container that is not taking part yet: its children still stand where they were
-     * measured, so it slides them from there the moment it does take part. Takes precedence over
-     * {@link disabled}.
+     * measured, so it slides them from there the moment it does take part. Where {@link disabled}
+     * is set as well, the places are dropped: forgetting outranks remembering.
      */
     paused?: boolean;
 }

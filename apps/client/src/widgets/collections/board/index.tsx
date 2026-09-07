@@ -609,6 +609,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             }
         },
         onCardEnd: (card, position) => {
+            // Put back here rather than left to the columns to draw: the board is about to move a
+            // card, hide the gap and close the room it took, and if those reach the screen in
+            // separate frames the reader sees a gap open where nothing is being carried any more.
+            closeGaps(containerRef.current);
             const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
             if (position && branchId && byColumn && allByColumn) {
                 // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
@@ -958,6 +962,35 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
  * Naming the winning check, rather than returning a boolean, is what lets the profiler attribute a
  * redraw to a cause.
  */
+/**
+ * Puts every card back where the column draws it, closes every gap and gives back the room they
+ * took.
+ *
+ * The columns do this for themselves as they are drawn, but a drop moves a card, hides a gap and
+ * closes its room in one go, and those reaching the screen in separate frames is a gap the reader
+ * sees open where nothing is being carried. Done here first, the board is already tidy whichever
+ * way the drawing falls.
+ */
+function closeGaps(container: HTMLElement | null) {
+    if (!container) {
+        return;
+    }
+
+    for (const card of container.querySelectorAll<HTMLElement>(".board-note")) {
+        if (card.style.transform) {
+            card.style.removeProperty("transform");
+        }
+    }
+
+    for (const gap of container.querySelectorAll(".board-drop-placeholder")) {
+        gap.classList.remove("show");
+    }
+
+    for (const room of container.querySelectorAll<HTMLElement>(".board-drop-room")) {
+        room.style.height = "0px";
+    }
+}
+
 export function findRefreshReason(loadResults: LoadResults, statusAttribute: string, noteIds: string[], parentNoteId: string): string | null {
     // A card moved between columns.
     if (loadResults.getAttributeRows().some(attr => attr.name === statusAttribute && noteIds.includes(attr.noteId ?? ""))) {

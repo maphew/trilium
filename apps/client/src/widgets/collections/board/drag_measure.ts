@@ -75,6 +75,14 @@ const heights = new Map<string, number>();
 /** What stands between two cards, which is one rule the board over and so is read once. */
 let spacing: number | undefined;
 
+/**
+ * What stands between two cards, which is what a gap takes up on top of the card it stands for.
+ * Nothing until a column has been measured, which a drag does before it opens any gap.
+ */
+export function cardSpacing() {
+    return spacing ?? 0;
+}
+
 /** Drops what has been measured, for a window whose size has changed under it. */
 export function forgetCardHeights() {
     heights.clear();
@@ -90,9 +98,8 @@ export function forgetCardHeights() {
  * this leads to names a place in the list the board holds, which is the list a move is expressed
  * against.
  *
- * The gap standing open for the carried card holds the cards under it a place lower than they are
- * measured to be. What a place is counted against is the column without the drag's own doing in
- * it, so the room the gap takes is given back to everything below it.
+ * The gap the carried card leaves room for stands outside the column's flow, so it displaces no
+ * card and none of its room has to be given back: what is measured is the column as it stands.
  */
 function measureCards(area: HTMLElement | null) {
     if (!area) {
@@ -101,7 +108,6 @@ function measureCards(area: HTMLElement | null) {
 
     const top = area.getBoundingClientRect().top - area.scrollTop;
     const cards: CardBox[] = [];
-    let gap = 0;
     /** Where the next card stands if it has to be counted rather than read. */
     let next = 0;
     /** The foot of the last card read, which the next one read settles the spacing against. */
@@ -111,12 +117,6 @@ function measureCards(area: HTMLElement | null) {
 
     for (const child of area.children) {
         if (!(child instanceof HTMLElement)) {
-            continue;
-        }
-
-        if (child.classList.contains("board-drop-placeholder")) {
-            const box = child.getBoundingClientRect();
-            gap += box.height + Number.parseFloat(getComputedStyle(child).marginBottom || "0");
             continue;
         }
 
@@ -134,7 +134,7 @@ function measureCards(area: HTMLElement | null) {
         if (height === undefined || !anchored) {
             const box = child.getBoundingClientRect();
             height ??= box.height;
-            at = box.top - top - gap;
+            at = box.top - top;
             anchored = true;
             if (noteId && box.height) {
                 heights.set(noteId, box.height);

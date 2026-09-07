@@ -171,3 +171,20 @@ export function resolveBoardColumns(
 function named(value: string) {
     return value.trim() !== INBOX_COLUMN;
 }
+
+/**
+ * Whether the column holds another card below this one.
+ *
+ * Asked rather than read off `nextElementSibling`: the gap a drag opens, and the room it takes,
+ * stand below the cards for the length of the board's life, so the last card is never the last
+ * thing in its column.
+ */
+export function cardFollows(card: Element) {
+    for (let next = card.nextElementSibling; next; next = next.nextElementSibling) {
+        if (next.classList.contains("board-note")) {
+            return true;
+        }
+    }
+
+    return false;
+}

@@ -61,25 +61,33 @@ describe("Board drag and drop", () => {
         }
     });
 
+    /**
+     * The gap stands outside the column's flow and the cards below it stand aside for it. Carried
+     * among them instead, it changes what the column holds, and the board restyles every element
+     * it holds for that, on every step of a drag.
+     */
     it("marks the card a drop would land before, from where the pointer is", async () => {
         const { columns } = await renderBoard();
 
         // Above the middle of the second card, so the drop lands between the two.
         await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
 
-        const placeholders = [ ...columns[0].querySelectorAll(".board-column-content > *") ]
-            .map(child => child.className);
-        expect(placeholders[1]).toContain("board-drop-placeholder");
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(card => card.style.transform !== "")).toEqual([ false, true ]);
     });
 
     it("clears the mark once the pointer leaves the column altogether", async () => {
         const { columns } = await renderBoard();
 
         await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeTruthy();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
 
+        // The gap itself stays where it stands; it is shown and hidden rather than made and
+        // unmade, which is what keeps a drag off the board's own contents.
         await drag(columns[0], "dragleave", { types: [] });
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder")).toBeTruthy();
     });
 
     it("ignores a drag carrying something the board has no use for", async () => {
@@ -87,7 +95,7 @@ describe("Board drag and drop", () => {
 
         await drag(columns[0], "dragover", { types: [ "text/uri-list" ] }, 120);
 
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
     });
 
     it("clones a note dragged in from the tree, which the board does not hold", async () => {

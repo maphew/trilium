@@ -522,6 +522,8 @@ body.mobile .board-view-container .board-add-column {
    stops it at the column instead of passing it on, and the board never moves. */
 .board-view-container .board-column-content {
   overscroll-behavior-y: contain;
+  /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
+  position: relative;
 }
 
 /* And while something is carried, the end does not spring back either: the copy is positioned
@@ -741,7 +743,19 @@ body.mobile .board-view-container .board-add-column {
   }
 }
 
+/* Outside the column's flow and standing there for good. Carrying it into the cards, or out of
+   them, is a change to what the column holds, and the board restyles every element it holds for
+   that; sliding it instead costs nothing. */
 .board-drop-placeholder {
+  position: absolute;
+  /* It stands over the cards whether it is showing or not, and a press belongs to the card under
+     it, not to the space being held open. */
+  pointer-events: none;
+  /* Anchored at the top of the column's content, which the transform then counts down from. Left
+     to its own place in the flow it would start below every card. */
+  top: 0;
+  left: 0;
+  right: 0;
   height: 40px;
   /* The gap below is the card's, in em, so it has to be read at the card's own font size. */
   font-size: var(--card-font-size);
@@ -751,9 +765,18 @@ body.mobile .board-view-container .board-add-column {
   background-color: rgba(0, 0, 0, 0.15);
   opacity: 0;
   /* Opacity only: the height is the carried card's, so any change in it is a mismatch to see
-     rather than a movement to smooth over. */
+     rather than a movement to smooth over, and it slides to follow the pointer rather than easing
+     after it. */
   transition: opacity 0.15s ease;
   box-sizing: border-box;
+}
+
+/* The room the gap takes out of the column, so it still scrolls past its last card while one is
+   held there. It stands in the flow at no height, and is given one for as long as the gap needs
+   it: growing an element that stays put costs nothing, where adding one does not. */
+.board-drop-room {
+  height: 0;
+  flex-shrink: 0;
 }
 
 .board-drop-placeholder.show {

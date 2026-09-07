@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { Fragment } from "preact";
 import { flushSync } from "preact/compat";
 import {
-    useCallback, useContext, useEffect, useMemo, useRef, useState
+    useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
 import { JSX } from "preact/jsx-runtime";
 
@@ -25,6 +25,17 @@ import { useScrollFade } from "../../react/scroll_fade";
 /** How long a field waits for the card it made, after which it is taken down regardless. */
 const HAND_OVER_MS = 2000;
 
+/** What a gap stands at when nothing carried says otherwise. Matches `.board-drop-placeholder`. */
+const STOCK_GAP_HEIGHT = 40;
+
+/**
+ * How many cards below the gap are told to stand aside for it.
+ *
+ * Only the ones the reader can see have to move, and a column shows a handful at a time. Telling
+ * every card below the gap instead is thousands of them on a long column, and each one costs.
+ */
+const CARDS_ASIDE = 30;
+
 /** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
 export const EXPAND_MS = 200;
 import NoteLink from "../../react/NoteLink";
@@ -35,6 +46,7 @@ import CardTemplatePill from "./card_template_pill";
 import { type CardTemplates } from "./card_templates";
 import { DEFAULT_CARD_ICON, DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
 import { openColumnContextMenu, openCreateCardMenu } from "./context_menu";
+import { cardSpacing } from "./drag_measure";
 import { BoardDropStateContext, useDropIndex, useIsDropTarget } from "./drop_state";
 
 interface DragContext {
@@ -184,26 +196,88 @@ export default function Column({
     //
     // A column being carried, and a column changing width, move no card inside any column, so
     // every column is left unmeasured for the length of either.
-    const heldGap = useRef(false);
-    const holdsGap = dropIndex !== null;
-    const justLeftGap = heldGap.current && !holdsGap;
-    heldGap.current = holdsGap;
+    // Measured only when the column's own cards have changed, which is the only thing that moves
+    // them. Anything else that redraws the board, scrolling it sideways above all, would otherwise
+    // have every column read a position for every card it holds.
+    const measured = useRef<unknown>();
+    const cardsChanged = measured.current !== columnItems;
+    measured.current = columnItems;
     useFlip(contentRef, {
         selector: ".board-note",
-        paused: draggedCard
-            ? column !== draggedCard.fromColumn && !holdsGap && !justLeftGap
-            : !!draggedColumn || !!isResizing
+        // Paused where nothing has moved the cards, so the places it knows are still good.
+        paused: !cardsChanged,
+        // Switched off outright for the length of a gesture, which is what makes the commit that
+        // ends one record where the cards landed rather than slide them there: the places it knew
+        // are from before the drag, and a card let go has already been carried to its own.
+        disabled: !!draggedCard || !!draggedColumn || !!isResizing
     });
+
+    // The gap is opened without touching what the column holds. Putting an element among the
+    // cards, taking one out, or carrying one to another place all cost the same: the board
+    // restyles every element it holds, which on a large one is most of a second. Changing the
+    // size of an element that stays put, and moving one that stands outside the flow, cost
+    // nothing, so the gap is a standing element that slides and the cards beside it are
+    // transformed. The cards carry a transform transition already, so the sliding is the
+    // browser's to do.
+    const gapRef = useRef<HTMLDivElement>(null);
+    const roomRef = useRef<HTMLDivElement>(null);
+    /** Which cards were last told to stand aside, so only what changed is written. */
+    const aside = useRef({ from: 0, until: 0, room: 0 });
+    useLayoutEffect(() => {
+        const area = contentRef.current;
+        const gap = gapRef.current;
+        if (!area || !gap) return;
+
+        const cards = area.querySelectorAll<HTMLElement>(".board-note");
+        const height = draggedCard?.height ?? STOCK_GAP_HEIGHT;
+        const room = dropIndex === null ? 0 : height + cardSpacing();
+
+        // Read before anything is written, and `offsetTop` is no business of a transform anyway.
+        if (dropIndex !== null) {
+            const standing = cards[dropIndex];
+            const last = cards[cards.length - 1];
+            const top = standing
+                ? standing.offsetTop
+                : (last ? last.offsetTop + last.offsetHeight + cardSpacing() : 0);
+            gap.style.transform = `translateY(${top}px)`;
+            gap.style.height = `${height}px`;
+        }
+        gap.classList.toggle("show", dropIndex !== null);
+        roomRef.current?.style.setProperty("height", `${room}px`);
+
+        // Once the gap is gone, every card is put back, whichever ones they now are: a drop
+        // reorders the column, so the places that stood aside no longer name the same cards.
+        if (dropIndex === null) {
+            for (const card of cards) {
+                if (card.style.transform) {
+                    card.style.removeProperty("transform");
+                }
+            }
+            aside.current = { from: 0, until: 0, room: 0 };
+            return;
+        }
+
+        const from = dropIndex;
+        const until = Math.min(cards.length, from + CARDS_ASIDE);
+        const last = aside.current;
+        // A step of a drag moves the gap by a card, so only the few cards it passed change what
+        // they are told; the rest of the window is already standing where it should.
+        const afresh = last.room !== room;
+        for (let index = last.from; index < last.until; index++) {
+            if (afresh || index < from || index >= until) {
+                cards[index]?.style.removeProperty("transform");
+            }
+        }
+        for (let index = from; index < until; index++) {
+            if (afresh || index < last.from || index >= last.until) {
+                cards[index].style.transform = `translateY(${room}px)`;
+            }
+        }
+        aside.current = { from, until, room };
+    }, [ dropIndex, draggedCard?.height, columnItems ]);
     const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
         column, columnIndex, columnItems, isEditing, api, parentNote
     });
-
-    // Measured rather than styled: the gap stands for the card being carried, which is whatever
-    // height its own content gave it. A drag from the note tree carries no card, so the stock
-    // height stands.
-    const gapStyle = draggedCard?.height
-        ? { height: `${draggedCard.height}px` }
-        : undefined;
 
     // Read here rather than in the badge: the column body shows an outline as well.
     const isOverLimit = limit !== undefined && (totalCount ?? columnItems?.length ?? 0) > limit;
@@ -537,9 +611,6 @@ export default function Column({
             >
                 {(columnItems ?? []).map(({ note, branch }, index) => (
                     <Fragment key={note.noteId}>
-                        {dropIndex === index && (
-                            <div className="board-drop-placeholder show" style={gapStyle} />
-                        )}
                         {insertBefore?.branchId === branch.branchId && insertField}
                         <Card
                             api={api}
@@ -558,9 +629,10 @@ export default function Column({
                     </Fragment>
                 ))}
                 {insertBefore && !insertBefore.branchId && insertField}
-                {dropIndex === (columnItems?.length ?? 0) && (
-                    <div className="board-drop-placeholder show" style={gapStyle} />
-                )}
+                {/* Both stand here for the length of the board's life: an element appearing
+                    among the cards, or leaving them, is what a drag cannot afford. */}
+                <div ref={gapRef} className="board-drop-placeholder" />
+                <div ref={roomRef} className="board-drop-room" />
             </div>}
 
             {!isCollapsed && <AddNewItem
