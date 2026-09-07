@@ -70,9 +70,8 @@ export function toAreaY(area: HTMLElement, clientY: number): number {
  * What each card measures, kept by note so that a column can be placed against without reading a
  * rectangle for every card in it.
  *
- * A card's height is settled by its content and by the column's width, and a column is a fixed
- * width the reader cannot change, so a height holds until the card itself changes. The one thing
- * that moves it is the width a phone gives a column, which follows the size of the window.
+ * A height holds until the card's own content changes, which {@link measureCards} checks for, or
+ * until the window does, which drops the lot.
  */
 const heights = new Map<string, number>();
 
@@ -96,28 +95,53 @@ export function forgetCardHeights() {
 /**
  * The cards of one column, in the area's content space.
  *
- * A card whose height is already known is placed by counting up from the one above it rather than
- * by reading a rectangle of its own, which on a column of thousands is the whole cost of a drag.
- * One that is not is read and remembered. The dragged card is counted with the rest, so the index
- * this leads to names a place in the list the board holds, which is the list a move is expressed
- * against.
- *
- * The gap the carried card leaves room for stands outside the column's flow, so it displaces no
- * card and none of its room has to be given back: what is measured is the column as it stands.
+ * A card whose height is known is placed by counting up from the one above it rather than by
+ * reading a rectangle of its own, which on a column of thousands is the whole cost of a drag. The
+ * dragged card is counted with the rest, so the index this leads to names a place in the list the
+ * board holds.
  */
-function measureCards(area: HTMLElement | null) {
+function measureCards(area: HTMLElement | null): CardBox[] {
     if (!area) {
         return [];
     }
 
+    const counted = countCards(area, false);
+    const { cards, elements } = counted;
+    const last = cards.length - 1;
+
+    // A card whose title or attributes changed stands a different height, and nothing says so, so
+    // where the last card really is settles whether what was remembered still holds.
+    if (counted.borrowed && last > 0) {
+        const at = elements[last].getBoundingClientRect().top - counted.top;
+        if (Math.abs(at - cards[last].top) > 1) {
+            for (const element of elements) {
+                heights.delete(element.dataset.noteId ?? "");
+            }
+
+            return countCards(area, true).cards;
+        }
+    }
+
+    return cards;
+}
+
+/**
+ * Walks a column's cards, reading what is not known and counting up from what is.
+ *
+ * @param readEvery whether to read every card rather than the first and the unknown ones alone.
+ */
+function countCards(area: HTMLElement, readEvery: boolean) {
     const top = area.getBoundingClientRect().top - area.scrollTop;
     const cards: CardBox[] = [];
+    const elements: HTMLElement[] = [];
     /** Where the next card stands if it has to be counted rather than read. */
     let next = 0;
     /** The foot of the last card read, which the next one read settles the spacing against. */
     let foot: number | undefined;
     /** Whether where the column's cards begin has been read yet. */
     let anchored = false;
+    /** Whether any card's height came from what was remembered rather than from the page. */
+    let borrowed = false;
 
     for (const child of area.children) {
         if (!(child instanceof HTMLElement)) {
@@ -135,9 +159,9 @@ function measureCards(area: HTMLElement | null) {
         // The first card is always read, whatever is known of it: where a column's cards begin is
         // its own, and the ones under it are counted up from there. A card whose height is not
         // known yet is read as well, and remembered.
-        if (height === undefined || !anchored) {
+        if (height === undefined || !anchored || readEvery) {
             const box = child.getBoundingClientRect();
-            height ??= box.height;
+            height = box.height;
             at = box.top - top;
             anchored = true;
             if (noteId && box.height) {
@@ -147,12 +171,15 @@ function measureCards(area: HTMLElement | null) {
                 spacing = at - foot;
             }
             foot = at + height;
+        } else {
+            borrowed = true;
         }
 
         const stands = at ?? next;
         cards.push({ top: stands, height });
+        elements.push(child);
         next = stands + height + (spacing ?? 0);
     }
 
-    return cards;
+    return { cards, elements, borrowed, top };
 }

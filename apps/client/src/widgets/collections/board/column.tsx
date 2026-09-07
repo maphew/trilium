@@ -29,12 +29,11 @@ const HAND_OVER_MS = 2000;
 const STOCK_GAP_HEIGHT = 40;
 
 /**
- * How many cards below the gap are told to stand aside for it.
+ * The least a card can stand, which is one line of its title with the padding and gap around it.
  *
- * Only the ones the reader can see have to move, and a column shows a handful at a time. Telling
- * every card below the gap instead is thousands of them on a long column, and each one costs.
+ * Says how many cards a column can show at once, which is how many below the gap have to move.
  */
-const CARDS_ASIDE = 30;
+const MIN_CARD_HEIGHT = 32;
 
 /** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
 export const EXPAND_MS = 200;
@@ -103,9 +102,8 @@ export default function Column({
     /**
      * How far the column stands aside for one being carried, in pixels.
      *
-     * Written as a transform rather than drawn by putting the carried column's place among the
-     * others: the row is left as it stands for the length of the gesture, so a step of it costs
-     * the browser a transform apiece instead of laying out every card on the board again.
+     * The row keeps its order for the length of the gesture, so a step costs a transform per
+     * column rather than a fresh layout of every card on the board.
      */
     standsAside?: number,
     /** What a new card is made from, and how the reader picks something else. */
@@ -180,25 +178,9 @@ export default function Column({
     const headerRef = useRef<HTMLHeadingElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const scrollFade = useScrollFade(contentRef);
-    // Cards slide to follow the drop gap opening and closing. No card opens out of nothing: one
-    // made in the footer is shown by the scroll to the end and by its fade, and one made among the
-    // others takes the place its field was standing in.
-    //
-    // While a card is carried, the cards that move are those of the column it came from, the one
-    // the gap stands in, and the one it has just left, whose cards close up behind it. Every other
-    // column is left unmeasured, measuring one costing a layout of the whole board; paused rather
-    // than switched off, so a column the gap reaches in one step still knows where its cards stood
-    // and slides them from there.
-    //
-    // Just left, rather than ever held: a column keeps whatever it last measured, so one the gap
-    // passed through earlier has nothing more to say. Kept on, a column of thousands measures
-    // again every time anything redraws the board for the rest of the gesture.
-    //
-    // A column being carried, and a column changing width, move no card inside any column, so
-    // every column is left unmeasured for the length of either.
-    // Measured only when the column's own cards have changed, which is the only thing that moves
-    // them. Anything else that redraws the board, scrolling it sideways above all, would otherwise
-    // have every column read a position for every card it holds.
+    // Cards slide to follow the drop gap opening and closing. Measured only when the column's own
+    // cards have changed: reading one position costs a layout of the whole board, and anything
+    // else that redraws it would have every column read one per card.
     const measured = useRef<unknown>();
     const cardsChanged = measured.current !== columnItems;
     measured.current = columnItems;
@@ -206,19 +188,13 @@ export default function Column({
         selector: ".board-note",
         // Paused where nothing has moved the cards, so the places it knows are still good.
         paused: !cardsChanged,
-        // Switched off outright for the length of a gesture, which is what makes the commit that
-        // ends one record where the cards landed rather than slide them there: the places it knew
-        // are from before the drag, and a card let go has already been carried to its own.
+        // Off for the length of a gesture, so the commit that ends one records where the cards
+        // landed rather than sliding them there.
         disabled: !!draggedCard || !!draggedColumn || !!isResizing
     });
 
-    // The gap is opened without touching what the column holds. Putting an element among the
-    // cards, taking one out, or carrying one to another place all cost the same: the board
-    // restyles every element it holds, which on a large one is most of a second. Changing the
-    // size of an element that stays put, and moving one that stands outside the flow, cost
-    // nothing, so the gap is a standing element that slides and the cards beside it are
-    // transformed. The cards carry a transform transition already, so the sliding is the
-    // browser's to do.
+    // The gap is a standing element that slides, and the cards beside it are transformed: putting
+    // one among the cards, or taking one out, restyles every element the board holds.
     const gapRef = useRef<HTMLDivElement>(null);
     const roomRef = useRef<HTMLDivElement>(null);
     /** Whether a card was being carried at the previous commit. */
@@ -226,9 +202,8 @@ export default function Column({
     /** Which cards were last told to stand aside, so only what changed is written. */
     const aside = useRef({ from: 0, until: 0, room: 0 });
     useLayoutEffect(() => {
-        // The two commits a drag opens and closes on. A card is drawn in either one in the place
-        // its own transform already had it, so easing would slide it from somewhere it never
-        // stood; every commit in between moves the cards for real and eases as usual.
+        // The commits a drag opens and closes on, where a card is already standing where it is
+        // being drawn. Every commit in between moves the cards for real and eases as usual.
         const atOnce = carried.current !== !!draggedCard;
         carried.current = !!draggedCard;
 
@@ -239,6 +214,9 @@ export default function Column({
         const cards = area.querySelectorAll<HTMLElement>(".board-note");
         const height = draggedCard?.height ?? STOCK_GAP_HEIGHT;
         const room = dropIndex === null ? 0 : height + cardSpacing();
+        // Read with the places below, before anything is written: every card the column can show
+        // moves, and the ones past its foot are left alone whatever it holds.
+        const reach = Math.ceil(area.clientHeight / MIN_CARD_HEIGHT) + 1;
 
         // Read before anything is written, and `offsetTop` is no business of a transform anyway.
         if (dropIndex !== null) {
@@ -266,7 +244,7 @@ export default function Column({
         }
 
         const from = dropIndex;
-        const until = Math.min(cards.length, from + CARDS_ASIDE);
+        const until = Math.min(cards.length, from + reach);
         const last = aside.current;
         // A step of a drag moves the gap by a card, so only the few cards it passed change what
         // they are told; the rest of the window is already standing where it should.
@@ -309,9 +287,8 @@ export default function Column({
     /**
      * Whether the cards have been drawn, which they stay once they have been.
      *
-     * A column collapsed when the board opens draws none of them, so a reader who keeps a long one
-     * closed pays nothing for it. Past the first open they are held in the page and hidden rather
-     * than taken out, closing costing a fraction of what building them again does.
+     * A column collapsed when the board opens draws none of them; past the first open they are
+     * hidden rather than taken out, which is what makes closing one cheap.
      */
     const [ isDrawn, setIsDrawn ] = useState(!isCollapsed);
     if (!isDrawn && !isCollapsed) {
@@ -673,12 +650,11 @@ export default function Column({
 /**
  * Puts a card where a transform says, easing it there unless the board is drawing a still frame.
  *
- * A still frame is one the board draws an element in the place its own transform already had it,
- * which is what a drag's lift and its drop both are. The transition is suppressed on the card
- * rather than by a rule under the board's own class: such a rule matches every card on the board,
- * and Chrome restyles all of them for the few that move.
+ * Suppressed on the card rather than by a rule under the board's own class, which would match
+ * every card on it.
  *
  * @param transform what to write, or `null` to put the card back where the column draws it.
+ * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
  */
 export function placeCard(card: HTMLElement, transform: string | null, atOnce: boolean) {
     if (atOnce) {
@@ -692,19 +668,27 @@ export function placeCard(card: HTMLElement, transform: string | null, atOnce: b
         card.style.transform = transform;
     }
 
-    if (!atOnce || restoring !== undefined) {
+    if (!atOnce) {
         return;
+    }
+
+    // Started afresh on every call: a lift and the drop that follows it a frame later would
+    // otherwise be put back on the first one's schedule, before the drop has been drawn.
+    if (restoring !== undefined) {
+        cancelAnimationFrame(restoring);
     }
 
     // Put back a frame later than the one that draws them, since a frame's callbacks run before
     // the styles it paints are worked out.
-    restoring = requestAnimationFrame(() => requestAnimationFrame(() => {
-        restoring = undefined;
-        for (const held of settling) {
-            held.style.removeProperty("transition");
-        }
-        settling.clear();
-    }));
+    restoring = requestAnimationFrame(() => {
+        restoring = requestAnimationFrame(() => {
+            restoring = undefined;
+            for (const held of settling) {
+                held.style.removeProperty("transition");
+            }
+            settling.clear();
+        });
+    });
 }
 
 /** The cards whose transition is suppressed, waiting for the frame that puts it back. */

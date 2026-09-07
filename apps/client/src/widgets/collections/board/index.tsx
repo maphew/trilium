@@ -592,10 +592,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // card's own dimming are drawn from one place whichever brought the card here.
     const { isDragging: isDraggingItem, remeasure } = useBoardDrag(containerRef, {
         onCardStart: (card) => {
-            // The card leaves the flow as it is lifted, and the gap opens in its place by pushing
-            // the cards below it down again. Under their transition that reads as the column
-            // closing up and then sliding back open, so the frame the gap opens in runs without
-            // one and the column is left looking untouched.
+            // The card leaves the flow and the gap opens in its place, which eased would read as
+            // the column closing up and sliding back open.
             holdStill();
             setDraggedCard({
                 noteId: card.noteId,
@@ -616,9 +614,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             }
         },
         onCardEnd: (card, position) => {
-            // The cards below the gap carry a `translateY` that the drop replaces with the layout
-            // the reorder gives them. Cleared under their transition, they slide up from a place
-            // they never stood in, so the frame the new order is drawn in runs without one.
+            // The reorder gives the cards below the gap the layout their `translateY` was
+            // standing in for, so clearing it under a transition would slide them up.
             holdStill();
             // Put back here rather than left to the columns to draw: the board is about to move a
             // card, hide the gap and close the room it took, and if those reach the screen in
@@ -766,19 +763,28 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
     /**
-     * Draws the next frame without transitions.
+     * Draws the next frame without transitions, for the lift and the drop, where every element is
+     * already standing where it is about to be drawn.
      *
-     * A drag opens its gap with transforms, and the board draws the elements those transforms
-     * already moved: at the lift the gap replaces the card that has left the flow, and at the drop
-     * the reorder replaces the gap. Eased, each element would set off from a place it never stood
-     * in. Taken off a frame later than the one that draws it, since a frame's callbacks run before
-     * the styles it paints are worked out.
+     * Let go a frame later than the one that draws it, a frame's callbacks running before the
+     * styles it paints are worked out.
      */
+    const stillFor = useRef<number>();
     const holdStill = useCallback(() => {
         const container = containerRef.current;
         container?.classList.add("board-still");
-        requestAnimationFrame(() => requestAnimationFrame(
-            () => container?.classList.remove("board-still")));
+        // Started afresh on every call: a lift and the drop that follows it a frame later would
+        // otherwise be let go on the first one's schedule, before the drop has been drawn.
+        if (stillFor.current !== undefined) {
+            cancelAnimationFrame(stillFor.current);
+        }
+
+        stillFor.current = requestAnimationFrame(() => {
+            stillFor.current = requestAnimationFrame(() => {
+                stillFor.current = undefined;
+                container?.classList.remove("board-still");
+            });
+        });
     }, []);
 
     const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
@@ -978,10 +984,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
  * Puts every card back where the column draws it, closes every gap and gives back the room they
  * took.
  *
- * The columns do this for themselves as they are drawn, but a drop moves a card, hides a gap and
- * closes its room in one go, and those reaching the screen in separate frames is a gap the reader
- * sees open where nothing is being carried. Done here first, the board is already tidy whichever
- * way the drawing falls.
+ * The columns do this for themselves as they are drawn, but a drop is three changes at once and
+ * the reader sees a gap standing open if they reach the screen in separate frames.
  */
 function closeGaps(container: HTMLElement | null) {
     if (!container) {

@@ -109,20 +109,44 @@ describe("measureBoard", () => {
         expect(measureBoard(buildBoard({ areaScrollTop: 90 })).columns[0].cards).toEqual(expected);
     });
 
-    it("reads one card per column once it knows what the rest of them measure", () => {
+    it("reads the ends of a column once it knows what the cards between them measure", () => {
         const board = buildBoard({ cardCounts: [ 3, 2 ] });
         const expected = measureBoard(board).columns.map((column) => column.cards);
 
-        let reads = 0;
-        for (const note of board.querySelectorAll<HTMLElement>(".board-note")) {
-            const box = note.getBoundingClientRect.bind(note);
-            note.getBoundingClientRect = () => { reads++; return box(); };
-        }
+        const count = () => {
+            let reads = 0;
+            for (const note of board.querySelectorAll<HTMLElement>(".board-note")) {
+                const box = note.getBoundingClientRect.bind(note);
+                note.getBoundingClientRect = () => { reads++; return box(); };
+            }
 
-        // Where a column's cards begin is still its own to say, so the first of them is read.
-        // The four under it are placed by counting up from it instead.
+            return () => reads;
+        };
+
+        // Where a column's cards begin is still its own to say, so the first of them is read, and
+        // the last says whether counting up from it still lands where the column does. The one
+        // between them is placed by the count alone.
+        let reads = count();
         expect(measureBoard(board).columns.map((column) => column.cards)).toEqual(expected);
-        expect(reads).toBe(2);
+        expect(reads()).toBe(4);
+    });
+
+    /**
+     * Nothing announces that a card stands taller than it did: a title can grow a line and an
+     * attribute can be promoted onto it while the board is open.
+     */
+    it("reads every card again once what it remembers no longer lands where the column does", () => {
+        const board = buildBoard({ cardCounts: [ 3 ] });
+        measureBoard(board);
+
+        // The middle card grows, which moves the one under it. Counting up from the first would
+        // put both of them 20px short, the height it remembers for the middle one being the old.
+        const cards = board.querySelectorAll<HTMLElement>(".board-note");
+        place(cards[1], { left: 0, top: 90, width: 100, height: 80 });
+        place(cards[2], { left: 0, top: 180, width: 100, height: 50 });
+
+        expect(measureBoard(board).columns[0].cards)
+            .toEqual([ { top: 10, height: 50 }, { top: 70, height: 80 }, { top: 160, height: 50 } ]);
     });
 
     it("hands back each column's card area, and counts a column holding none", () => {

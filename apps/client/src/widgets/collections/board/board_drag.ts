@@ -362,25 +362,7 @@ export function useBoardDrag(
             }
         };
 
-        /**
- * Where the columns stood before the carried one was taken out of the row, which is what the board
- * places the gap and the columns that step aside for it against.
- */
-function row(held: Gesture & { kind: "column" }) {
-    const boxes = held.measurement?.columns ?? [];
-    const last = boxes[boxes.length - 1];
-    // Read off the row rather than from the stylesheet: what stands between two columns is the
-    // same everywhere, and one pair is enough to say how much.
-    const gap = boxes.length > 1 ? boxes[1].left - (boxes[0].left + boxes[0].width) : 0;
-    const lefts = boxes.map(({ left }) => left);
-    if (last) {
-        lefts.push(last.left + last.width + gap);
-    }
-
-    return { lefts, stride: (boxes[held.index]?.width ?? 0) + gap };
-}
-
-/** Set between a tap and the `touchend` the browser would make mouse events from. */
+        /** Set between a tap and the `touchend` the browser would make mouse events from. */
         let justTapped = false;
 
         const onTouchEnd = (event: TouchEvent) => {
@@ -469,6 +451,24 @@ function row(held: Gesture & { kind: "column" }) {
     }, [ container ]);
 
     return { isDragging, remeasure };
+}
+
+/**
+ * Where the columns stood before the carried one was taken out of the row, which is what the board
+ * places the gap and the columns that step aside for it against.
+ */
+function row(held: Gesture & { kind: "column" }) {
+    const boxes = held.measurement?.columns ?? [];
+    const last = boxes[boxes.length - 1];
+    // Read off the row rather than from the stylesheet: what stands between two columns is the
+    // same everywhere, and one pair is enough to say how much.
+    const gap = boxes.length > 1 ? boxes[1].left - (boxes[0].left + boxes[0].width) : 0;
+    const lefts = boxes.map(({ left }) => left);
+    if (last) {
+        lefts.push(last.left + last.width + gap);
+    }
+
+    return { lefts, stride: (boxes[held.index]?.width ?? 0) + gap };
 }
 
 /**

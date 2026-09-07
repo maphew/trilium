@@ -519,9 +519,8 @@ body.mobile .board-view-container .board-add-column {
   overscroll-behavior-y: contain;
   /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
   position: relative;
-  /* Pinned rather than left to stretch: a column animates its own width open, and a body that
-     follows it lays out every card in it on every frame, their titles rewrapping as it grows.
-     Matches the column's content box, so a column standing still is drawn no differently. */
+  /* Pinned rather than left to stretch, a body that follows the column's width laying out every
+     card in it on each frame of an open. Matches the column's content box. */
   width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
@@ -742,9 +741,8 @@ body.mobile .board-view-container .board-add-column {
   }
 }
 
-/* Outside the column's flow and standing there for good. Carrying it into the cards, or out of
-   them, is a change to what the column holds, and the board restyles every element it holds for
-   that; sliding it instead costs nothing. */
+/* Outside the column's flow and standing there for good: carrying it into the cards, or out of
+   them, restyles every element the board holds. */
 .board-drop-placeholder {
   position: absolute;
   /* It stands over the cards whether it is showing or not, and a press belongs to the card under
@@ -771,8 +769,7 @@ body.mobile .board-view-container .board-add-column {
 }
 
 /* The room the gap takes out of the column, so it still scrolls past its last card while one is
-   held there. It stands in the flow at no height, and is given one for as long as the gap needs
-   it: growing an element that stays put costs nothing, where adding one does not. */
+   held there. Grown from nothing rather than added, an element that stays put costing nothing. */
 .board-drop-room {
   height: 0;
   flex-shrink: 0;
@@ -922,9 +919,8 @@ body.mobile .column-drop-placeholder {
   overflow: hidden;
 }
 
-/* The cards stay in the page while the column is a strip, and this is what stops them being drawn.
-   Taking them out instead costs a quarter of a second to close and over a second to open, both of
-   which land on the frames the width is animating across. */
+/* What stops a strip's cards being drawn while they stay in the page. Taking them out instead
+   lands on the frames the width is animating across. */
 .board-view-container .board-column.collapsed > .board-column-content {
   content-visibility: hidden;
 }
@@ -952,15 +948,10 @@ body.mobile .column-drop-placeholder {
     width var(--board-expand-duration) ease;
 }
 
-/* The one frame the board is drawn in as a drag lifts something or lets it go. What the drag
-   carried aside by a transform already stands where the gap, or the new order, puts it, so the
-   transform has nothing left to ease: given a transition it would carry the element a full width,
-   or a column's width, from a place it never stood in. The gap is included so that it takes the
-   place of the card at once rather than fading into it. Written against the selectors above, which
-   it has to outweigh.
-
-   The cards are left out: a rule here reaches every one of them, and Chrome restyles all of them
-   for the few that move. `placeCard` writes this on those few instead. */
+/* The one frame the board is drawn in as a drag lifts something or lets it go, where everything
+   already stands where it is about to be drawn. Written against the selectors above, which it has
+   to outweigh. The cards are left out, a rule here reaching every one of them: `placeCard` writes
+   the same thing on the few that move. */
 .board-view-container.board-still .board-drop-placeholder,
 .board-view-container.board-still .board-column,
 .board-view-container.board-still .board-column.collapsed:not(.board-drag-preview),
@@ -991,9 +982,8 @@ body.mobile .column-drop-placeholder {
   width: calc(var(--board-column-width) - 2 * var(--board-column-border-width));
 }
 
-/* The heading stays where it is, and is revealed with the column; only the cards wait. Hidden by
-   one property on the body that scrolls them rather than by one on each card: a rule reaching
-   every card restyles the whole column. */
+/* The heading is revealed with the column; only the cards wait. Hidden by one property on the
+   body that scrolls them, a rule reaching every card restyling the whole column. */
 .board-view-container .board-column.expanding > .board-column-content,
 .board-view-container .board-column.expanding > .board-new-item {
   opacity: 0;
