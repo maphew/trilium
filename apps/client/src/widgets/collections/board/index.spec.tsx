@@ -3567,6 +3567,42 @@ describe("a column that sorts its cards", () => {
         expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
     });
 
+    it("reorders the column as soon as the sort is picked from its menu", async () => {
+        const { board } = await renderSortedBoard({});
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-text");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+
+        await pickSort(board, "bx bx-sort-down");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-move-vertical");
+        expect(saved.at(-1)?.columns?.[0]).toStrictEqual({ value: "To Do", descendingOrder: true });
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    /** Opens the first column's menu and picks the sort entry carrying the given icon. */
+    async function pickSort(board: HTMLElement, icon: string) {
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        board.querySelector(".board-column h3")
+            ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        const sort = (show.mock.calls.at(-1)?.[0].items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === "bx bx-sort-alt-2");
+        if (!sort || !("items" in sort)) throw new Error("expected a sort entry");
+
+        const entry = (sort.items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === icon);
+        if (!entry || !("handler" in entry)) throw new Error(`expected a ${icon} entry`);
+
+        await act(async () => {
+            entry.handler?.(entry, {} as never);
+            await flush();
+        });
+        show.mockRestore();
+    }
+
     /** The note row a rename produces, which is what the card reads its new title from. */
     function noteRenamed(noteId: string, title: string) {
         const results = new LoadResults([ {

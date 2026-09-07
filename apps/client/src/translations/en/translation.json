@@ -3504,7 +3504,13 @@
     },
     "status-alias": "Status",
     "filter-placeholder": "Filter board...",
-    "card-outside-filter": "This card is outside of the current filtering scope"
+    "card-outside-filter": "This card is outside of the current filtering scope",
+    "sort": "Sort",
+    "sort-manually": "Manually",
+    "sort-by-title": "Title",
+    "sort-by-creation-date": "Creation date & time",
+    "sort-ascending": "Ascending",
+    "sort-descending": "Descending"
   },
   "dashboard_view": {
     "refresh-widget": "Refresh",

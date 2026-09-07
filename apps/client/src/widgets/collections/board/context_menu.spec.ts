@@ -7,6 +7,7 @@ import contextMenu, { ContextMenuEvent, MenuItem } from "../../../menus/context_
 import branches from "../../../services/branches";
 import dialog from "../../../services/dialog";
 import FNote from "../../../entities/fnote";
+import type { PromotedAttribute } from "../promoted_attributes";
 import { buildNote } from "../../../test/easy-froca";
 import BoardApi from "./api";
 import { DEFAULT_COLUMN_ICON } from "./columns";
@@ -54,8 +55,13 @@ describe("Board column context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every column menu asks what a column is called; a test says so only when that matters.
-        const withDefaults = Object.assign({ getColumnTitle: (name: string) => name }, api);
+        // Every column menu asks what a column is called, how it is sorted and what it can sort
+        // by; a test answers only where that is what it is about.
+        const withDefaults = Object.assign({
+            getColumnTitle: (name: string) => name,
+            getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+            getPromotedAttributes: () => []
+        }, api);
         openColumnContextMenu(withDefaults, event, {
             value: "To Do",
             columns: [ "To Do" ],
@@ -224,7 +230,8 @@ describe("Board column context menu", () => {
             .toEqual([
                 "bx bx-edit-alt", "bx bx-collapse-horizontal", "bx bx-lock-alt", "bx bx-tachometer",
                 "bx bx-plus", "bx bx-link",
-                "bx bx-columns", "bx bx-horizontal-left", "bx bx-archive", "bx bx-trash"
+                "bx bx-columns", "bx bx-sort-alt-2", "bx bx-horizontal-left", "bx bx-archive",
+                "bx bx-trash"
             ]);
     });
 
@@ -387,6 +394,125 @@ describe("Board column context menu", () => {
 
         await act(async () => picker.querySelector<HTMLElement>(".color-cell-reset")?.click());
         expect(api.setColumnColor).toHaveBeenLastCalledWith("To Do", null);
+    });
+
+    describe("the sort submenu", () => {
+        function sortApi(
+            sort: { orderBy?: string, isDescending?: boolean } = {},
+            attributes: Partial<PromotedAttribute>[] = []
+        ) {
+            return {
+                getColumnSort: () => ({ isDescending: false, ...sort }),
+                getPromotedAttributes: () => attributes,
+                setColumnSort: vi.fn(),
+                setColumnSortDirection: vi.fn()
+            } as unknown as BoardApi;
+        }
+
+        function sortItems(api: BoardApi) {
+            const entry = openMenu(api)
+                .find(item => item && "uiIcon" in item && item.uiIcon === "bx bx-sort-alt-2");
+            if (!entry || !("items" in entry)) throw new Error("expected a sort entry");
+            return entry.items ?? [];
+        }
+
+        const titles = (items: MenuItem<unknown>[]) =>
+            items.map(item => (item && "title" in item ? item.title : "separator"));
+
+        // i18next is never initialised under test, so the entries are read by their icons.
+        const icons = (items: MenuItem<unknown>[]) =>
+            items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator"));
+
+        it("offers the manual order, the two built-in keys and the direction", () => {
+            expect(icons(sortItems(sortApi()))).toEqual([
+                "bx bx-move-vertical",
+                "bx bx-text",
+                "bx bx-calendar-plus",
+                "separator",
+                "bx bx-sort-up",
+                "bx bx-sort-down"
+            ]);
+        });
+
+        it("checks the manual order while the column keeps it, and offers no direction", () => {
+            const items = sortItems(sortApi());
+
+            expect(items[0]).toMatchObject({ trailingIcon: "bx bx-check" });
+            expect(items[1]).toMatchObject({ trailingIcon: undefined });
+            expect(items.at(-2)).toMatchObject({ enabled: false, trailingIcon: undefined });
+            expect(items.at(-1)).toMatchObject({ enabled: false, trailingIcon: undefined });
+        });
+
+        it("checks the key the column sorts by, and the direction it sorts in", () => {
+            const ascending = sortItems(sortApi({ orderBy: "title" }));
+            expect(ascending[0]).toMatchObject({ trailingIcon: undefined });
+            expect(ascending[1]).toMatchObject({ trailingIcon: "bx bx-check" });
+            expect(ascending.at(-2)).toMatchObject({ enabled: true, trailingIcon: "bx bx-check" });
+            expect(ascending.at(-1)).toMatchObject({ enabled: true, trailingIcon: undefined });
+
+            const descending = sortItems(sortApi({ orderBy: "title", isDescending: true }));
+            expect(descending.at(-2)).toMatchObject({ trailingIcon: undefined });
+            expect(descending.at(-1)).toMatchObject({ trailingIcon: "bx bx-check" });
+        });
+
+        it("lists the promoted attributes under the built-in keys, each with its own icon", () => {
+            const items = sortItems(sortApi({ orderBy: "attr:owner" }, [
+                { name: "dueDate", title: "Due date", type: "label", labelType: "date" },
+                { name: "owner", title: "Owner", type: "relation" }
+            ]));
+
+            expect(titles(items).slice(3, 5)).toEqual([
+                `<span class="board-column-name">Due date</span>`,
+                `<span class="board-column-name">Owner</span>`
+            ]);
+            expect(items[3]).toMatchObject({
+                uiIcon: "bx bx-calendar", className: "board-column-item", trailingIcon: undefined
+            });
+            expect(items[4]).toMatchObject({
+                uiIcon: "bx bx-transfer", trailingIcon: "bx bx-check"
+            });
+        });
+
+        it("escapes what a crafted attribute name would plant in the menu", () => {
+            const items = sortItems(sortApi({}, [
+                { name: "x", title: `<img src=x onerror="alert(1)">`, type: "label" }
+            ]));
+
+            expect(items[3] && "title" in items[3] ? items[3].title : "")
+                .toBe("<span class=\"board-column-name\">"
+                    + "&lt;img src&#x3D;x onerror&#x3D;&quot;alert(1)&quot;&gt;</span>");
+        });
+
+        it("writes the key a pick names, and clears it back to the manual order", () => {
+            const api = sortApi(
+                { orderBy: "title" }, [ { name: "dueDate", title: "Due date", type: "label" } ]);
+            const items = sortItems(api);
+
+            pick(items[2]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("To Do", "creationDate");
+
+            pick(items[3]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("To Do", "attr:dueDate");
+
+            pick(items[0]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("To Do", undefined);
+        });
+
+        it("writes the direction a pick names", () => {
+            const api = sortApi({ orderBy: "title" });
+            const items = sortItems(api);
+
+            pick(items.at(-1));
+            expect(api.setColumnSortDirection).toHaveBeenCalledWith("To Do", true);
+
+            pick(items.at(-2));
+            expect(api.setColumnSortDirection).toHaveBeenCalledWith("To Do", false);
+        });
+
+        function pick(item: MenuItem<unknown> | undefined) {
+            if (!item || !("handler" in item)) throw new Error("expected a menu entry");
+            item.handler?.(item, {} as never);
+        }
     });
 });
 
