@@ -922,6 +922,13 @@ body.mobile .column-drop-placeholder {
   overflow: hidden;
 }
 
+/* The cards stay in the page while the column is a strip, and this is what stops them being drawn.
+   Taking them out instead costs a quarter of a second to close and over a second to open, both of
+   which land on the frames the width is animating across. */
+.board-view-container .board-column.collapsed > .board-column-content {
+  content-visibility: hidden;
+}
+
 /* Width and not a transform: the columns beside it have to move with it. The copy being carried is
    left out, or it would ease towards each frame's position instead of taking it: its `transition:
    none` above carries no more weight than this rule and stands above it in the file. */

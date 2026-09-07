@@ -306,6 +306,18 @@ export default function Column({
      * Unpainted rather than undrawn: the board focuses the card a keyboard open steps onto, and a
      * card that is not there yet is one it cannot hand focus to.
      */
+    /**
+     * Whether the cards have been drawn, which they stay once they have been.
+     *
+     * A column collapsed when the board opens draws none of them, so a reader who keeps a long one
+     * closed pays nothing for it. Past the first open they are held in the page and hidden rather
+     * than taken out, closing costing a fraction of what building them again does.
+     */
+    const [ isDrawn, setIsDrawn ] = useState(!isCollapsed);
+    if (!isDrawn && !isCollapsed) {
+        setIsDrawn(true);
+    }
+
     const [ isExpanding, setIsExpanding ] = useState(false);
     const [ wasCollapsed, setWasCollapsed ] = useState(isCollapsed);
     if (wasCollapsed !== isCollapsed) {
@@ -614,7 +626,7 @@ export default function Column({
                 </>)}
             </h3>
 
-            {!isCollapsed && <div
+            {isDrawn && <div
                 ref={contentRef}
                 className={clsx("board-column-content", scrollFade.className)}
                 style={scrollFade.style}

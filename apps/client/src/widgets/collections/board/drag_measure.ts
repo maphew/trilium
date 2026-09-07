@@ -30,7 +30,11 @@ export function measureBoard(container: HTMLElement, withCards = true): BoardMea
     for (const element of drawn) {
         const value = element.dataset.column ?? "";
         const rect = element.getBoundingClientRect();
-        const area = element.querySelector<HTMLElement>(".board-column-content");
+        // A strip holds its cards in the page but draws none of them: they measure nothing, and a
+        // card carried over one goes to the front of whatever it holds.
+        const area = element.classList.contains("collapsed")
+            ? null
+            : element.querySelector<HTMLElement>(".board-column-content");
 
         if (area) {
             areas.set(value, area);

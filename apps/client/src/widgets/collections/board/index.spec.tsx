@@ -271,8 +271,12 @@ describe("Collapsed board columns", () => {
     const isCollapsed = (container: HTMLElement, index: number) =>
         columnAt(container, index).classList.contains("collapsed");
 
+    // How many cards the column draws. A strip holds its own in the page without drawing them,
+    // which is what the reader sees and what the keyboard and a drag both go by.
     const cardCount = (container: HTMLElement, index: number) =>
-        columnAt(container, index).querySelectorAll(".board-note").length;
+        isCollapsed(container, index)
+            ? 0
+            : columnAt(container, index).querySelectorAll(".board-note").length;
 
     /** Selects a column the way a click on it does, press and release included. */
     async function select(container: HTMLElement, index: number) {
@@ -301,6 +305,8 @@ describe("Collapsed board columns", () => {
         expect(cardCount(mountPoint, 0)).toBe(0);
         // The count is what the strip reports in place of the cards.
         expect(columnAt(mountPoint, 0).querySelector(".counter-badge")?.textContent).toBe("2");
+        // Never drawn at all, so a reader who keeps a long column closed pays nothing for it.
+        expect(columnAt(mountPoint, 0).querySelector(".board-column-content")).toBeNull();
 
         // Every other column is untouched.
         expect(isCollapsed(mountPoint, 1)).toBe(false);
@@ -317,6 +323,10 @@ describe("Collapsed board columns", () => {
         await select(mountPoint, 1);
         expect(isCollapsed(mountPoint, 0)).toBe(true);
         expect(cardCount(mountPoint, 0)).toBe(0);
+        // Held in the page once they have been drawn once, the stylesheet keeping them off the
+        // screen: taking them out again is what makes a column of thousands close in three frames.
+        expect(columnAt(mountPoint, 0)
+            .querySelectorAll(":scope > .board-column-content > .board-note")).toHaveLength(2);
     });
 
     /**

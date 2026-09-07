@@ -578,5 +578,10 @@ function columnsOf(container: HTMLElement) {
 }
 
 function cardsOf(column: Element | undefined) {
-    return column ? [ ...column.querySelectorAll<HTMLElement>(".board-note") ] : [];
+    // A strip holds its cards in the page but draws none of them, so it offers none to walk onto.
+    if (!column || column.classList.contains("collapsed")) {
+        return [];
+    }
+
+    return [ ...column.querySelectorAll<HTMLElement>(".board-note") ];
 }

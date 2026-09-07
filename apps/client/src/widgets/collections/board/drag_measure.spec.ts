@@ -134,7 +134,22 @@ describe("measureBoard", () => {
         expect(areas.get("To Do")).toBe(board.querySelector(".board-column-content"));
     });
 
-    /** A collapsed column draws no card area at all. */
+    /**
+     * A strip holds its cards in the page without drawing any of them, so there is nothing in it
+     * to place a card against and a card carried over one goes to the front of what it holds.
+     */
+    it("counts a collapsed column as holding no cards, whatever it holds", () => {
+        const board = buildBoard({ cardCounts: [ 3, 1 ] });
+        board.querySelector(".board-column")?.classList.add("collapsed");
+
+        const { columns, areas } = measureBoard(board);
+
+        expect(board.querySelectorAll(".board-column")[0].querySelectorAll(".board-note"))
+            .toHaveLength(3);
+        expect(columns[0].cards).toEqual([]);
+        expect(areas.has("To Do")).toBe(false);
+    });
+
     it("counts a column with no card area as holding no cards", () => {
         const board = buildBoard();
         board.querySelector(".board-column-content")?.remove();
