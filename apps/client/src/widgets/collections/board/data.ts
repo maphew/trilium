@@ -6,6 +6,7 @@ import {
     DEFAULT_SORT, parseStoredSortKey, sortedAttributeName, sortItems, type SortContext,
     type SortKey
 } from "../sorting";
+import { readColumns, writeColumns } from "./column_storage";
 import { INBOX_COLUMN, resolveBoardColumns } from "./columns";
 import { BoardColumnData, BoardViewData } from "./index";
 
@@ -237,7 +238,8 @@ export async function getBoardData(
     inboxEnabled = false
 ) {
     const byColumn: ColumnMap = new Map();
-    const storedColumnValues = (persistedData.columns ?? []).map(c => c.value);
+    const storedColumns = readColumns(persistedData, groupByColumn) ?? [];
+    const storedColumnValues = storedColumns.map(c => c.value);
     // Turning the inbox on adds it to the board, at the front. After that the entry belongs to
     // the config: it keeps its icon, colour and position, and turning the inbox off leaves it in
     // place.
@@ -248,7 +250,7 @@ export async function getBoardData(
     // Only a board with an inbox has somewhere to put an unassigned note; on any other board such
     // a note is not shown at all, as before.
     const inbox = inboxEnabled
-        ? { nested: !!persistedData.columns?.find(col => col.value === INBOX_COLUMN)?.nested }
+        ? { nested: !!storedColumns.find(col => col.value === INBOX_COLUMN)?.nested }
         : undefined;
 
     // First, scan all notes to find what columns actually exist
@@ -282,17 +284,15 @@ export async function getBoardData(
     // or every refresh would save.
     const hasChanges = storedColumnValues.length !== columns.length
         || storedColumnValues.some((value, index) => columns[index] !== value);
-    const storedColumns = indexColumnsByResolvedName(persistedData, pendingRenames);
+    const byResolvedName = indexColumnsByResolvedName(storedColumns, pendingRenames);
 
     return {
         byColumn,
         columns,
         settledRenames,
         newPersistedData: hasChanges
-            ? {
-                ...persistedData,
-                columns: columns.map(value => storedColumns.get(value) ?? { value })
-            }
+            ? writeColumns(persistedData, groupByColumn,
+                columns.map(value => byResolvedName.get(value) ?? { value }))
             : undefined,
         isInRelationMode: groupByColumn.startsWith("~")
     };
@@ -306,12 +306,12 @@ export async function getBoardData(
  * to the new name, the same substitution {@link resolveBoardColumns} makes.
  */
 function indexColumnsByResolvedName(
-    persistedData: BoardViewData,
+    storedColumns: BoardColumnData[],
     pendingRenames: ReadonlyMap<string, string | undefined>
 ) {
     const byName = new Map<string, BoardColumnData>();
 
-    for (const column of persistedData.columns ?? []) {
+    for (const column of storedColumns) {
         const { value } = column;
         const name = pendingRenames.has(value) ? pendingRenames.get(value) : value;
         if (name !== undefined) {

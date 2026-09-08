@@ -3518,6 +3518,7 @@
     },
     "status-alias": "Status",
     "filter-placeholder": "Filter board...",
+    "group-by": "Group cards by",
     "card-outside-filter": "This card is outside of the current filtering scope",
     "sort": "Sort",
     "sort-manually": "Manually",

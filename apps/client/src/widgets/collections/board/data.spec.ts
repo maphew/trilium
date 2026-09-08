@@ -654,6 +654,64 @@ function titles(map: ColumnMap, column: string) {
     return (map.get(column) ?? []).map(({ note }) => note.title);
 }
 
+describe("getBoardData column storage", () => {
+    /** A board whose cards carry both a `status` and a `priority`. */
+    function twoGroupings() {
+        return buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { title: "First", "#status": "To Do", "#priority": "High", "#severity": "Minor" },
+                { title: "Second", "#status": "Done", "#priority": "Low", "#severity": "Major" }
+            ]
+        });
+    }
+
+    const config = {
+        columns: [ { value: "Done" }, { value: "To Do" } ],
+        priorityViewColumns: [ { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" } ]
+    };
+
+    it("takes the order and the icons of the grouping it is reading", async () => {
+        const board = twoGroupings();
+
+        const byStatus = await getBoardData(board, "status", config, false);
+        const byPriority = await getBoardData(board, "priority", config, false);
+
+        expect(byStatus.columns).toEqual([ "Done", "To Do" ]);
+        expect(byPriority.columns).toEqual([ "Low", "High" ]);
+    });
+
+    it("writes a resolved list under its key, keeping the other grouping's", async () => {
+        const board = twoGroupings();
+
+        // Nothing is stored for `severity`, so the values the cards carry make the columns.
+        const { newPersistedData } = await getBoardData(
+            board, "severity", config, false);
+
+        expect(newPersistedData?.severityViewColumns)
+            .toEqual([ { value: "Minor" }, { value: "Major" } ]);
+        expect(newPersistedData?.columns).toEqual(config.columns);
+        expect(newPersistedData?.priorityViewColumns).toEqual(config.priorityViewColumns);
+    });
+
+    it("keeps a column's icon across a rewrite of its own grouping", async () => {
+        const board = twoGroupings();
+
+        const { newPersistedData } = await getBoardData(
+            board,
+            "priority",
+            { ...config, priorityViewColumns: [ { value: "Low", icon: "bx bx-down-arrow" } ] },
+            false,
+            [ "Low", "High" ]);
+
+        expect(newPersistedData?.priorityViewColumns).toEqual([
+            { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" }
+        ]);
+    });
+});
+
 function noteIdsOf(map: ColumnMap, column: string) {
     return (map.get(column) ?? []).map(({ note }) => note.noteId);
 }

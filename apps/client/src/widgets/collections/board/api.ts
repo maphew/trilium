@@ -27,6 +27,7 @@ import {
     type BoardStatusDefinition, canStoreColumnsInDefinition, DEFAULT_COLUMN_ICON,
     DEFAULT_GROUP_BY, INBOX_COLUMN, INBOX_COLUMN_ICON
 } from "./columns";
+import { readColumns, writeColumns } from "./column_storage";
 import { ColumnMap } from "./data";
 import { SORT_DESCENDING_LABEL, SORT_LABEL } from "./sort";
 
@@ -107,6 +108,11 @@ export default class BoardApi {
     /** The branch last sent to the end of each column, by {@link moveToColumnEnd}. */
     private sentToColumnEnd = new Map<string, string>();
     statusAttribute: string;
+    /**
+     * What the board groups by, with the `#`/`~` prefix it is written with. Every column read and
+     * write is keyed by it, so one grouping's columns can never be stored under another's.
+     */
+    groupBy: string;
 
     /** The config as the board last handed it over, against which a fresh one is recognised. */
     private viewConfigSource: BoardViewData | undefined;
@@ -133,6 +139,7 @@ export default class BoardApi {
     ) {
         this.viewConfigSource = viewConfig;
         this.viewConfig = viewConfig ?? {};
+        this.groupBy = statusAttribute;
         this.isRelationMode = statusAttribute.startsWith("~");
 
         if (statusAttribute.startsWith("~") || statusAttribute.startsWith("#")) {
@@ -180,6 +187,7 @@ export default class BoardApi {
         this.saveConfig = saveConfig;
         this.setBranchIdToEdit = setBranchIdToEdit;
         this.statusDefinition = statusDefinition;
+        this.groupBy = statusAttribute;
         this.isRelationMode = statusAttribute.startsWith("~");
         this.statusAttribute = statusAttribute.replace(/^[~#]/, "");
     }
@@ -379,7 +387,7 @@ export default class BoardApi {
             return;
         }
 
-        const columns = this.viewConfig?.columns ?? [];
+        const columns = this.storedColumns;
 
         // Add the new column to persisted data if it doesn't exist
         if (columns.some(col => col.value === columnName)) return false;
@@ -420,7 +428,7 @@ export default class BoardApi {
      * where it is already taken, so adding several in a row cannot silently do nothing.
      */
     async insertColumn(relativeTo: string, direction: "before" | "after") {
-        const stored = this.viewConfig?.columns ?? [];
+        const stored = this.storedColumns;
         const taken = new Set([ ...this.columns, ...stored.map(col => col.value) ]);
 
         const stockName = t("board_view.new-column");
@@ -484,7 +492,7 @@ export default class BoardApi {
         await this.retiredWhile(column, undefined,
             () => executeBulkActions(noteIds, [ action ], { silent: true }));
 
-        this.storeColumns((this.viewConfig?.columns ?? []).filter(col => col.value !== column));
+        this.storeColumns(this.storedColumns.filter(col => col.value !== column));
     }
 
     async renameColumn(oldValue: string, newValue: string) {
@@ -531,7 +539,7 @@ export default class BoardApi {
      * inbox has no value, so it uses a name stored in the config.
      */
     getColumnTitle(column: string) {
-        const named = this.viewConfig?.columns?.find(col => col.value === column)?.displayName;
+        const named = this.storedColumns.find(col => col.value === column)?.displayName;
         return named || (column === INBOX_COLUMN ? t("board_view.inbox") : column);
     }
 
@@ -563,7 +571,7 @@ export default class BoardApi {
             return froca.getNoteFromCache(column)?.getIcon();
         }
 
-        const stored = this.viewConfig?.columns?.find(col => col.value === column)?.icon;
+        const stored = this.storedColumns.find(col => col.value === column)?.icon;
         if (stored) {
             return stored;
         }
@@ -576,7 +584,7 @@ export default class BoardApi {
      * while it carries none. The colour is stored per column in both modes, unlike the icon.
      */
     getColumnColorClass(column: string) {
-        const color = this.viewConfig?.columns?.find(col => col.value === column)?.color;
+        const color = this.storedColumns.find(col => col.value === column)?.color;
         return cssClassManager.createClassForColor(color ?? null);
     }
 
@@ -611,7 +619,7 @@ export default class BoardApi {
 
     /** The note limit set for a column, absent if disabled. */
     getColumnLimit(column: string) {
-        return this.viewConfig?.columns?.find(col => col.value === column)?.limit;
+        return this.storedColumns.find(col => col.value === column)?.limit;
     }
 
     /** Sets a column's note limit. Pass `undefined` to disable it. */
@@ -627,7 +635,7 @@ export default class BoardApi {
      *          {@link DEFAULT_SORT} against the board's own order.
      */
     getColumnSort(column: string) {
-        const stored = this.viewConfig?.columns?.find(col => col.value === column);
+        const stored = this.storedColumns.find(col => col.value === column);
         return {
             orderBy: parseStoredSortKey(stored?.orderBy),
             isDescending: !!stored?.descendingOrder
@@ -696,7 +704,7 @@ export default class BoardApi {
      * as it stood before the first.
      */
     async resetColumnSortsToDefault() {
-        const stored = this.viewConfig?.columns ?? [];
+        const stored = this.storedColumns;
         this.updateColumns(
             stored.map(({ value }) => value), { orderBy: undefined, descendingOrder: false });
     }
@@ -708,7 +716,7 @@ export default class BoardApi {
 
     /** Whether a column is archived, which the board shows only while archived notes are shown. */
     isColumnArchived(column: string) {
-        return !!this.viewConfig?.columns?.find(col => col.value === column)?.archived;
+        return !!this.storedColumns.find(col => col.value === column)?.archived;
     }
 
     /**
@@ -805,7 +813,7 @@ export default class BoardApi {
 
     /** Whether a column is stored as collapsed, which draws it as a strip without its cards. */
     isColumnCollapsed(column: string) {
-        return !!this.viewConfig?.columns?.find(col => col.value === column)?.collapsed;
+        return !!this.storedColumns.find(col => col.value === column)?.collapsed;
     }
 
     /** Collapses a column to a strip, or opens it again. */
@@ -820,7 +828,7 @@ export default class BoardApi {
      * carry is drawn without ever having been stored, so this is also where it gets an entry.
      */
     async setAllColumnsCollapsed(collapsed: boolean) {
-        const stored = new Map((this.viewConfig?.columns ?? []).map(col => [ col.value, col ]));
+        const stored = new Map(this.storedColumns.map(col => [ col.value, col ]));
         const order = [ ...stored.keys() ];
         for (const derived of this.columns) {
             if (!stored.has(derived)) {
@@ -843,7 +851,7 @@ export default class BoardApi {
 
     /** Whether a column collapses again once it has been opened. */
     isColumnKeptCollapsed(column: string) {
-        return !!this.viewConfig?.columns?.find(col => col.value === column)?.keepCollapsed;
+        return !!this.storedColumns.find(col => col.value === column)?.keepCollapsed;
     }
 
     /**
@@ -873,12 +881,12 @@ export default class BoardApi {
      * a note carries is shown without ever being written, so the first pick for it creates one.
      */
     private updateColumn(column: string, patch: Partial<BoardColumnData>) {
-        this.storeColumns(this.withColumn(this.viewConfig?.columns ?? [], column, patch));
+        this.storeColumns(this.withColumn(this.storedColumns, column, patch));
     }
 
     /** The same for several columns at once, written as one config. */
     private updateColumns(columns: string[], patch: Partial<BoardColumnData>) {
-        let next = this.viewConfig?.columns ?? [];
+        let next = this.storedColumns;
         for (const column of columns) {
             next = this.withColumn(next, column, patch);
         }
@@ -943,12 +951,12 @@ export default class BoardApi {
         // `columns` is render state: it omits entries the view has yet to catch up with, and any
         // the board is hiding, such as a disabled inbox. Those are neither dropped nor appended at
         // the end.
-        const stored = this.viewConfig?.columns ?? [];
-        const storedColumns = new Map(stored.map(col => [ col.value, col ]));
+        const stored = this.storedColumns;
+        const byValue = new Map(stored.map(col => [ col.value, col ]));
         // Reordering only moves entries, so each keeps its stored icon instead of being rebuilt
         // from its name.
         const reordered: BoardColumnData[] =
-            newColumns.map(value => storedColumns.get(value) ?? { value });
+            newColumns.map(value => byValue.get(value) ?? { value });
 
         // A hidden column goes back after the column it followed in the config, not at the index it
         // held there: the move has shifted the visible columns, so that index points elsewhere now.
@@ -1073,13 +1081,18 @@ export default class BoardApi {
         this.saveConfig(this.viewConfig);
     }
 
+    /** The columns stored for the grouping the board is on, empty where it has none yet. */
+    private get storedColumns() {
+        return readColumns(this.viewConfig, this.groupBy) ?? [];
+    }
+
     private storeColumns(columns: BoardColumnData[]) {
-        this.viewConfig = { ...this.viewConfig, columns };
+        this.viewConfig = writeColumns(this.viewConfig, this.groupBy, columns);
         this.saveConfig(this.viewConfig);
         // Not awaited — every caller is the tail of a user gesture the board has already rendered —
         // so the failure is caught here rather than left to reject unhandled. The columns are still
         // in the view config, so the board is not wrong, only out of step with the definition.
-        this.syncColumnsToDefinition(columns.map(({ value }) => value))
+        this.syncColumnsToDefinition(columns.map(({ value }) => value), this.groupBy)
             .catch((e) => {
                 console.error("Failed to store the board columns in the attribute definition:", e);
                 toast.showError(t("board_view.column-definition-save-error"));
@@ -1098,8 +1111,17 @@ export default class BoardApi {
      *
      * Writing only on a real difference is what makes that safe to call every time: the write lands as
      * an entity change, which re-renders the board, which would write again.
+     *
+     * @param forGroupBy the grouping the columns were resolved for, with its prefix. The write is
+     *                   dropped when the board has moved to another grouping since.
      */
-    async syncColumnsToDefinition(columns: string[]) {
+    async syncColumnsToDefinition(columns: string[], forGroupBy: string) {
+        // The caller resolved these columns for one grouping, and the board can have moved to
+        // another since. Writing them would put one grouping's columns into another's definition.
+        if (forGroupBy !== this.groupBy) {
+            return;
+        }
+
         if (this.isRelationMode || !canStoreColumnsInDefinition(this.statusDefinition)) {
             return;
         }

@@ -1,4 +1,4 @@
-import { type DefinitionObject } from "@triliumnext/commons";
+import { DEFAULT_BOARD_GROUP_BY, type DefinitionObject } from "@triliumnext/commons";
 
 import type FAttribute from "../../../entities/fattribute";
 import type FNote from "../../../entities/fnote";
@@ -12,7 +12,7 @@ import type FNote from "../../../entities/fnote";
 export const BOARD_TEMPLATE_ID = "_template_board";
 
 /** The label a board groups by when `#board:groupBy` does not name one. */
-export const DEFAULT_GROUP_BY = "status";
+export const DEFAULT_GROUP_BY = DEFAULT_BOARD_GROUP_BY;
 
 /** The icon a column shows until one is picked for it. */
 export const DEFAULT_COLUMN_ICON = "bx bx-circle";

@@ -20,6 +20,7 @@ import froca from "../../../services/froca";
 import attributes from "../../../services/attributes";
 import { executeBulkActions } from "../../../services/bulk_action";
 import LoadResults from "../../../services/load_results";
+import noteAttributeCache from "../../../services/note_attribute_cache";
 import searchService from "../../../services/search";
 import { buildNote } from "../../../test/easy-froca";
 import { ParentComponent } from "../../react/react_utils";
@@ -3780,4 +3781,193 @@ describe("a column that sorts its cards", () => {
 
         return { board: mountPoint, host, cards: byTitle };
     }
+});
+
+describe("Switchable board grouping", () => {
+    let container: HTMLElement | undefined;
+
+    afterEach(() => {
+        saved.length = 0;
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    /** Columns stored for the default grouping and for `priority`, each with its own icons. */
+    const CONFIG: BoardViewData = {
+        columns: [ { value: "To Do" }, { value: "Done", icon: "bx bx-check" } ],
+        priorityViewColumns: [ { value: "High", icon: "bx bx-up-arrow" }, { value: "Low" } ]
+    };
+
+    async function setup(config: BoardViewData = CONFIG) {
+        // `buildNote` appends to whatever the cache already holds for the id, so the previous
+        // test's definitions, and the grouping it switched to, would still be on the note.
+        delete noteAttributeCache.attributes["switchBoard"];
+
+        const note = buildNote({
+            id: "switchBoard",
+            title: "Board",
+            // The header the dropdown stands in is drawn for a collection note alone.
+            type: "book",
+            "#collection": "",
+            "#viewType": "board",
+            "#board:groupBy": "status",
+            "#label:status(inheritable)": "promoted,alias=Status,single,select,options=To Do;Done",
+            "#label:priority(inheritable)": "promoted,alias=Priority,single,select,options=High;Low",
+            children: [
+                { title: "First", "#status": "To Do", "#priority": "High" },
+                { title: "Second", "#status": "Done", "#priority": "Low" }
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        const host = new Component();
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={config}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        return { note, container: mountPoint, host };
+    }
+
+    /** Writes `#board:groupBy`, the way the dropdown does, and lets the board catch up. */
+    async function groupBy(note: ReturnType<typeof buildNote>, host: Component, value: string) {
+        const attribute = note.getAttributes().find(attr => attr.name === "board:groupBy");
+        if (!attribute) throw new Error("expected the board to carry #board:groupBy");
+        attribute.value = value;
+
+        const results = new LoadResults([ {
+            entityName: "attributes",
+            entityId: "groupByAttr",
+            entity: {
+                attributeId: "groupByAttr",
+                noteId: "switchBoard",
+                type: "label",
+                name: "board:groupBy",
+                value
+            }
+        } as never ]);
+        results.addAttribute("groupByAttr", "other");
+
+
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded", { loadResults: results });
+            await flush();
+        });
+        // The switch is committed on one pass and stored on the next.
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+    }
+
+    function cardTitles(board: HTMLElement, column: number) {
+        const columns = [ ...board.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(title => title.textContent);
+    }
+
+    it("names the grouping in force and re-groups the cards when it changes", async () => {
+        const { note, container, host } = await setup();
+
+        expect(container.querySelector(".board-group-by button")?.textContent).toContain("Status");
+        expect(columnTitles(container)).toEqual([ "To Do", "Done" ]);
+
+        await groupBy(note, host, "priority");
+
+        expect(container.querySelector(".board-group-by button")?.textContent)
+            .toContain("Priority");
+        expect(columnTitles(container)).toEqual([ "High", "Low" ]);
+        // Drawn from the new grouping's own entries, not from the ones it replaced.
+        expect(columnIcons(container)).toEqual([ "bx bx-up-arrow", DEFAULT_COLUMN_ICON ]);
+        expect(cardTitles(container, 0)).toEqual([ "First" ]);
+    });
+
+    /**
+     * The board reads the new grouping before it is pointed at it. A write made from that read
+     * would put the columns it is leaving under the key of the one it is arriving at.
+     */
+    it("stores the new grouping's columns under its own key and nowhere else", async () => {
+        // Nothing stored for `priority`, so the switch is what gives it a column list.
+        const { note, host } = await setup({ columns: CONFIG.columns });
+        saved.length = 0;
+
+        await groupBy(note, host, "priority");
+
+        expect(saved.length).toBeGreaterThan(0);
+        for (const config of saved) {
+            expect(config.priorityViewColumns?.map(col => col.value)).toEqual([ "High", "Low" ]);
+            expect(config.columns).toEqual(CONFIG.columns);
+        }
+    });
+
+    it("leaves the grouping it left exactly as it was", async () => {
+        const { note, container, host } = await setup();
+
+        await groupBy(note, host, "priority");
+        await groupBy(note, host, "status");
+
+        expect(columnTitles(container)).toEqual([ "To Do", "Done" ]);
+        expect(columnIcons(container)).toEqual([ DEFAULT_COLUMN_ICON, "bx bx-check" ]);
+        expect(saved.at(-1)?.columns ?? CONFIG.columns).toEqual(CONFIG.columns);
+    });
+
+    /**
+     * Before the grouping could be switched, every board stored its columns under `columns`. Read
+     * as the default grouping's, they would follow the board onto whatever it is switched to next.
+     */
+    it("moves a pre-switching column list under the grouping it belongs to", async () => {
+        const note = buildNote({
+            id: "legacyBoard",
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            "#board:groupBy": "priority",
+            children: [
+                { title: "First", "#priority": "High" },
+                { title: "Second", "#priority": "Low" }
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [
+                                { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" }
+                            ]
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        expect(saved.at(-1)?.priorityViewColumns?.map(col => col.value)).toEqual([ "Low", "High" ]);
+        expect(saved.at(-1)).not.toHaveProperty("columns");
+        expect(columnTitles(mountPoint)).toEqual([ "Low", "High" ]);
+        expect(columnIcons(mountPoint)).toEqual([ "bx bx-down-arrow", DEFAULT_COLUMN_ICON ]);
+    });
 });

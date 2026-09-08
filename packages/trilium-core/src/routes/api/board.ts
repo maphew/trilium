@@ -1,4 +1,6 @@
-import { promotedAttributeDefinitionParser } from "@triliumnext/commons";
+import {
+    type BoardColumnsKey, boardColumnsKey, promotedAttributeDefinitionParser
+} from "@triliumnext/commons";
 import type { Request } from "express";
 
 import becca from "../../becca/becca.js";
@@ -65,10 +67,14 @@ function renameColumn(req: Request<{ noteId: string }>) {
 
     renameInDefinition(board, attribute, oldValue, newValue);
 
+    // The board keeps a column list per grouping, so the rename lands in the list of the grouping
+    // it was made on.
+    const columnsKey = boardColumnsKey(isRelation ? `~${attribute}` : attribute);
+
     // Answered with, so the client that asked has the configuration as it now stands rather than
     // the one it read before the rename. Writing that stale one back is what used to bring the old
     // name to the board again a moment after it left.
-    return { cards, config: renameInConfig(board, oldValue, newValue) };
+    return { cards, config: renameInConfig(board, columnsKey, oldValue, newValue) };
 }
 
 /**
@@ -99,15 +105,18 @@ function renameInDefinition(board: BNote, attribute: string, oldValue: string, n
 /**
  * Renames the column in the board's stored configuration, keeping everything else it holds.
  *
+ * @param columnsKey which grouping's column list the rename was made on.
  * @returns the configuration as it now stands, or nothing where the board keeps none.
  */
-function renameInConfig(board: BNote, oldValue: string, newValue: string) {
+function renameInConfig(
+    board: BNote, columnsKey: BoardColumnsKey, oldValue: string, newValue: string
+) {
     const attachment = board.getAttachmentByTitle(CONFIG_ATTACHMENT);
     if (!attachment) {
         return undefined;
     }
 
-    let config: { columns?: StoredColumn[] };
+    let config: Partial<Record<BoardColumnsKey, StoredColumn[]>>;
     try {
         config = JSON.parse(attachment.getContent().toString());
     } catch {
@@ -116,13 +125,14 @@ function renameInConfig(board: BNote, oldValue: string, newValue: string) {
         return undefined;
     }
 
-    if (!config.columns?.some(column => column.value === oldValue)) {
+    const columns = config[columnsKey];
+    if (!columns?.some(column => column.value === oldValue)) {
         return config;
     }
 
     const renamed = {
         ...config,
-        columns: config.columns.map(column =>
+        [columnsKey]: columns.map(column =>
             column.value === oldValue ? { ...column, value: newValue } : column)
     };
 
