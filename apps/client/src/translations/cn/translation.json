@@ -2583,7 +2583,10 @@
     "properties-title": "看板属性",
     "card-templates": "卡片模板",
     "filter-placeholder": "筛选看板...",
-    "card-outside-filter": "此卡片在当前筛选范围之外"
+    "card-outside-filter": "此卡片在当前筛选范围之外",
+    "sort": "排序",
+    "sort-manually": "手动",
+    "sorted-no-reorder": "由于这是已排序的列，卡片无法重新排序。"
   },
   "command_palette": {
     "tree-action-name": "树形：{{name}}",
@@ -4149,5 +4152,12 @@
     "clear": "清除筛选",
     "fetch-error": "无法运行筛选。",
     "submit": "应用筛选"
+  },
+  "sorting": {
+    "none": "无",
+    "title": "标题",
+    "creation-date": "创建日期与时间",
+    "ascending": "升序",
+    "descending": "降序"
   }
 }
