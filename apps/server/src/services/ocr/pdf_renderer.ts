@@ -4,7 +4,10 @@ import path from "path";
 
 import { RESOURCE_DIR } from "../resource_dir.js";
 
-/** A page rasterized to 8-bit BGRA, four bytes per pixel. */
+/**
+ * A page rasterized to 8-bit BGRA, four bytes per pixel. Each render allocates its own buffer, so
+ * the caller is free to convert it in place.
+ */
 export interface RenderedPage {
     data: Uint8Array;
     width: number;

@@ -153,20 +153,21 @@ async function getPageArea(pdf: PdfDocument, pageNum: number): Promise<number> {
 
 /**
  * Encode a rendered page into a PNG buffer that Tesseract can decode. The renderer produces BGRA
- * and Jimp bitmaps are RGBA, so the blue and red channels swap places. Alpha is forced opaque: a
- * transparent page background would otherwise reach Tesseract as black.
+ * and Jimp bitmaps are RGBA, so blue and red swap places within the page's own buffer: it belongs
+ * to this call and is dropped as soon as the PNG exists, and a full-page copy to swap two channels
+ * costs 8 MB for nothing. Alpha is forced opaque, or a transparent page background would reach
+ * Tesseract as black.
  */
 async function toPngBuffer({ data, width, height }: RenderedPage): Promise<Buffer> {
-    const rgba = Buffer.alloc(width * height * 4);
-    for (let i = 0; i < width * height; i++) {
-        const out = i * 4;
-        rgba[out] = data[out + 2];
-        rgba[out + 1] = data[out + 1];
-        rgba[out + 2] = data[out];
-        rgba[out + 3] = 255;
+    const bitmap = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+    for (let i = 0; i < bitmap.length; i += 4) {
+        const blue = bitmap[i];
+        bitmap[i] = bitmap[i + 2];
+        bitmap[i + 2] = blue;
+        bitmap[i + 3] = 255;
     }
 
     // Dynamically imported so jimp only loads when a page is actually rasterized.
     const { Jimp } = await import("jimp");
-    return Jimp.fromBitmap({ data: rgba, width, height }).getBuffer("image/png");
+    return Jimp.fromBitmap({ data: bitmap, width, height }).getBuffer("image/png");
 }

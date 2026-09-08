@@ -52,7 +52,7 @@ beforeEach(async () => {
     mockGetPage.mockImplementation(async () => ({ getViewport: mockGetViewport }));
     mockGetDocumentProxy.mockResolvedValue(pdfProxy);
     mockGetBuffer.mockResolvedValue(Buffer.from('png-bytes'));
-    mockRenderPage.mockResolvedValue(renderedPage);
+    mockRenderPage.mockImplementation(async () => renderedPage());
     ({ PDFProcessor } = await import('./pdf_processor.js'));
 });
 
@@ -61,8 +61,14 @@ afterEach(() => {
 });
 
 const buffer = Buffer.from('%PDF-1.4 fake');
-/** A page as the renderer returns it: four BGRA bytes per pixel. */
-const renderedPage = { data: new Uint8Array(100 * 60 * 4), width: 100, height: 60 };
+
+/**
+ * A page as the renderer returns it: four BGRA bytes per pixel, in a buffer of its own. Built fresh
+ * per call because the processor converts the page in place.
+ */
+function renderedPage() {
+    return { data: new Uint8Array(100 * 60 * 4), width: 100, height: 60 };
+}
 
 /** Embedded text dense enough for a Letter page to read as a real text layer rather than a scan. */
 function densePage(marker: string): string {
