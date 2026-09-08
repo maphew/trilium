@@ -6,8 +6,18 @@ import { FileProcessor } from './file_processor.js';
 
 type PdfDocument = Awaited<ReturnType<typeof import('unpdf').getDocumentProxy>>;
 
-/** A page whose embedded text is shorter than this (after trimming) is treated as scanned and sent to OCR. */
-const MIN_EMBEDDED_PAGE_CHARS = 16;
+/**
+ * Embedded characters per square point of page area below which a page is treated as scanned and
+ * sent to OCR. A flat character count cannot separate the two cases: a scan carrying a header, a
+ * watermark or a partial text layer clears any small bound while the body of the page stays unread.
+ * This works out to roughly 240 characters on Letter and A4 — far below a sparse but genuine text
+ * page, far above a header. A text page misjudged by it still keeps its text, because a page with
+ * no image large enough to recognize yields no OCR text and falls back to what it had.
+ */
+const MIN_EMBEDDED_TEXT_DENSITY = 0.0005;
+
+/** Page area in square points assumed when a page cannot be measured; US Letter at 72 dpi. */
+const FALLBACK_PAGE_AREA = 612 * 792;
 
 /**
  * Upper bound on how many scanned pages a single PDF may OCR. Rasterizing and
@@ -29,11 +39,10 @@ const EMBEDDED_TEXT_CONFIDENCE = 0.99;
 const MIN_OCR_IMAGE_DIM = 50;
 
 /**
- * PDF processor. Prefers the PDF's embedded text layer (fast and exact) and
- * falls back to OCR for scanned, image-only pages by extracting each page's
- * embedded images and running them through the shared Tesseract recognizer.
- * Detection is per page, so mixed PDFs (some real-text pages, some scans) are
- * handled correctly.
+ * PDF processor. Prefers the PDF's embedded text layer (fast and exact) and falls back to OCR for
+ * pages carrying too little text for their size, by extracting each page's embedded images and
+ * running them through the shared Tesseract recognizer. Detection is per page, so mixed PDFs (some
+ * real-text pages, some scans) are handled correctly.
  */
 export class PDFProcessor extends FileProcessor {
 
@@ -61,8 +70,9 @@ export class PDFProcessor extends FileProcessor {
 
         for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
             const embedded = (pageTexts[pageNum - 1] ?? "").trim();
+            const pageArea = await getPageArea(pdf, pageNum);
 
-            if (embedded.length >= MIN_EMBEDDED_PAGE_CHARS) {
+            if (embedded.length >= pageArea * MIN_EMBEDDED_TEXT_DENSITY) {
                 pageResults.push(embedded);
                 pageConfidences.push(EMBEDDED_TEXT_CONFIDENCE);
                 continue;
@@ -149,6 +159,20 @@ export class PDFProcessor extends FileProcessor {
             getLog().error(`PDF OCR failed for page ${pageNum}: ${error}`);
             return { text: "", confidence: 0 };
         }
+    }
+}
+
+/**
+ * The area of a page in square points. Falls back to {@link FALLBACK_PAGE_AREA} when the page
+ * cannot be measured, so a document that will not report its geometry is still classified.
+ */
+async function getPageArea(pdf: PdfDocument, pageNum: number): Promise<number> {
+    try {
+        const { width, height } = (await pdf.getPage(pageNum)).getViewport({ scale: 1 });
+        return width > 0 && height > 0 ? width * height : FALLBACK_PAGE_AREA;
+    } catch (error) {
+        getLog().error(`Could not measure PDF page ${pageNum}: ${error}`);
+        return FALLBACK_PAGE_AREA;
     }
 }
 

@@ -33,11 +33,20 @@ vi.mock('@triliumnext/core', async (importOriginal) => {
     };
 });
 
+// US Letter at 72 dpi, the geometry pdf.js reports for a typical page. At the configured density
+// this puts the line between a text page and a scan at about 242 characters.
+const LETTER_VIEWPORT = { width: 612, height: 792 };
+const mockGetViewport = vi.fn(() => LETTER_VIEWPORT);
+const mockGetPage = vi.fn(async () => ({ getViewport: mockGetViewport }));
+const pdfProxy = { proxy: true, getPage: mockGetPage };
+
 let PDFProcessor: typeof import('./pdf_processor.js').PDFProcessor;
 
 beforeEach(async () => {
     vi.clearAllMocks();
-    mockGetDocumentProxy.mockResolvedValue({ proxy: true });
+    mockGetViewport.mockReturnValue(LETTER_VIEWPORT);
+    mockGetPage.mockImplementation(async () => ({ getViewport: mockGetViewport }));
+    mockGetDocumentProxy.mockResolvedValue(pdfProxy);
     mockGetBuffer.mockResolvedValue(Buffer.from('png-bytes'));
     ({ PDFProcessor } = await import('./pdf_processor.js'));
 });
@@ -50,6 +59,11 @@ const buffer = Buffer.from('%PDF-1.4 fake');
 // A full-page grayscale scan, as unpdf's extractImages returns it — comfortably
 // above the minimum OCR dimension so it isn't skipped as a decorative image.
 const scannedImage = { data: new Uint8ClampedArray(100 * 100), width: 100, height: 100, channels: 1, key: 'img_0' };
+
+/** Embedded text dense enough for a Letter page to read as a real text layer rather than a scan. */
+function densePage(marker: string): string {
+    return `${marker} `.padEnd(300, 'lorem ipsum dolor sit amet ');
+}
 
 describe('PDFProcessor', () => {
     it('reports the MIME types it can process', () => {
@@ -65,16 +79,16 @@ describe('PDFProcessor', () => {
         const processor = new PDFProcessor();
         mockExtractText.mockResolvedValue({
             totalPages: 2,
-            text: ['  first page with plenty of text  ', 'second page with plenty of text']
+            text: [`  ${densePage('first')}  `, densePage('second')]
         });
 
         const result = await processor.extractText(buffer, { language: 'fra' });
 
-        expect(result.text).toBe('first page with plenty of text\n\nsecond page with plenty of text');
+        expect(result.text).toBe(`${densePage('first').trim()}\n\n${densePage('second').trim()}`);
         expect(result.confidence).toBe(0.99);
         expect(result.pageCount).toBe(2);
         expect(result.language).toBe('fra');
-        expect(mockExtractText).toHaveBeenCalledWith({ proxy: true }, { mergePages: false });
+        expect(mockExtractText).toHaveBeenCalledWith(pdfProxy, { mergePages: false });
         // No scanned page → no image extraction and no OCR.
         expect(mockExtractImages).not.toHaveBeenCalled();
         expect(mockRecognize).not.toHaveBeenCalled();
@@ -92,7 +106,7 @@ describe('PDFProcessor', () => {
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        expect(mockExtractImages).toHaveBeenCalledWith({ proxy: true }, 1);
+        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 1);
         expect(mockFromBitmap).toHaveBeenCalledOnce();
         expect(mockRecognize).toHaveBeenCalledWith(Buffer.from('png-bytes'), 'eng');
         expect(result.text).toBe('recognized text');
@@ -104,19 +118,60 @@ describe('PDFProcessor', () => {
         const processor = new PDFProcessor();
         mockExtractText.mockResolvedValue({
             totalPages: 2,
-            text: ['a real text page long enough', '']
+            text: [densePage('a real text page'), '']
         });
         mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'scanned page text', confidence: 0.8 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        expect(result.text).toBe('a real text page long enough\n\nscanned page text');
+        expect(result.text).toBe(`${densePage('a real text page').trim()}\n\nscanned page text`);
         // Only the second (scanned) page is OCR'd.
         expect(mockExtractImages).toHaveBeenCalledTimes(1);
-        expect(mockExtractImages).toHaveBeenCalledWith({ proxy: true }, 2);
+        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 2);
         // Average of the embedded-page (0.99) and OCR-page (0.8) confidences.
         expect(result.confidence).toBeCloseTo((0.99 + 0.8) / 2);
+    });
+
+    it('OCRs a scan whose only embedded text is a header', async () => {
+        const processor = new PDFProcessor();
+        // A scanner stamps this much text on a page whose body is pure raster. Any flat character
+        // bound low enough to be safe is cleared by it, and the page would never be recognized.
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: ['ACME Corp — Invoice 2024-11-03'] });
+        mockExtractImages.mockResolvedValue([scannedImage]);
+        mockRecognize.mockResolvedValue({ text: 'the body of the invoice', confidence: 0.9 });
+
+        const result = await processor.extractText(buffer, { language: 'eng' });
+
+        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 1);
+        expect(result.text).toBe('the body of the invoice');
+    });
+
+    it('scales the text-layer threshold with page area rather than counting characters', async () => {
+        const processor = new PDFProcessor();
+        // Four times the area of Letter, so the same text is four times as sparse on it.
+        mockGetViewport.mockReturnValue({ width: 1224, height: 1584 });
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: [densePage('sparse on a large page')] });
+        mockExtractImages.mockResolvedValue([scannedImage]);
+        mockRecognize.mockResolvedValue({ text: 'recognized', confidence: 0.9 });
+
+        const result = await processor.extractText(buffer, { language: 'eng' });
+
+        // The very same text is kept as-is on a Letter page (see the mixed-PDF case above).
+        expect(mockExtractImages).toHaveBeenCalledOnce();
+        expect(result.text).toBe('recognized');
+    });
+
+    it('falls back to a Letter-sized page when the geometry cannot be read', async () => {
+        const processor = new PDFProcessor();
+        mockGetPage.mockRejectedValue(new Error('no such page'));
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: [densePage('still a text page')] });
+
+        const result = await processor.extractText(buffer, { language: 'eng' });
+
+        expect(mockExtractImages).not.toHaveBeenCalled();
+        expect(result.text).toBe(densePage('still a text page').trim());
+        expect(mockLog.error).toHaveBeenCalledWith(expect.stringContaining('Could not measure PDF page 1'));
     });
 
     it('reports zero confidence and empty text for a scanned page with nothing recognizable', async () => {
