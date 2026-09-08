@@ -1782,14 +1782,26 @@ describe("the promoted attributes a card shows", () => {
 });
 
 describe("how a column orders its cards", () => {
-    it("reads a column nobody has sorted as the order the user arranged", () => {
+    /** Storing nothing is what takes the board's order, so a fresh column reads as taking it. */
+    it("reads a column nobody has sorted as taking the board's order", () => {
         const { api } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
 
-        expect(api.getColumnSort("To Do")).toEqual({ orderBy: undefined, isDescending: false });
-        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: undefined, isDescending: false });
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: "default", isDescending: false });
+        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: "default", isDescending: false });
     });
 
-    it("stores what a column sorts by, and clears it back to the manual order", async () => {
+    it("reads a column stored as manual as the order the user arranged", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "manual" } ] },
+            [ "To Do" ],
+            buildNote({ title: "Board", "#sortColumns": "title" }));
+
+        expect(api.getColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.getEffectiveColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.isColumnSorted("To Do")).toBe(false);
+    });
+
+    it("stores what a column sorts by, and writes the manual order out", async () => {
         const { api, saved } = createApi(
             { columns: [ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ] },
             [ "To Do", "Done" ]);
@@ -1802,10 +1814,13 @@ describe("how a column orders its cards", () => {
         expect(api.getColumnSort("To Do"))
             .toEqual({ orderBy: "attr:dueDate", isDescending: false });
 
-        // Strict, so the assertion catches the key being stored as undefined rather than dropped.
+        // Written rather than dropped: a column storing nothing takes the board's order.
         await api.setColumnSort("To Do", undefined);
-        expect(saved.at(-1)?.columns)
-            .toStrictEqual([ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ]);
+        expect(saved.at(-1)?.columns).toStrictEqual([
+            { value: "To Do", icon: "bx bx-list-ul", orderBy: "manual" },
+            { value: "Done" }
+        ]);
+        expect(api.getColumnSort("To Do").orderBy).toBeUndefined();
     });
 
     it("stores the direction and clears it rather than storing it false", async () => {

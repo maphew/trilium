@@ -3589,7 +3589,8 @@ describe("a column that sorts its cards", () => {
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
 
         await pickSort(board, "bx bx-move-vertical");
-        expect(saved.at(-1)?.columns?.[0]).toStrictEqual({ value: "To Do", descendingOrder: true });
+        expect(saved.at(-1)?.columns?.[0])
+            .toStrictEqual({ value: "To Do", orderBy: "manual", descendingOrder: true });
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
     });
 

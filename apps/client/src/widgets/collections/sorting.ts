@@ -9,6 +9,14 @@ export type SortKey = "title" | "creationDate" | `attr:${string}`;
 /** What an item stores to take the collection's own order rather than one of its own. */
 export const DEFAULT_SORT = "default";
 
+/**
+ * What an item stores to keep the order the reader arranged.
+ *
+ * Written out because storing nothing means taking the collection's own order: a column is drawn in
+ * that until the reader picks something for it, this included.
+ */
+export const MANUAL_SORT = "manual";
+
 /** What one column of a collection stores: an order of its own, or the collection's. */
 export type StoredSortKey = SortKey | typeof DEFAULT_SORT;
 
@@ -44,11 +52,26 @@ export function parseSortKey(orderBy: string | null | undefined): SortKey | unde
     return undefined;
 }
 
-/** Reads a stored `orderBy` setting, the collection's own order included. */
+/**
+ * Reads what one item of a collection stores.
+ *
+ * @returns the key it sorts by, {@link DEFAULT_SORT} where it takes the collection's own order —
+ *          which storing nothing does — and undefined for the manual order.
+ */
 export function parseStoredSortKey(
     orderBy: string | null | undefined
 ): StoredSortKey | undefined {
-    return orderBy === DEFAULT_SORT ? DEFAULT_SORT : parseSortKey(orderBy);
+    if (orderBy === MANUAL_SORT) {
+        return undefined;
+    }
+
+    if (!orderBy || orderBy === DEFAULT_SORT) {
+        return DEFAULT_SORT;
+    }
+
+    // Anything else the collection cannot order by, such as a key written by a newer version,
+    // leaves the items as the reader arranged them.
+    return parseSortKey(orderBy);
 }
 
 /** The attribute a key sorts by, or undefined when the key names something else. */

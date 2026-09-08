@@ -19,7 +19,7 @@ import {
     visiblePromotedAttributeNames
 } from "../promoted_attributes";
 import {
-    DEFAULT_SORT, parseSortKey, parseStoredSortKey, type SortKey, type StoredSortKey
+    DEFAULT_SORT, MANUAL_SORT, parseSortKey, parseStoredSortKey, type SortKey, type StoredSortKey
 } from "../sorting";
 import { BoardColumnData, BoardViewData } from ".";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
@@ -623,7 +623,8 @@ export default class BoardApi {
     }
 
     /**
-     * What a column is set to order its cards by, which can be the board's own order.
+     * What a column is set to order its cards by, which is the board's own order until the reader
+     * picks something for the column.
      *
      * @returns the stored key, absent for the manual order, and the direction stored with it. See
      *          {@link getEffectiveColumnSort} for what the column is actually drawn in.
@@ -650,9 +651,12 @@ export default class BoardApi {
         return { orderBy: board.orderBy, isDescending: board.isDescending };
     }
 
-    /** Sets what a column sorts by. Pass `undefined` for the manual order. */
+    /**
+     * Sets what a column sorts by. Pass `undefined` for the manual order, which is written out:
+     * a column storing nothing takes the board's order.
+     */
     async setColumnSort(column: string, orderBy: StoredSortKey | undefined) {
-        await this.updateColumn(column, { orderBy });
+        await this.updateColumn(column, { orderBy: orderBy ?? MANUAL_SORT });
     }
 
     /** Sets whether a column's order runs backwards. */

@@ -404,7 +404,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         return orderBy ? { orderBy, isDescending: isDefaultDescending } : undefined;
     }, [ storedDefaultSort, isDefaultDescending ]);
     const columnSorts = useMemo(
-        () => resolveColumnSorts(viewConfig?.columns, defaultSort), [ viewConfig, defaultSort ]);
+        () => resolveColumnSorts(viewConfig?.columns, defaultSort, usableColumns),
+        [ viewConfig, defaultSort, usableColumns ]);
     const sortContext = useMemo<SortContext>(() => ({
         definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
         creationDate: getCreationDate,
