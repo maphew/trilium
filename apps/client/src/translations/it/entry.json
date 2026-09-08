@@ -33,7 +33,7 @@
         "sync-from-desktop-step1": "Apri l'istanza desktop di Trilium Notes.",
         "sync-from-desktop-step2": "Dal menu Trilium, clicca su Opzioni.",
         "sync-from-desktop-step3": "Clicca sulla categoria \"Sincronizza\" nell'albero delle note.",
-        "sync-from-desktop-step4": "Modifica l'indirizzo dell'istanza del server in modo che punti a uno degli indirizzi riportati a destra, quindi fai clic su Salva.",
+        "sync-from-desktop-step4": "Modifica l'indirizzo dell'istanza del server in modo che punti a uno degli indirizzi riportati a destra (o sotto, in un piccolo schermo) quindi fai clic su Salva.",
         "sync-from-desktop-step5": "Clicca sul pulsante \"Verifica sincronizzazione\" per verificare che la connessione funzioni correttamente.",
         "sync-from-desktop-warning": "Assicurati che entrambi i dispositivi siano connessi alla stessa rete.",
         "sync-from-desktop-waiting": "In attesa della connessione...",
@@ -133,7 +133,7 @@
     "login": {
         "password": "Password",
         "remember-me": "Ricordami",
-        "incorrect-totp": "La password monouso non è corretta. Riprova.",
+        "incorrect-totp": "La password monouso non è corretta. Per favore riprova.",
         "heading": "Accedi a Trilium Notes",
         "totp-token": "Password monouso o codice di recupero",
         "button": "Login",
