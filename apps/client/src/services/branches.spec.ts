@@ -282,7 +282,8 @@ describe("deleteNotes", () => {
 
         const result = await branches.deleteNotes(["delBranch4"], false, false);
         expect(result).toBe(true);
-        // getActiveContext only used by activateNeighbouringNotePath, which is skipped
+        // With moveToParent off, the active tab is left alone: the collection views that pass it
+        // delete a child of the note they show, so there is nothing to navigate away from.
         expect(getActiveContext).not.toHaveBeenCalled();
     });
 
