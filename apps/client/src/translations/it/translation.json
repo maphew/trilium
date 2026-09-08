@@ -226,7 +226,11 @@
     "insert-external-link": "Inserisci il collegamento esterno a \"{{term}}\"",
     "clear-text-field": "Pulisci il campo di testo",
     "show-recent-notes": "Mostra le note recenti",
-    "full-text-search": "Ricerca full text"
+    "full-text-search": "Ricerca full text",
+    "create-note-into": "Crea nota \"{{term}}\" in {{parentTitle}}",
+    "create-note-into-day-note": "Crea nota \"{{term}}\" nella nota di oggi",
+    "create-note-into-root": "Crea una nota \"{{term}}\" al livello superiore",
+    "create-child-note": "Crea una nota secondaria \"{{term}}\""
   },
   "note_tooltip": {
     "note-has-been-deleted": "La nota è stata eliminata.",
@@ -268,7 +272,13 @@
     "locate": "Mostra la tua posizione",
     "locate-waiting": "Trovando la tua posizione…",
     "locate-return": "Ritorna alla tua posizione",
-    "locate-unavailable": "La tua posizione non è raggiungibile"
+    "locate-unavailable": "La tua posizione non è raggiungibile",
+    "search-failed": "Non sono riuscito a cercare dei luoghi",
+    "result-position": "Risultato {{index}} su {{total}}, clicca per tornare a questo risultato",
+    "locate-following": "Smetti di tracciare la tua posizione",
+    "locate-error": "Impossibile individuare la tua posizione. Premi di nuovo per interrompere la ricerca.",
+    "location-denied": "L'accesso alla posizione è stato negato. Consenti l'accesso a Trilium nelle impostazioni del browser o del sistema per visualizzare la tua posizione sulla mappa.",
+    "location-unavailable": "Al momento non è stato possibile determinare la tua posizione."
   },
   "geo-map-context": {
     "open-location": "Apri la posizione",
@@ -325,7 +335,9 @@
     "content_hints_enabled": "Suggerimenti sui contenuti",
     "content_hints_description": "Mostra brevi suggerimenti nell'angolo inferiore dell'editor che spiegano come interagire con l'elemento sotto il cursore o il puntatore.",
     "auto_link_previews_enabled": "Generazione automatica delle anteprime dei link",
-    "auto_link_previews_description": "Trasforma automaticamente un link rilevato in un'anteprima che mostra il titolo, la descrizione e l'immagine della pagina web. L'inserimento di un'anteprima dalla barra degli strumenti funziona sempre, indipendentemente da questa impostazione."
+    "auto_link_previews_description": "Trasforma automaticamente un link rilevato in un'anteprima che mostra il titolo, la descrizione e l'immagine della pagina web. L'inserimento di un'anteprima dalla barra degli strumenti funziona sempre, indipendentemente da questa impostazione.",
+    "html_support_enabled": "Conserva i tag HTML non supportati",
+    "html_support_description": "Conserva i tag HTML per i quali l'editor non dispone di una funzione specifica, come elencati in Opzioni → Altro → Tag di importazione HTML. Questi tag appaiono come blocchi che non possono essere modificati direttamente e un tag non riconosciuto potrebbe non essere visibile affatto durante la modifica. Se questa opzione è disattivata, tali tag vengono eliminati da una nota la prima volta che questa viene modificata e salvata; l'importazione non subisce alcuna modifica in entrambi i casi."
   },
   "table_view": {
     "new-row": "Nuova riga",
@@ -1271,7 +1283,8 @@
     "share_html": "Una nota HTML inserita nella pagina condivisa, dove <code>#shareHtmlLocation</code> è presente nella nota. Deve trovarsi all'interno del sottoalbero condiviso.",
     "template_new_note_default_parent": "Nota relativa all'utilizzo di un modello: le note create a partire dal modello (ad esempio tramite il completamento con @) vengono inserite sotto la nota di destinazione, a meno che non venga esplicitamente scelta un'altra posizione.",
     "ai_quick_action": "Propone questa nota come istruzione nel menu dell'assistente AI dell'editor di testo. Il titolo indica l'azione, il contenuto è il prompt.",
-    "custom_font": "Segna i file dei caratteri che sono offerti nel selettore di caratteri nelle opzioni di Trilium, sotto il titolo degli appunti."
+    "custom_font": "Segna i file dei caratteri che sono offerti nel selettore di caratteri nelle opzioni di Trilium, sotto il titolo degli appunti.",
+    "enable_inbox_column": "Per le raccolte delle bacheche, mostra la colonna \"Posta in arrivo\", che elenca tutte le note secondarie non assegnate a una colonna della bacheca."
   },
   "attribute_editor": {
     "help_text_body1": "Per aggiungere un'etichetta, basta digitare ad esempio <code>#rock</code> oppure, se si desidera aggiungere anche un valore, ad esempio <code>#year = 2020</code>",
@@ -1928,7 +1941,10 @@
     "user-fonts": "Caratteri personalizzati",
     "proportional-system-fonts": "Caratteri proporzionali",
     "search_placeholder": "Cerca caratteri",
-    "no_fonts_found": "Nessun carattere corrisponde a cosa stai cercando."
+    "no_fonts_found": "Nessun carattere corrisponde a cosa stai cercando.",
+    "custom_fonts_description": "Sostituisce i caratteri del tema. Un carattere caricato su Trilium può essere aggiunto dalla relativa nota.",
+    "document_preview_heading": "Talee di Purple Heart",
+    "document_preview_body": "Ho tagliato 4 steli sotto un nodo e li ho messi in acqua sul davanzale; le prime radici sono spuntate dopo <strong>9 giorni</strong>. Mantiene il suo colore in <em>pieno sole</em> e sbiadisce diventando verde all’ombra."
   },
   "max_content_width": {
     "title": "Larghezza del contenuto",
@@ -2408,7 +2424,8 @@
     "cut": "Le note sono state tagliate negli appunti.",
     "copied": "Le note sono state copiate negli appunti.",
     "copy_failed": "Impossibile copiare negli appunti a causa di problemi di autorizzazione.",
-    "copy_success": "Copiato negli appunti."
+    "copy_success": "Copiato negli appunti.",
+    "copied_without_links": "Le note sono state copiate negli appunti, ma non è stato possibile inserire i link alle note negli appunti di sistema."
   },
   "entrypoints": {
     "note-revision-created": "La revisione della nota è stata creata.",
@@ -2438,7 +2455,8 @@
     "encountered-error": "Si è verificato l'errore \"{{message}}\", controlla la console.",
     "lost-websocket-connection-title": "Connessione al server persa",
     "lost-websocket-connection-message": "Controlla la configurazione del proxy inverso (ad esempio nginx o Apache) per assicurarti che le connessioni WebSocket siano correttamente consentite e non bloccate.",
-    "sync-hash-check-failed-title": "Sincronizzazione fermata"
+    "sync-hash-check-failed-title": "Sincronizzazione fermata",
+    "sync-hash-check-failed": "Questo database e il server di sincronizzazione contengono dati che non è stato possibile riconciliare tramite una nuova sincronizzazione ({{- sectors}}).\n\nLa sincronizzazione continuerà a fallire finché il problema non sarà risolto. Per ulteriori dettagli, consultare i log."
   },
   "hoisted_note": {
     "confirm_unhoisting": "La nota richiesta '{{requestedNote}}' è esterna al sottoalbero della nota sollevata '{{hoistedNote}}' e devi rimuoverla per accedervi. Vuoi procedere con la rimozione?"
@@ -2545,7 +2563,9 @@
   "svg": {
     "export_to_png": "Non è stato possibile esportare il diagramma in formato PNG.",
     "export_to_svg": "Il diagramma non può essere esportato in formato SVG.",
-    "zoom_in": "Ingrandisci"
+    "zoom_in": "Ingrandisci",
+    "zoom_out": "Riduci l'ingrandimento",
+    "reset_zoom": "Ripristina lo zoom"
   },
   "code_theme": {
     "title": "Aspetto",
@@ -2568,7 +2588,9 @@
     "show-scale": "Mostra scala",
     "show-labels": "Mostra nomi dei marcatori",
     "cluster-markers": "Raggruppa i marcatori vicini",
-    "presentation-theme": "Tema"
+    "presentation-theme": "Tema",
+    "board-inbox-column": "Mostra la colonna \"Posta in arrivo\"",
+    "board-inbox-column-help": "Mostra la colonna \"Posta in arrivo\", che elenca le note secondarie non assegnate a nessuna colonna."
   },
   "table_context_menu": {
     "delete_row": "Elimina riga"
@@ -3285,7 +3307,12 @@
     "cleanup": "Pulisci il database",
     "start_over": "Ricomincia",
     "related_backup": "Copia di riserva",
-    "related_backup_description": "Crea o ristora le copie di riserva dei database, gestisci automaticamente le copie di riserva."
+    "related_backup_description": "Crea o ristora le copie di riserva dei database, gestisci automaticamente le copie di riserva.",
+    "cleanup_description": "Elimina le note e gli allegati cancellati, riduci le istantanee delle revisioni e comprimi le immagini per mantenere il database snello.",
+    "start_over_description": "Passa a un nuovo database vuoto, ricomincia la sincronizzazione con un nuovo server oppure ripristina un backup. Ti verrà richiesto di eseguire un backup dei tuoi dati prima di eliminare quelli esistenti.",
+    "start_over_confirm": "Trilium tornerà alla schermata di configurazione, dove potrai creare una nuova knowledge base, ripristinare un backup o eseguire la sincronizzazione da un altro dispositivo. Ti verrà prima proposto un backup dei tuoi dati attuali e nulla verrà eliminato finché non sceglierai una di queste opzioni. Vuoi continuare?",
+    "start_over_pending": "La schermata di configurazione apparirà al prossimo riavvio del server. Riavvia il server quando sei pronto, oppure annulla qui sotto per lasciare tutto com'è.",
+    "start_over_cancel": "Annulla e ricomincia"
   },
   "revisions_snapshot": {
     "title": "Note sulle revisioni"
@@ -4060,7 +4087,10 @@
     "compress_result_stopped_none": "Interrotto prima che venisse elaborata qualsiasi immagine.",
     "status_notes": "Note",
     "status_total": "Totale",
-    "status_deleted_items": "Elimina oggetti"
+    "status_deleted_items": "Elimina oggetti",
+    "status_attachments": "Allegati",
+    "selection_hint": "Tocca una voce per visualizzarne i dettagli",
+    "show_selection_details": "Mostra i dettagli della selezione"
   },
   "automatic_replacements": {
     "title": "Sostituzioni automatiche",
@@ -4122,7 +4152,8 @@
   },
   "item_picker": {
     "title": "Scegli un oggetto",
-    "search": "Cerca…"
+    "search": "Cerca…",
+    "nothing-found": "Non c'è nessun risultato corrispondente a ciò che hai digitato."
   },
   "sortable_card": {
     "reorder": "Trascina per riordinare"
@@ -4151,6 +4182,22 @@
     "tone_confident": "Confidente",
     "reformat_bullet_list": "Lista puntata",
     "reformat_table": "Tavolo",
-    "reformat_diagram": "Diagramma"
+    "reformat_diagram": "Diagramma",
+    "group_edit": "Modifica o rivedi",
+    "model": "Modello: {{model}}",
+    "command_simplify": "Semplificare il linguaggio",
+    "command_tone": "Cambia il tono in {{tone}}",
+    "command_bullet_list": "Trasforma in un elenco puntato",
+    "command_table": "Trasforma in una tabella",
+    "command_diagram": "Trasforma in un diagramma",
+    "command_callout": "Trasforma in una didascalia",
+    "command_collapsible": "Trasforma in una sezione pieghevole",
+    "command_action_items": "Estrai le azioni da intraprendere",
+    "command_translate": "Traduci in {{language}}",
+    "action_fix_typos": "Correggere gli errori di battitura",
+    "tone_casual": "Casual",
+    "reformat_callout": "Nota esplicativa",
+    "reformat_collapsible": "Pieghevole",
+    "reformat_action_items": "Azioni da intraprendere"
   }
 }
