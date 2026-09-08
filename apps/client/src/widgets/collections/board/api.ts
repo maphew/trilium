@@ -30,6 +30,10 @@ import { ColumnMap } from "./data";
 /** Which end of a column a new card is made at. */
 export type CardPlacement = "top" | "bottom";
 
+/** The labels the board keeps the order it offers its columns in. */
+const SORT_LABEL = "sortColumns";
+const SORT_DESCENDING_LABEL = "sortColumnsDescending";
+
 /** One write's claim on a column, held until that write lands or is taken back. */
 interface ColumnClaim {
     /**
@@ -639,6 +643,41 @@ export default class BoardApi {
         await this.updateColumn(column, { descendingOrder: isDescending });
     }
 
+    /**
+     * The order the board holds for its columns, kept on the board note rather than in the view
+     * config: it is a preference to apply, not something a column is drawn by.
+     */
+    getDefaultSort() {
+        return {
+            orderBy: parseSortKey(this.parentNote?.getLabelValue(SORT_LABEL)),
+            isDescending: !!this.parentNote?.isLabelTruthy(SORT_DESCENDING_LABEL)
+        };
+    }
+
+    /** Sets what the board offers to sort by. Pass `undefined` for the manual order. */
+    async setDefaultSort(orderBy: SortKey | undefined) {
+        if (!this.parentNote) return;
+        await attributes.setAttribute(this.parentNote, "label", SORT_LABEL, orderBy ?? null);
+    }
+
+    /** Sets whether the order the board offers runs backwards. */
+    async setDefaultSortDirection(isDescending: boolean) {
+        if (!this.parentNote) return;
+        await attributes.setBooleanWithInheritance(
+            this.parentNote, SORT_DESCENDING_LABEL, isDescending);
+    }
+
+    /**
+     * Gives every column the order the board holds, replacing whatever each column sorted by.
+     *
+     * Written in one go: `updateColumn` rewrites the whole config, so a run of them would each
+     * report the board as it stood before the first.
+     */
+    async applyDefaultSortToColumns() {
+        const { orderBy, isDescending } = this.getDefaultSort();
+        this.updateColumns(this.columns, { orderBy, descendingOrder: isDescending });
+    }
+
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     async setInboxNested(nested: boolean) {
         await this.updateColumn(INBOX_COLUMN, { nested });
@@ -811,7 +850,23 @@ export default class BoardApi {
      * a note carries is shown without ever being written, so the first pick for it creates one.
      */
     private updateColumn(column: string, patch: Partial<BoardColumnData>) {
-        const columns = this.viewConfig?.columns ?? [];
+        this.storeColumns(this.withColumn(this.viewConfig?.columns ?? [], column, patch));
+    }
+
+    /** The same for several columns at once, written as one config. */
+    private updateColumns(columns: string[], patch: Partial<BoardColumnData>) {
+        let next = this.viewConfig?.columns ?? [];
+        for (const column of columns) {
+            next = this.withColumn(next, column, patch);
+        }
+
+        this.storeColumns(next);
+    }
+
+    /** The columns as they read with the patch applied to one of them. */
+    private withColumn(
+        columns: BoardColumnData[], column: string, patch: Partial<BoardColumnData>
+    ): BoardColumnData[] {
         const patched = (stored: BoardColumnData): BoardColumnData => {
             const updated = { ...stored, ...patch };
             if (!updated.icon) delete updated.icon;
@@ -827,8 +882,7 @@ export default class BoardApi {
         };
 
         if (columns.some(col => col.value === column)) {
-            this.storeColumns(columns.map(col => col.value === column ? patched(col) : col));
-            return;
+            return columns.map(col => col.value === column ? patched(col) : col);
         }
 
         // A column with no entry yet is written where the board draws it, after the last column
@@ -845,7 +899,7 @@ export default class BoardApi {
 
         const placed = [ ...columns ];
         placed.splice(at, 0, patched({ value: column }));
-        this.storeColumns(placed);
+        return placed;
     }
 
     reorderColumn(fromIndex: number, toIndex: number) {

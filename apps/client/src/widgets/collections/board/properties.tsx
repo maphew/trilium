@@ -4,13 +4,16 @@ import { useCallback } from "preact/hooks";
 
 import type FNote from "../../../entities/fnote";
 import { t } from "../../../services/i18n";
+import Button from "../../react/Button";
 import { Card, OptionCardSection } from "../../react/Card";
 import FormToggle from "../../react/FormToggle";
-import { useNoteLabelBoolean } from "../../react/hooks";
+import { useNoteLabel, useNoteLabelBoolean } from "../../react/hooks";
 import Modal from "../../react/Modal";
 import PromotedAttributesCard from "../../react/PromotedAttributesCard";
 import TemplateSelectionCard from "../../react/TemplateSelectionCard";
 import type { PromotedAttribute } from "../promoted_attributes";
+import SortDropdown from "../SortDropdown";
+import { parseSortKey } from "../sorting";
 import BoardApi from "./api";
 
 /** The board's settings, other than its columns and cards. */
@@ -62,6 +65,9 @@ export default function BoardProperties({ api, note, shown, onClose }: {
 function General({ api, note }: { api: BoardApi, note: FNote }) {
     const [ inboxShown ] = useNoteLabelBoolean(note, "enableInboxColumn");
     const [ archivedShown ] = useNoteLabelBoolean(note, "includeArchived");
+    // Read off the board's own labels, so the dropdown follows what is picked in it.
+    const [ storedSort ] = useNoteLabel(note, "sortColumns");
+    const [ isDescending ] = useNoteLabelBoolean(note, "sortColumnsDescending");
 
     return (
         <Card className="board-properties-general" heading={t("board_view.general")}>
@@ -83,6 +89,26 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                 <FormToggle
                     currentValue={archivedShown}
                     onChange={(shown) => api.setArchivedShown(shown)}
+                />
+            </OptionCardSection>
+
+            <OptionCardSection
+                name="board-sort-cards"
+                label={t("board_view.sort-cards")}
+            >
+                <SortDropdown
+                    className="board-sort-picker"
+                    orderBy={parseSortKey(storedSort)}
+                    isDescending={isDescending}
+                    attributes={api.getPromotedAttributes()}
+                    noneTitle={t("board_view.sort-manually")}
+                    onSelect={(orderBy) => api.setDefaultSort(orderBy)}
+                    onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
+                />
+
+                <Button
+                    text={t("board_view.apply-sort-to-columns")}
+                    onClick={() => api.applyDefaultSortToColumns()}
                 />
             </OptionCardSection>
         </Card>

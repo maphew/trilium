@@ -718,8 +718,8 @@ export default function Column({
  * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
  */
 /**
- * Where a menu opened from a button belongs: at the pointer, or against the button itself when a
- * keyboard press opened it and carries no pointer position.
+ * Where a menu opened from a button stands: at the pointer for a press, and below the button for a
+ * keyboard, which reports no position of its own.
  */
 function menuOrigin(e: JSX.TargetedMouseEvent<HTMLElement>): [ number, number ] {
     if (e.detail) {

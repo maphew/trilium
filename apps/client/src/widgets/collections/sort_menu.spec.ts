@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { MenuItem } from "../../menus/context_menu";
 import type { PromotedAttribute } from "./promoted_attributes";
-import { buildSortMenuItems, type SortMenuOptions } from "./sort_menu";
+import {
+    buildSortMenuItems, sortEntries, sortMenuTitle, type SortMenuOptions
+} from "./sort_menu";
 
 // i18next is never initialised under test, so `t` echoes the key it is given.
 vi.mock("../../services/i18n", () => ({ t: (key: string) => key }));
@@ -101,6 +103,86 @@ describe("buildSortMenuItems", () => {
 
         pick(items.at(-2));
         expect(onDirectionChange).toHaveBeenCalledWith(false);
+    });
+});
+
+describe("sortEntries", () => {
+    const attributes = [ attribute({ name: "dueDate", title: "Due date" }) ];
+
+    it("offers the orders a collection can take, each named and iconed once", () => {
+        const { orders, directions } = entries({ attributes });
+
+        expect(orders.map((entry) => [ entry.key, entry.title, entry.icon ])).toEqual([
+            [ "none", "sorting.none", "bx bx-move-vertical" ],
+            [ "title", "sorting.title", "bx bx-text" ],
+            [ "creationDate", "sorting.creation-date", "bx bx-calendar-plus" ],
+            // Named as the collection names it, and worn by the icon of what it holds.
+            [ "attr:dueDate", "Due date", "bx bx-text" ]
+        ]);
+        expect(directions.map((entry) => entry.key)).toEqual([ "ascending", "descending" ]);
+        // Only a name the user wrote is escaped and clipped where a menu draws it.
+        expect(orders.map((entry) => entry.isUserNamed))
+            .toEqual([ false, false, false, true ]);
+    });
+
+    it("marks the order the collection is in, and turns the direction off while it has none", () => {
+        const unsorted = entries({ attributes });
+        expect(unsorted.orders.map((entry) => entry.isSelected))
+            .toEqual([ true, false, false, false ]);
+        expect(unsorted.directions.map((entry) => entry.isEnabled)).toEqual([ false, false ]);
+
+        const sorted = entries({ attributes, orderBy: "attr:dueDate", isDescending: true });
+        expect(sorted.orders.map((entry) => entry.isSelected))
+            .toEqual([ false, false, false, true ]);
+        expect(sorted.directions.map((entry) => entry.isSelected)).toEqual([ false, true ]);
+        expect(sorted.directions.map((entry) => entry.isEnabled)).toEqual([ true, true ]);
+    });
+
+    it("reports what a pick names", () => {
+        const onSelect = vi.fn();
+        const onDirectionChange = vi.fn();
+        const { orders, directions } = entries({ attributes }, { onSelect, onDirectionChange });
+
+        orders[3].pick();
+        expect(onSelect).toHaveBeenCalledWith("attr:dueDate");
+
+        orders[0].pick();
+        expect(onSelect).toHaveBeenLastCalledWith(undefined);
+
+        directions[1].pick();
+        expect(onDirectionChange).toHaveBeenCalledWith(true);
+    });
+
+    function entries(
+        options: Partial<SortMenuOptions> = {},
+        handlers: Partial<Pick<SortMenuOptions, "onSelect" | "onDirectionChange">> = {}
+    ) {
+        return sortEntries({
+            orderBy: undefined,
+            isDescending: false,
+            attributes: [],
+            onSelect: handlers.onSelect ?? (() => {}),
+            onDirectionChange: handlers.onDirectionChange ?? (() => {}),
+            ...options
+        });
+    }
+});
+
+describe("sortMenuTitle", () => {
+    const attributes = [ attribute({ name: "dueDate", title: "Due date" }) ];
+
+    it("names the built-in keys, and the manual order by what the caller calls it", () => {
+        expect(sortMenuTitle({ orderBy: undefined, attributes })).toBe("sorting.none");
+        expect(sortMenuTitle({ orderBy: undefined, attributes, noneTitle: "Manually" }))
+            .toBe("Manually");
+        expect(sortMenuTitle({ orderBy: "title", attributes })).toBe("sorting.title");
+        expect(sortMenuTitle({ orderBy: "creationDate", attributes }))
+            .toBe("sorting.creation-date");
+    });
+
+    it("names an attribute as the collection names it, and an unknown one by its own name", () => {
+        expect(sortMenuTitle({ orderBy: "attr:dueDate", attributes })).toBe("Due date");
+        expect(sortMenuTitle({ orderBy: "attr:owner", attributes })).toBe("owner");
     });
 });
 

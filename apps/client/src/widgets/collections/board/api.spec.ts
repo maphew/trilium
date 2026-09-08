@@ -1849,6 +1849,91 @@ describe("how a column orders its cards", () => {
     });
 });
 
+describe("the order the board offers its columns", () => {
+    beforeEach(() => vi.restoreAllMocks());
+
+    it("reads the labels the board carries, and a board with none as the manual order", () => {
+        const plain = createApi({}, []);
+        expect(plain.api.getDefaultSort()).toEqual({ orderBy: undefined, isDescending: false });
+
+        const { api } = createApi({}, [], buildNote({
+            title: "Board",
+            "#sortColumns": "attr:dueDate",
+            "#sortColumnsDescending": ""
+        }));
+        expect(api.getDefaultSort()).toEqual({ orderBy: "attr:dueDate", isDescending: true });
+    });
+
+    // A key written by hand, or by a newer version, leaves the board offering the manual order.
+    it("reads a key it does not know as the manual order", () => {
+        const { api } = createApi({}, [], buildNote({
+            title: "Board", "#sortColumns": "dateModified"
+        }));
+
+        expect(api.getDefaultSort().orderBy).toBeUndefined();
+    });
+
+    it("writes what is picked to the board note, and takes the label off for the manual order",
+        async () => {
+            const setAttribute = vi.spyOn(attributes, "setAttribute")
+                .mockResolvedValue(undefined as never);
+            const setBoolean = vi.spyOn(attributes, "setBooleanWithInheritance")
+                .mockResolvedValue(undefined as never);
+            const { api, board } = createApi({}, []);
+
+            await api.setDefaultSort("title");
+            expect(setAttribute).toHaveBeenCalledWith(board, "label", "sortColumns", "title");
+
+            await api.setDefaultSort(undefined);
+            expect(setAttribute).toHaveBeenLastCalledWith(board, "label", "sortColumns", null);
+
+            await api.setDefaultSortDirection(true);
+            expect(setBoolean).toHaveBeenCalledWith(board, "sortColumnsDescending", true);
+        });
+
+    it("hands the order to every column at once, keeping what else each one holds", async () => {
+        const { api, saved } = createApi(
+            {
+                columns: [
+                    { value: "To Do", icon: "bx bx-list-ul", orderBy: "creationDate" },
+                    { value: "Done", descendingOrder: true }
+                ]
+            },
+            [ "To Do", "Doing", "Done" ],
+            buildNote({
+                title: "Board", "#sortColumns": "title", "#sortColumnsDescending": ""
+            }));
+
+        await api.applyDefaultSortToColumns();
+
+        // One write for the board, and the column with no entry of its own gains one where it is
+        // drawn rather than at the end.
+        expect(saved.length).toBe(1);
+        expect(saved.at(-1)?.columns).toEqual([
+            { value: "To Do", icon: "bx bx-list-ul", orderBy: "title", descendingOrder: true },
+            { value: "Doing", orderBy: "title", descendingOrder: true },
+            { value: "Done", orderBy: "title", descendingOrder: true }
+        ]);
+    });
+
+    it("puts every column back to the manual order where that is what the board holds", async () => {
+        const { api, saved } = createApi(
+            {
+                columns: [
+                    { value: "To Do", orderBy: "title" },
+                    { value: "Done", orderBy: "title", descendingOrder: true }
+                ]
+            },
+            [ "To Do", "Done" ]);
+
+        await api.applyDefaultSortToColumns();
+
+        // Strict, so the assertion catches the keys being stored as undefined rather than dropped.
+        expect(saved.at(-1)?.columns)
+            .toStrictEqual([ { value: "To Do" }, { value: "Done" } ]);
+    });
+});
+
 /**
  * A sorted column places its own cards, so nothing writes a branch position for one. The branch
  * order is the order the reader arranged, which the column goes back to when it is sorted by hand
