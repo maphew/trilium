@@ -43,22 +43,24 @@ describe("groupingOptions", () => {
         ]);
     });
 
-    it("offers them in the order the reader arranged the promoted attributes", () => {
+    it("leads with the default grouping, whatever the reader arranged", () => {
         const settings = [ { name: "priority" }, { name: "status" } ];
 
         expect(groupingOptions(board, settings, "status").map(option => option.value))
-            .toEqual([ "priority", "status" ]);
+            .toEqual([ "status", "priority" ]);
+        expect(groupingOptions(board, settings, "priority").map(option => option.value))
+            .toEqual([ "status", "priority" ]);
     });
 
     it("names the grouping in force even where no select defines it", () => {
         // A relation cannot be switched to from here, but a board on one still has to say so.
-        expect(groupingOptions(board, undefined, "~assignee")[0]).toEqual({
+        expect(groupingOptions(board, undefined, "~assignee")[1]).toEqual({
             value: "~assignee",
             title: 'promoted_attributes.relation_name:{"name":"assignee"}'
         });
 
         // A label nobody defined, which reads as the name the board groups by.
-        expect(groupingOptions(board, undefined, "severity")[0])
+        expect(groupingOptions(board, undefined, "severity")[1])
             .toEqual({ value: "severity", title: "severity" });
     });
 
@@ -73,11 +75,32 @@ describe("groupingOptions", () => {
             .toEqual([ "status", "priority" ]);
     });
 
-    it("offers nothing but the grouping in force on a board defining no selects", () => {
+    /**
+     * A board can be switched to something else and have nothing defining `#status`, which would
+     * otherwise leave the reader no way back to what the board groups by out of the box.
+     */
+    it("offers the default grouping on a board that defines nothing at all", () => {
         delete noteAttributeCache.attributes["plainBoard"];
         const plain = buildNote({ id: "plainBoard", title: "Board", "#viewType": "board" });
 
         expect(groupingOptions(plain, undefined, "status"))
-            .toEqual([ { value: "status", title: "status" } ]);
+            .toEqual([ { value: "status", title: "board_view.status-alias" } ]);
+        expect(groupingOptions(plain, undefined, "severity")).toEqual([
+            { value: "status", title: "board_view.status-alias" },
+            { value: "severity", title: "severity" }
+        ]);
+    });
+
+    it("names the default grouping with the stock word where its definition gives no alias", () => {
+        delete noteAttributeCache.attributes["plainBoard"];
+        const plain = buildNote({
+            id: "plainBoard",
+            title: "Board",
+            "#viewType": "board",
+            "#label:status(inheritable)": "promoted,single,select,options=To Do;Done"
+        });
+
+        expect(groupingOptions(plain, undefined, "status"))
+            .toEqual([ { value: "status", title: "board_view.status-alias" } ]);
     });
 });

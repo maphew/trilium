@@ -5,7 +5,9 @@ import { t } from "../../../services/i18n";
 import Dropdown from "../../react/Dropdown";
 import { FormListItem } from "../../react/FormList";
 import Icon from "../../react/Icon";
-import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
+import {
+    type PromotedAttribute, type PromotedAttributeSetting, resolvePromotedAttributes
+} from "../promoted_attributes";
 
 /** One attribute the board offers to group its cards by. */
 export interface GroupingOption {
@@ -47,8 +49,8 @@ export default function BoardGroupBy({ options, current, onSelect }: {
 }
 
 /**
- * The attributes the board offers to group by: the select fields it defines, and the grouping in
- * force whatever defines it.
+ * The attributes the board offers to group by: the default grouping, the select fields it defines,
+ * and the grouping in force whatever defines it.
  *
  * Only a select says what its columns are, so nothing else can be grouped by from here. The current
  * grouping is listed all the same — a board grouping by a relation, or by a label nobody defined,
@@ -71,5 +73,27 @@ export function groupingOptions(
         options.unshift({ value: current, title: attribute?.title ?? current.replace(/^~/, "") });
     }
 
+    // The default grouping leads, and is offered even where nothing defines it: it is what a board
+    // groups by when `#board:groupBy` names nothing, so switching away is never a step with no way
+    // back.
+    const listed = options.findIndex(option => option.value === DEFAULT_BOARD_GROUP_BY);
+    if (listed >= 0) {
+        options.splice(listed, 1);
+    }
+    options.unshift({ value: DEFAULT_BOARD_GROUP_BY, title: defaultGroupingTitle(defined) });
+
     return options;
+}
+
+/**
+ * What the default grouping is listed as: the alias its definition gives, or the stock word.
+ *
+ * Named rather than left to read as the label it is, which every other grouping is named by: the
+ * board writes the same word into the definition it creates for a new board, so a board that has
+ * one and a board that has none are listed alike.
+ */
+function defaultGroupingTitle(defined: PromotedAttribute[]) {
+    const status = defined.find(attribute =>
+        attribute.type === "label" && attribute.name === DEFAULT_BOARD_GROUP_BY);
+    return status?.promotedAlias || t("board_view.status-alias");
 }

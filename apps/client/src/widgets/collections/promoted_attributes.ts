@@ -24,6 +24,8 @@ export interface PromotedAttribute {
      * where it gives none. See {@link defaultTitle}.
      */
     title: string;
+    /** The name the definition gives it, absent where it gives none. */
+    promotedAlias?: string;
     /** Whether the attribute is kept off the items. */
     hidden: boolean;
     /** The definition as stored, which the attribute editor is handed to edit. */
@@ -76,6 +78,7 @@ export function resolvePromotedAttributes(
             definitionName: definition.name,
             type,
             title: parsed?.promotedAlias || defaultTitle(type, name),
+            promotedAlias: parsed?.promotedAlias,
             labelType: parsed?.labelType,
             selectOptions: parsed?.selectOptions,
             hidden: false,
