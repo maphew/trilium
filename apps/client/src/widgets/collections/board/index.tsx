@@ -23,13 +23,13 @@ import toast from "../../../services/toast";
 import { escapeHtml, isMobile } from "../../../services/utils";
 import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
 import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
-import { parseSortKey, type SortContext } from "../sorting";
+import type { SortContext } from "../sorting";
 import CollectionProperties from "../../note_bars/CollectionProperties";
 import FormTextArea from "../../react/FormTextArea";
 import FormTextBox from "../../react/FormTextBox";
 import {
-    useContextualShortcutHints, useNoteContext, useNoteLabel, useNoteLabelBoolean,
-    useNoteLabelWithDefault, useNoteTypeOptions, useTrackedElement, useTriliumEvent
+    useContextualShortcutHints, useNoteContext, useNoteLabelBoolean, useNoteLabelWithDefault,
+    useNoteTypeOptions, useTrackedElement, useTriliumEvent
 } from "../../react/hooks";
 import Icon from "../../react/Icon";
 import NoteAutocomplete from "../../react/NoteAutocomplete";
@@ -53,6 +53,7 @@ import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
+import { useBoardSort } from "./sort";
 import {
     affectsSortOrder, applyCardMove, ColumnMap, filterColumnMap, getBoardData, resolveColumnSorts,
     resolveSortWatch, sortColumnMap, unfilteredCardIndex
@@ -290,8 +291,6 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const [ statusAttributeWithPrefix ] = useNoteLabelWithDefault(parentNote, "board:groupBy", DEFAULT_GROUP_BY);
     const [ includeArchived ] = useNoteLabelBoolean(parentNote, "includeArchived");
     const [ inboxEnabled ] = useNoteLabelBoolean(parentNote, "enableInboxColumn");
-    const [ storedDefaultSort ] = useNoteLabel(parentNote, "sortColumns");
-    const [ isDefaultDescending ] = useNoteLabelBoolean(parentNote, "sortColumnsDescending");
     /** Every card the board holds, which an active filter narrows before the cards are drawn. */
     const [ allByColumn, setAllByColumn ] = useState<ColumnMap>();
     const [ columns, setColumns ] = useState<string[]>();
@@ -397,12 +396,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         () => resolvePromotedAttributes(
             parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
         [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
-    // Held rather than read per column: every column taking the board's order asks for it, and the
-    // labels change only when the reader picks another one.
-    const defaultSort = useMemo(() => {
-        const orderBy = parseSortKey(storedDefaultSort);
-        return orderBy ? { orderBy, isDescending: isDefaultDescending } : undefined;
-    }, [ storedDefaultSort, isDefaultDescending ]);
+    const defaultSort = useBoardSort(parentNote);
     const columnSorts = useMemo(
         () => resolveColumnSorts(viewConfig?.columns, defaultSort, usableColumns),
         [ viewConfig, defaultSort, usableColumns ]);

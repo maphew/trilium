@@ -28,13 +28,10 @@ import {
     DEFAULT_GROUP_BY, INBOX_COLUMN, INBOX_COLUMN_ICON
 } from "./columns";
 import { ColumnMap } from "./data";
+import { SORT_DESCENDING_LABEL, SORT_LABEL } from "./sort";
 
 /** Which end of a column a new card is made at. */
 export type CardPlacement = "top" | "bottom";
-
-/** The labels the board keeps the order it offers its columns in. */
-const SORT_LABEL = "sortColumns";
-const SORT_DESCENDING_LABEL = "sortColumnsDescending";
 
 /** One write's claim on a column, held until that write lands or is taken back. */
 interface ColumnClaim {

@@ -310,8 +310,7 @@ describe("Board column context menu", () => {
         // the box around it is what this is about.
         for (const item of after) {
             expect(item && "title" in item ? item.title : "")
-                .toMatch(/^<span class="board-column-name">.*<\/span>$/);
-            expect(item).toMatchObject({ className: "board-column-item" });
+                .toMatch(/^<span class="tn-menu-name">.*<\/span>$/);
         }
     });
 
@@ -724,7 +723,7 @@ describe("Board item context menu", () => {
 
     /** A name as the menu writes it, which is what `names` reads back. */
     function boxed(name: string) {
-        return `<span class="board-column-name">${name}</span>`;
+        return `<span class="tn-menu-name">${name}</span>`;
     }
 
     /** Opens the menu a card offers, and hands back what it was given to show. */
@@ -786,8 +785,8 @@ describe("Board item context menu", () => {
             && item.title === "attribute_menu.attributes");
 
         expect(items[at + 1]).toMatchObject({ uiIcon: "bx bx-toggle-left" });
-        expect(items.slice(0, at).some(item => item && "className" in item
-            && item.className?.includes("board-column-item"))).toBe(true);
+        expect(items.slice(0, at).some(item => item && "title" in item
+            && typeof item.title === "string" && item.title.includes("tn-menu-name"))).toBe(true);
     });
 
     /** Reads the run of column entries the menu puts under its Status header. */
@@ -818,15 +817,15 @@ describe("Board item context menu", () => {
 
         // Each name sits in a box of its own, which is what the stylesheet sizes.
         expect(columns.map(item => item && "title" in item ? item.title : undefined)).toEqual([
-            '<span class="board-column-name">To Do</span>',
-            '<span class="board-column-name">Done</span>'
+            '<span class="tn-menu-name">To Do</span>',
+            '<span class="tn-menu-name">Done</span>'
         ]);
         // The tick goes at the trailing edge, leaving each column's own icon where it stands.
         expect(columns.map(item => item && "trailingIcon" in item ? item.trailingIcon : undefined))
             .toEqual([ "bx bx-check", undefined ]);
-        // And carries the class the stylesheet weights it by.
+        // And the one the card is under carries the class the stylesheet weights it by.
         expect(columns.map(item => item && "className" in item ? item.className : undefined))
-            .toEqual([ "board-column-item board-current-column", "board-column-item" ]);
+            .toEqual([ "board-current-column", undefined ]);
 
         const done = columns[1];
         if (done && "handler" in done) done.handler?.(done, {} as never);
@@ -869,11 +868,12 @@ describe("Board item context menu", () => {
 
         // The name sits in a box of its own, which is what the width is set on, and nothing of the
         // name itself is left as markup.
-        expect(title).toBe('<span class="board-column-name">'
+        expect(title).toBe('<span class="tn-menu-name">'
             + "Done &lt;button id&#x3D;&quot;planted&quot;&gt;press&lt;&#x2F;button&gt;</span>");
     });
 
-    it("names every column entry for the stylesheet to size", () => {
+    /** The one the card is under is set apart, which is all the entries are classed for. */
+    it("marks the column the card is under", () => {
         const api = {
             columns: [ "To Do", "Done" ],
             isColumnArchived: () => false,
@@ -883,7 +883,7 @@ describe("Board item context menu", () => {
 
         expect(statusItems(api)
             .map(item => item && "className" in item ? item.className : undefined))
-            .toEqual([ "board-column-item board-current-column", "board-column-item" ]);
+            .toEqual([ "board-current-column", undefined ]);
     });
 
     it("shows each column with the icon and colour it carries", () => {

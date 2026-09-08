@@ -1,8 +1,6 @@
-import "./sort_menu.css";
-
 import type { MenuItem } from "../../menus/context_menu";
+import { menuName } from "../../menus/context_menu_utils";
 import { t } from "../../services/i18n";
-import { escapeHtml } from "../../services/utils";
 import { promotedAttributeIcon } from "../attribute_widgets/attribute_types";
 import type { PromotedAttribute } from "./promoted_attributes";
 import {
@@ -150,12 +148,7 @@ export function buildSortMenuItems<T>(options: SortMenuOptions): MenuItem<T>[] {
 /** One entry as a menu reads it: a title of markup, the mark at the trailing edge. */
 function toMenuItem<T>(entry: SortEntry): MenuItem<T> {
     return {
-        // A name the user wrote is escaped into the text it is meant to be, and boxed so that
-        // `sort_menu.css` clips a long one instead of widening the menu.
-        title: entry.isUserNamed
-            ? `<span class="sort-menu-name">${escapeHtml(entry.title)}</span>`
-            : entry.title,
-        className: entry.isUserNamed ? "sort-menu-item" : undefined,
+        title: entry.isUserNamed ? menuName(entry.title) : entry.title,
         uiIcon: entry.icon,
         enabled: entry.isEnabled,
         trailingIcon: entry.isSelected ? "bx bx-check" : undefined,

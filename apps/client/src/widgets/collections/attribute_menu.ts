@@ -1,10 +1,8 @@
-import "./attribute_menu.css";
-
 import type FNote from "../../entities/fnote";
 import type { MenuCommandItem, MenuItem } from "../../menus/context_menu";
+import { menuName } from "../../menus/context_menu_utils";
 import { setLabelValues } from "../../services/attributes";
 import { t } from "../../services/i18n";
-import { escapeHtml } from "../../services/utils";
 import { promotedAttributeIcon } from "../attribute_widgets/attribute_types";
 import type { PromotedAttribute } from "./promoted_attributes";
 
@@ -98,14 +96,12 @@ function buildSelectItem<T>(
             {
                 // Boxed like the options: the menu lays a row out as a flex line, so a bare title
                 // keeps the space that separates it from the icon and reads as indented.
-                title: boxed(t("attribute_menu.not-set")),
-                className: "attribute-menu-item",
+                title: menuName(t("attribute_menu.not-set")),
                 trailingIcon: current ? undefined : CHECK,
                 handler: () => { void setLabelValues(note, attribute.name, []); }
             },
             ...options.map<MenuItem<T>>((option) => ({
-                title: boxed(option),
-                className: "attribute-menu-item",
+                title: menuName(option),
                 trailingIcon: option === current ? CHECK : undefined,
                 handler: () => { void setLabelValues(note, attribute.name, [ option ]); }
             }))
@@ -116,16 +112,7 @@ function buildSelectItem<T>(
 /** What every entry carries: the attribute's display name, under the icon of its type. */
 function attributeEntry<T>(attribute: PromotedAttribute): MenuCommandItem<T> {
     return {
-        title: boxed(attribute.title),
-        className: "attribute-menu-item",
+        title: menuName(attribute.title),
         uiIcon: promotedAttributeIcon(attribute)
     };
-}
-
-/**
- * Boxes a name the user wrote. The menu reads a title as markup, so the name is escaped, and
- * `attribute_menu.css` clips the box rather than letting a long name widen the menu.
- */
-function boxed(name: string) {
-    return `<span class="attribute-menu-name">${escapeHtml(name)}</span>`;
 }

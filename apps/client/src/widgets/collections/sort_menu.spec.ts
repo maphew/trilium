@@ -75,12 +75,10 @@ describe("buildSortMenuItems", () => {
         });
 
         expect(titles(items).slice(4, 6)).toEqual([
-            `<span class="sort-menu-name">Due date</span>`,
-            `<span class="sort-menu-name">Owner</span>`
+            `<span class="tn-menu-name">Due date</span>`,
+            `<span class="tn-menu-name">Owner</span>`
         ]);
-        expect(items[4]).toMatchObject({
-            uiIcon: "bx bx-calendar", className: "sort-menu-item", trailingIcon: undefined
-        });
+        expect(items[4]).toMatchObject({ uiIcon: "bx bx-calendar", trailingIcon: undefined });
         expect(items[5]).toMatchObject({ uiIcon: "bx bx-transfer", trailingIcon: "bx bx-check" });
     });
 
@@ -89,7 +87,7 @@ describe("buildSortMenuItems", () => {
             attributes: [ attribute({ name: "x", title: `<img src=x onerror="alert(1)">` }) ]
         });
 
-        expect(titles(items)[4]).toBe("<span class=\"sort-menu-name\">"
+        expect(titles(items)[4]).toBe("<span class=\"tn-menu-name\">"
             + "&lt;img src&#x3D;x onerror&#x3D;&quot;alert(1)&quot;&gt;</span>");
     });
 

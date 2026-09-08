@@ -32,12 +32,10 @@ describe("buildAttributeMenuItems", () => {
 
         expect(items[0]).toEqual({ kind: "header", title: "attribute_menu.attributes" });
         expect(titles(items).slice(1)).toEqual([
-            `<span class="attribute-menu-name">Done</span>`,
-            `<span class="attribute-menu-name">State</span>`
+            `<span class="tn-menu-name">Done</span>`,
+            `<span class="tn-menu-name">State</span>`
         ]);
-        expect(items[1]).toMatchObject({
-            uiIcon: "bx bx-toggle-left", className: "attribute-menu-item"
-        });
+        expect(items[1]).toMatchObject({ uiIcon: "bx bx-toggle-left" });
         expect(items[2]).toMatchObject({ uiIcon: "bx bx-list-ul" });
     });
 
@@ -111,10 +109,10 @@ describe("buildAttributeMenuItems", () => {
             const items = options(buildNote({ title: "Card" }));
 
             expect(titles(items)).toEqual([
-                `<span class="attribute-menu-name">attribute_menu.not-set</span>`,
-                `<span class="attribute-menu-name">To Do</span>`,
-                `<span class="attribute-menu-name">Doing</span>`,
-                `<span class="attribute-menu-name">Done</span>`
+                `<span class="tn-menu-name">attribute_menu.not-set</span>`,
+                `<span class="tn-menu-name">To Do</span>`,
+                `<span class="tn-menu-name">Doing</span>`,
+                `<span class="tn-menu-name">Done</span>`
             ]);
             expect(items.every(item => !("uiIcon" in item) || !item.uiIcon)).toBe(true);
         });
@@ -122,12 +120,12 @@ describe("buildAttributeMenuItems", () => {
         it("marks the option the item holds", () => {
             const items = options(buildNote({ title: "Card", "#state": "Doing" }));
 
-            expect(marked(items)).toEqual([ `<span class="attribute-menu-name">Doing</span>` ]);
+            expect(marked(items)).toEqual([ `<span class="tn-menu-name">Doing</span>` ]);
         });
 
         it("marks Not set while the item holds none", () => {
             expect(marked(options(buildNote({ title: "Card" }))))
-                .toEqual([ `<span class="attribute-menu-name">attribute_menu.not-set</span>` ]);
+                .toEqual([ `<span class="tn-menu-name">attribute_menu.not-set</span>` ]);
         });
 
         it("marks nothing for a value the definition no longer offers", () => {
@@ -154,7 +152,7 @@ describe("buildAttributeMenuItems", () => {
         const entry = items[1];
         if (!entry || !("items" in entry)) throw new Error("expected a submenu");
 
-        const escaped = "<span class=\"attribute-menu-name\">"
+        const escaped = "<span class=\"tn-menu-name\">"
             + "&lt;img src&#x3D;x onerror&#x3D;&quot;alert(1)&quot;&gt;</span>";
         expect(titles(items)[1]).toBe(escaped);
         expect(titles(entry.items ?? [])[1]).toBe(escaped);

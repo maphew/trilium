@@ -892,14 +892,6 @@ body.mobile .column-drop-placeholder {
     font-weight: 600;
 }
 
-.dropdown-item.board-column-item .board-column-name {
-    display: block;
-    max-width: 300px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* Outline around a column that is over its limit. */
 .board-view-container .board-column.over-limit {
   box-shadow: 0 0 0 2px var(--board-limit-exceeded-outline);

@@ -7,9 +7,8 @@ import contextMenu, { ContextMenuEvent, MenuItem } from "../../../menus/context_
 import link_context_menu from "../../../menus/link_context_menu";
 import branches from "../../../services/branches";
 import dialog from "../../../services/dialog";
-import { getArchiveMenuItem } from "../../../menus/context_menu_utils";
+import { getArchiveMenuItem, menuName } from "../../../menus/context_menu_utils";
 import { t } from "../../../services/i18n";
-import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
 import { buildAttributeMenuItems } from "../attribute_menu";
 import { buildSortMenuItems, type SortMenuOptions } from "../sort_menu";
@@ -366,11 +365,9 @@ function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<stri
         const title = api.getColumnTitle(name);
 
         return [ {
-            // Boxed as the status list boxes its names, so a long one is clipped rather than
-            // widening the menu. `t()` escapes what it interpolates.
-            title: `<span class="board-column-name">`
+            // `t()` escapes what it interpolates, so the sentence it builds is boxed as it stands.
+            title: `<span class="tn-menu-name">`
                 + `${t("board_view.move-column-after", { column: title })}</span>`,
-            className: "board-column-item",
             uiIcon: api.getColumnIcon(name),
             iconColorClass: api.getColumnColorClass(name),
             badges: api.isColumnArchived(name)
@@ -416,18 +413,13 @@ function buildColumnItems(
     api: Api, note: FNote, column: string, onFocusCard: (noteId: string) => void
 ): MenuItem<CommandNames>[] {
     const items: MenuItem<CommandNames>[] = api.columns.map((name) => ({
-        // The menu reads a title as markup, which is what puts the name in a box of its own: a
-        // bare run of text inside the item's flex row is an anonymous box, and nothing can be said
-        // about its width. What a crafted name would plant there is escaped into the text it is
-        // meant to be; every other title the board builds from a name goes through `t()`, which
-        // escapes what it interpolates.
-        title: `<span class="board-column-name">${escapeHtml(api.getColumnTitle(name))}</span>`,
+        title: menuName(api.getColumnTitle(name)),
         uiIcon: api.getColumnIcon(name),
         iconColorClass: api.getColumnColorClass(name),
         // The one it is already under is shown rather than hidden, so the list reads as the whole
         // set of columns and says which of them this card belongs to.
         trailingIcon: name === column ? "bx bx-check" : undefined,
-        className: name === column ? "board-column-item board-current-column" : "board-column-item",
+        className: name === column ? "board-current-column" : undefined,
         badges: api.isColumnArchived(name)
             ? [ { title: t("board_view.archived-badge") } ]
             : undefined,

@@ -1702,6 +1702,15 @@ body.mobile .dropdown-submenu > .dropdown-menu {
     -webkit-user-select: none;
 }
 
+/* A name the user wrote, boxed by `menuName()`: clipped rather than widening the menu. */
+.dropdown-item .tn-menu-name {
+    display: block;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 body.desktop li.dropdown-submenu:hover > ul.dropdown-menu {
     display: block;
 }
