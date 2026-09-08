@@ -444,17 +444,24 @@ export function openNoteContextMenu(
     /** Refocuses the card after a column change has redrawn it elsewhere. */
     onFocusCard: (noteId: string) => void,
     /** Opens the new-card editor at an index in the column, above or below this card. */
-    onInsert: (index: number) => void
+    onInsert: (index: number) => void,
+    /** Opens the editor at the foot of the column, which a sorted column offers instead. */
+    onNewItem: () => void
 ) {
     event.preventDefault();
     event.stopPropagation();
 
-    // A sorted column decides where its cards go, so it is offered no place to put one.
+    // A sorted column decides where its cards go, so the entries naming a place are left out.
     const isSorted = api.isColumnSorted(column);
 
     // What the card is placed beside, and the copy made below it.
     const placement: MenuItem<CommandNames>[] = [
-        ...(isSorted ? [] : [
+        // A sorted column takes its new cards at the foot, where its own button makes them.
+        ...(isSorted ? [ {
+            title: t("board_view.insert-new"),
+            uiIcon: "bx bx-plus",
+            handler: onNewItem
+        } ] : [
             {
                 title: t("board_view.insert-above"),
                 uiIcon: "bx bx-list-plus",

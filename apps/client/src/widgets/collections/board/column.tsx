@@ -168,6 +168,8 @@ export default function Column({
 
         setInsertBefore({ branchId: itemsRef.current?.[index]?.branch.branchId });
     }, []);
+    /** Opens the field at the foot of the column, which its button and its menu also open. */
+    const beginNewItem = useCallback(() => setIsCreatingNewItem(true), []);
     /** The card the footer just made, which is revealed and scrolled to as it is drawn. */
     const [ createdNoteId, setCreatedNoteId ] = useState<string>();
     /**
@@ -425,7 +427,7 @@ export default function Column({
             keepCollapsed,
             nested,
             onEditTitle: () => setColumnNameToEdit(column),
-            onNewItem: () => setIsCreatingNewItem(true),
+            onNewItem: beginNewItem,
             onAddColumn: async (direction) => {
                 setColumnNameToEdit(await api.insertColumn(column, direction));
             },
@@ -674,6 +676,7 @@ export default function Column({
                             isEditing={branch.branchId === branchIdToEdit}
                             onFocusCard={onFocusCard}
                             onInsert={beginInsert}
+                            onNewItem={beginNewItem}
                         />
                     </Fragment>
                 ))}

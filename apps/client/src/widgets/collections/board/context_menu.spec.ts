@@ -602,11 +602,31 @@ describe("Board item context menu", () => {
         expect(icons).toContain("bx bx-rename");
         expect(icons).toContain("bx bx-outline");
 
-        // The copy is all the group has left, and the heading follows it.
+        // The field at the foot of the column and the copy are what the group has left.
         const at = lastOfLeadingGroup(items);
         expect(items[at + 1]).toMatchObject({ kind: "separator" });
-        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-outline" });
-        expect(items[at + 3]).toMatchObject({ kind: "header" });
+        expect(items[at + 2]).toMatchObject({ title: "board_view.insert-new" });
+        expect(items[at + 3]).toMatchObject({ uiIcon: "bx bx-outline" });
+        expect(items[at + 4]).toMatchObject({ kind: "header" });
+    });
+
+    /** The column names its own cards at the foot, so that is where the menu sends the reader. */
+    it("opens the field at the foot of a sorted column", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isColumnSorted: () => true
+        } as unknown as BoardApi;
+        const newItem = vi.fn();
+
+        const entry = openItemMenu(api, "To Do", vi.fn(), vi.fn(), 2, newItem)
+            .find(item => item && "title" in item && item.title === "board_view.insert-new");
+        if (!entry || !("handler" in entry)) throw new Error("expected an insert-new entry");
+
+        entry.handler?.(entry, {} as never);
+        expect(newItem).toHaveBeenCalled();
     });
 
     /** Where the entries a card is opened and named with end, which the next group follows. */
@@ -704,7 +724,8 @@ describe("Board item context menu", () => {
 
     /** Opens the menu a card offers, and hands back what it was given to show. */
     function openItemMenu(
-        api: BoardApi, column = "To Do", focusCard = vi.fn(), insert = vi.fn(), index = 2) {
+        api: BoardApi, column = "To Do", focusCard = vi.fn(), insert = vi.fn(), index = 2,
+        newItem = vi.fn()) {
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
         const event = {
             preventDefault: () => {},
@@ -725,7 +746,7 @@ describe("Board item context menu", () => {
             api);
         openNoteContextMenu(
             withDefaults, event, buildNote({ title: "Card" }) as FNote, "branchId", column, index,
-            focusCard, insert);
+            focusCard, insert, newItem);
 
         return show.mock.calls.at(-1)?.[0].items ?? [];
     }
