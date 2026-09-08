@@ -10,10 +10,10 @@ export const SORT_LABEL = "sortColumns";
 export const SORT_DESCENDING_LABEL = "sortColumnsDescending";
 
 /**
- * The order the board holds, absent while it arranges its cards by hand.
+ * Reads the order the board stores in its labels, absent when it stores no key.
  *
- * Kept in step with the labels rather than read per column: every column taking the board's order
- * asks for it, and the labels change only when the reader picks another one.
+ * Memoised on the label values, so the columns that sort by it read one object rather than parsing
+ * the labels each.
  */
 export function useBoardSort(note: FNote): ColumnSort | undefined {
     const [ stored ] = useNoteLabel(note, SORT_LABEL);

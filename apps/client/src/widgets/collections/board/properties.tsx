@@ -67,7 +67,6 @@ export default function BoardProperties({ api, note, shown, onClose }: {
 function General({ api, note }: { api: BoardApi, note: FNote }) {
     const [ inboxShown ] = useNoteLabelBoolean(note, "enableInboxColumn");
     const [ archivedShown ] = useNoteLabelBoolean(note, "includeArchived");
-    // Read off the board's own labels, so the dropdown follows what is picked in it.
     const defaultSort = useBoardSort(note);
 
     return (
@@ -104,8 +103,8 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                     attributes={api.getPromotedAttributes()}
                     noneTitle={t("board_view.sort-manually")}
                     hideDefault
-                    // The board's own order is a key of its own: `hideDefault` leaves it no
-                    // entry for taking one from above, which `parseSortKey` also rules out.
+                    // `hideDefault` leaves the menu no DEFAULT_SORT entry, and `parseSortKey`
+                    // rejects that key as well: `setDefaultSort` takes a plain sort key.
                     onSelect={(orderBy) => api.setDefaultSort(parseSortKey(orderBy))}
                     onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
                 />

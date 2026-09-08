@@ -620,11 +620,11 @@ export default class BoardApi {
     }
 
     /**
-     * What a column is set to order its cards by, which is the board's own order until the reader
-     * picks something for the column.
+     * Reads a column's stored `orderBy` and `descendingOrder`.
      *
-     * @returns the stored key, absent for the manual order, and the direction stored with it. See
-     *          {@link getEffectiveColumnSort} for what the column is actually drawn in.
+     * @returns {@link DEFAULT_SORT} when the column stores nothing, undefined for the manual
+     *          order, and otherwise the stored key. Use {@link getEffectiveColumnSort} to resolve
+     *          {@link DEFAULT_SORT} against the board's own order.
      */
     getColumnSort(column: string) {
         const stored = this.viewConfig?.columns?.find(col => col.value === column);
@@ -635,8 +635,9 @@ export default class BoardApi {
     }
 
     /**
-     * The order a column is drawn in: its own, or the board's where it takes that. A column taking
-     * an order the board does not hold keeps the manual one.
+     * Resolves {@link getColumnSort} against {@link getDefaultSort}: a column storing
+     * {@link DEFAULT_SORT} sorts by the board's key and direction, and by nothing when the board
+     * holds no key.
      */
     getEffectiveColumnSort(column: string) {
         const stored = this.getColumnSort(column);
@@ -649,8 +650,8 @@ export default class BoardApi {
     }
 
     /**
-     * Sets what a column sorts by. Pass `undefined` for the manual order, which is written out:
-     * a column storing nothing takes the board's order.
+     * Sets what a column sorts by. `undefined` stores {@link MANUAL_SORT}, since a column storing
+     * nothing sorts by the board's order instead.
      */
     async setColumnSort(column: string, orderBy: StoredSortKey | undefined) {
         await this.updateColumn(column, { orderBy: orderBy ?? MANUAL_SORT });
@@ -662,8 +663,8 @@ export default class BoardApi {
     }
 
     /**
-     * The order the board holds for its columns, kept on the board note rather than in the view
-     * config: it is a preference to apply, not something a column is drawn by.
+     * Reads `#sortColumns` and `#sortColumnsDescending` off the board note, which is where the
+     * order the columns default to is stored rather than in `board.json`.
      */
     getDefaultSort() {
         return {
@@ -686,11 +687,13 @@ export default class BoardApi {
     }
 
     /**
-     * Puts every column back to the board's order, dropping the one each column picked for itself.
+     * Removes `orderBy` and `descendingOrder` from every stored column, so all of them sort by the
+     * board's order again.
      *
-     * Only the columns the config holds an entry for are written: one with no entry already takes
-     * the board's order. Written in one go, since `updateColumn` rewrites the whole config and a
-     * run of them would each start from it as it stood before the first.
+     * Only columns `board.json` holds an entry for are written; a column with no entry already
+     * sorts by the board's order. Written through {@link updateColumns} in one go, since
+     * `updateColumn` rewrites the whole config and a run of them would each start from the config
+     * as it stood before the first.
      */
     async resetColumnSortsToDefault() {
         const stored = this.viewConfig?.columns ?? [];

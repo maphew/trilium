@@ -94,11 +94,11 @@ function buildSelectItem<T>(
         // across every option.
         items: [
             {
-                // Boxed like the options: the menu lays a row out as a flex line, so a bare title
-                // keeps the space that separates it from the icon and reads as indented.
+                // Boxed like the options: a menu row is a flex line, so a bare title keeps the
+                // space that separates it from the icon and renders as indented.
                 title: menuName(t("attribute_menu.not-set")),
                 trailingIcon: current ? undefined : CHECK,
-                handler: () => { void setLabelValues(note, attribute.name, []); }
+                handler: () => { void clearValue(note, attribute.name); }
             },
             ...options.map<MenuItem<T>>((option) => ({
                 title: menuName(option),
@@ -107,6 +107,20 @@ function buildSelectItem<T>(
             }))
         ]
     };
+}
+
+/**
+ * Takes the value off the note.
+ *
+ * `setLabelValues` removes only the labels the note owns, so an inherited value would still apply.
+ * The note is given an empty label of its own instead, which is what an unset promoted field holds
+ * and what `renderLabelValue` draws as nothing.
+ */
+function clearValue(note: FNote, name: string) {
+    const isInherited = note.getAttributes("label", name)
+        .some((attribute) => attribute.noteId !== note.noteId);
+
+    return setLabelValues(note, name, isInherited ? [ "" ] : []);
 }
 
 /** What every entry carries: the attribute's display name, under the icon of its type. */

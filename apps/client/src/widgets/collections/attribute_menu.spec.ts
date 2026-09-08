@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type FNote from "../../entities/fnote";
 import type { MenuCommandItem, MenuItem } from "../../menus/context_menu";
+import froca from "../../services/froca";
 import { buildNote } from "../../test/easy-froca";
 import { buildAttributeMenuItems } from "./attribute_menu";
 import type { PromotedAttribute } from "./promoted_attributes";
@@ -141,6 +142,22 @@ describe("buildAttributeMenuItems", () => {
 
             pick(items[0]);
             expect(writes.setLabelValues).toHaveBeenCalledWith(note, "state", []);
+        });
+
+        /**
+         * Only the labels a note owns are removed, so a note with nothing of its own would keep the
+         * value it inherits. An empty label of its own overrides it.
+         */
+        it("overrides an inherited value rather than removing nothing", () => {
+            const parent = buildNote({
+                title: "Parent",
+                "#state(inheritable)": "Doing",
+                children: [ { title: "Card" } ]
+            });
+            const note = froca.getNoteFromCache(parent.getChildNoteIds()[0]);
+
+            pick(options(note)[0]);
+            expect(writes.setLabelValues).toHaveBeenCalledWith(note, "state", [ "" ]);
         });
     });
 

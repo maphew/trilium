@@ -16,14 +16,11 @@ export interface SortMenuOptions {
     attributes: PromotedAttribute[];
     /** What the entry for no sorting is called. "None" unless the caller names it. */
     noneTitle?: string;
-    /**
-     * What the entry taking the collection's own order is called. "Default" unless the caller names
-     * it.
-     */
+    /** What the {@link DEFAULT_SORT} entry is called. "Default" unless the caller names it. */
     defaultTitle?: string;
     /**
-     * Leaves that entry out, for the menu that sets the collection's own order: there is nothing
-     * above it for it to take one from.
+     * Drops the {@link DEFAULT_SORT} entry. Set it on the menu that edits the collection's own
+     * order, which has no order above it to fall back to.
      */
     hideDefault?: boolean;
     /** Called with the key picked, or `undefined` for the order the user arranges by hand. */
@@ -47,8 +44,9 @@ export interface SortEntry {
 }
 
 /**
- * What a collection offers to order its items by, and the two directions, for a menu or a dropdown
- * to draw. Both surfaces read the same entries, so an order offered in one is offered in the other.
+ * Builds the orders a collection offers and the two directions, for {@link buildSortMenuItems} and
+ * `SortDropdown` to draw. Both read these entries, so an order offered in one is offered in the
+ * other.
  */
 export function sortEntries({
     orderBy, isDescending, attributes, noneTitle, defaultTitle, hideDefault, onSelect,
@@ -66,8 +64,7 @@ export function sortEntries({
         pick: () => onSelect(key)
     });
 
-    // Off while the collection keeps the manual order, and while it takes the order above it,
-    // which brings a direction of its own.
+    // Off for the manual order, and for DEFAULT_SORT, which brings the direction with it.
     const canPickDirection = !!orderBy && orderBy !== DEFAULT_SORT;
     const direction = (descending: boolean, title: string, icon: string): SortEntry => ({
         key: descending ? "descending" : "ascending",
