@@ -2,12 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockGetDocumentProxy = vi.fn();
 const mockExtractText = vi.fn();
-const mockExtractImages = vi.fn();
 
 vi.mock('unpdf', () => ({
     getDocumentProxy: mockGetDocumentProxy,
-    extractText: mockExtractText,
-    extractImages: mockExtractImages
+    extractText: mockExtractText
 }));
 
 const mockGetBuffer = vi.fn().mockResolvedValue(Buffer.from('png-bytes'));
@@ -15,6 +13,12 @@ const mockFromBitmap = vi.fn(() => ({ getBuffer: mockGetBuffer }));
 
 vi.mock('jimp', () => ({
     Jimp: { fromBitmap: mockFromBitmap }
+}));
+
+const mockRenderPage = vi.fn();
+
+vi.mock('../pdf_renderer.js', () => ({
+    default: { renderPage: mockRenderPage }
 }));
 
 const mockRecognize = vi.fn();
@@ -48,6 +52,7 @@ beforeEach(async () => {
     mockGetPage.mockImplementation(async () => ({ getViewport: mockGetViewport }));
     mockGetDocumentProxy.mockResolvedValue(pdfProxy);
     mockGetBuffer.mockResolvedValue(Buffer.from('png-bytes'));
+    mockRenderPage.mockResolvedValue(renderedPage);
     ({ PDFProcessor } = await import('./pdf_processor.js'));
 });
 
@@ -56,9 +61,8 @@ afterEach(() => {
 });
 
 const buffer = Buffer.from('%PDF-1.4 fake');
-// A full-page grayscale scan, as unpdf's extractImages returns it — comfortably
-// above the minimum OCR dimension so it isn't skipped as a decorative image.
-const scannedImage = { data: new Uint8ClampedArray(100 * 100), width: 100, height: 100, channels: 1, key: 'img_0' };
+/** A page as the renderer returns it: four BGRA bytes per pixel. */
+const renderedPage = { data: new Uint8Array(100 * 60 * 4), width: 100, height: 60 };
 
 /** Embedded text dense enough for a Letter page to read as a real text layer rather than a scan. */
 function densePage(marker: string): string {
@@ -89,8 +93,8 @@ describe('PDFProcessor', () => {
         expect(result.pageCount).toBe(2);
         expect(result.language).toBe('fra');
         expect(mockExtractText).toHaveBeenCalledWith(pdfProxy, { mergePages: false });
-        // No scanned page → no image extraction and no OCR.
-        expect(mockExtractImages).not.toHaveBeenCalled();
+        // No scanned page → nothing rendered and no OCR.
+        expect(mockRenderPage).not.toHaveBeenCalled();
         expect(mockRecognize).not.toHaveBeenCalled();
         // buffer is wrapped into a Uint8Array carrying the SAME bytes before being passed to unpdf
         const [docArg] = mockGetDocumentProxy.mock.calls[0];
@@ -98,20 +102,54 @@ describe('PDFProcessor', () => {
         expect(Buffer.from(docArg as Uint8Array).toString()).toBe('%PDF-1.4 fake');
     });
 
-    it('OCRs a scanned (text-less) page via its embedded images', async () => {
+    it('OCRs a scanned (text-less) page by rendering it', async () => {
         const processor = new PDFProcessor();
         mockExtractText.mockResolvedValue({ totalPages: 1, text: ['   '] });
-        mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'recognized text', confidence: 0.9 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 1);
-        expect(mockFromBitmap).toHaveBeenCalledOnce();
+        expect(mockRenderPage).toHaveBeenCalledWith(expect.any(Uint8Array), 1);
         expect(mockRecognize).toHaveBeenCalledWith(Buffer.from('png-bytes'), 'eng');
         expect(result.text).toBe('recognized text');
         expect(result.confidence).toBeCloseTo(0.9);
         expect(result.pageCount).toBe(1);
+    });
+
+    it('turns the rendered BGRA page into the RGBA bitmap Jimp encodes', async () => {
+        const processor = new PDFProcessor();
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
+        mockRenderPage.mockResolvedValue({
+            // Two pixels, BGRA: an orange and a teal. The second is transparent, to prove alpha is
+            // forced opaque rather than carried through.
+            data: Uint8Array.from([16, 128, 240, 255, 200, 160, 32, 0]),
+            width: 2,
+            height: 1
+        });
+        mockRecognize.mockResolvedValue({ text: 'x', confidence: 0.5 });
+
+        await processor.extractText(buffer, { language: 'eng' });
+
+        const [bitmap] = mockFromBitmap.mock.calls[0] as unknown as [{ data: Buffer; width: number; height: number }];
+        expect(bitmap.width).toBe(2);
+        expect(bitmap.height).toBe(1);
+        expect([...bitmap.data]).toEqual([
+            240, 128, 16, 255,
+            32, 160, 200, 255
+        ]);
+    });
+
+    it('hands the renderer bytes of its own, since pdf.js takes ownership of what it is given', async () => {
+        const processor = new PDFProcessor();
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
+        mockRecognize.mockResolvedValue({ text: 'ocr', confidence: 0.9 });
+
+        await processor.extractText(buffer, { language: 'eng' });
+
+        const [unpdfBytes] = mockGetDocumentProxy.mock.calls[0];
+        const [renderBytes] = mockRenderPage.mock.calls[0];
+        expect(renderBytes).not.toBe(unpdfBytes);
+        expect(Buffer.from(renderBytes as Uint8Array).toString()).toBe('%PDF-1.4 fake');
     });
 
     it('handles a mixed PDF, combining embedded text and OCR per page', async () => {
@@ -120,15 +158,14 @@ describe('PDFProcessor', () => {
             totalPages: 2,
             text: [densePage('a real text page'), '']
         });
-        mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'scanned page text', confidence: 0.8 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
         expect(result.text).toBe(`${densePage('a real text page').trim()}\n\nscanned page text`);
-        // Only the second (scanned) page is OCR'd.
-        expect(mockExtractImages).toHaveBeenCalledTimes(1);
-        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 2);
+        // Only the second (scanned) page is rendered.
+        expect(mockRenderPage).toHaveBeenCalledTimes(1);
+        expect(mockRenderPage).toHaveBeenCalledWith(expect.any(Uint8Array), 2);
         // Average of the embedded-page (0.99) and OCR-page (0.8) confidences.
         expect(result.confidence).toBeCloseTo((0.99 + 0.8) / 2);
     });
@@ -138,12 +175,11 @@ describe('PDFProcessor', () => {
         // A scanner stamps this much text on a page whose body is pure raster. Any flat character
         // bound low enough to be safe is cleared by it, and the page would never be recognized.
         mockExtractText.mockResolvedValue({ totalPages: 1, text: ['ACME Corp — Invoice 2024-11-03'] });
-        mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'the body of the invoice', confidence: 0.9 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        expect(mockExtractImages).toHaveBeenCalledWith(pdfProxy, 1);
+        expect(mockRenderPage).toHaveBeenCalledWith(expect.any(Uint8Array), 1);
         expect(result.text).toBe('the body of the invoice');
     });
 
@@ -152,13 +188,12 @@ describe('PDFProcessor', () => {
         // Four times the area of Letter, so the same text is four times as sparse on it.
         mockGetViewport.mockReturnValue({ width: 1224, height: 1584 });
         mockExtractText.mockResolvedValue({ totalPages: 1, text: [densePage('sparse on a large page')] });
-        mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'recognized', confidence: 0.9 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
         // The very same text is kept as-is on a Letter page (see the mixed-PDF case above).
-        expect(mockExtractImages).toHaveBeenCalledOnce();
+        expect(mockRenderPage).toHaveBeenCalledOnce();
         expect(result.text).toBe('recognized');
     });
 
@@ -169,75 +204,32 @@ describe('PDFProcessor', () => {
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        expect(mockExtractImages).not.toHaveBeenCalled();
+        expect(mockRenderPage).not.toHaveBeenCalled();
         expect(result.text).toBe(densePage('still a text page').trim());
         expect(mockLog.error).toHaveBeenCalledWith(expect.stringContaining('Could not measure PDF page 1'));
     });
 
-    it('reports zero confidence and empty text for a scanned page with nothing recognizable', async () => {
+    it('reports zero confidence and empty text when the page holds nothing recognizable', async () => {
         const processor = new PDFProcessor();
         mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
-        mockExtractImages.mockResolvedValue([]);
+        mockRecognize.mockResolvedValue({ text: '', confidence: 0 });
+
+        const result = await processor.extractText(buffer, { language: 'eng' });
+
+        expect(result.text).toBe('');
+        expect(result.confidence).toBe(0);
+    });
+
+    it('tolerates a render failure on a page without aborting the document', async () => {
+        const processor = new PDFProcessor();
+        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
+        mockRenderPage.mockRejectedValue(new Error('broken page'));
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
         expect(result.text).toBe('');
         expect(result.confidence).toBe(0);
         expect(mockRecognize).not.toHaveBeenCalled();
-    });
-
-    it('tolerates an image extraction failure on a page without aborting the document', async () => {
-        const processor = new PDFProcessor();
-        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
-        mockExtractImages.mockRejectedValue(new Error('broken page'));
-
-        const result = await processor.extractText(buffer, { language: 'eng' });
-
-        expect(result.text).toBe('');
-        expect(result.confidence).toBe(0);
-        expect(mockLog.error).toHaveBeenCalledWith(expect.stringContaining('PDF OCR failed for page 1'));
-    });
-
-    it('skips embedded images below the minimum OCR dimension', async () => {
-        const processor = new PDFProcessor();
-        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
-        // A 20x20 icon — too small to hold recognizable text.
-        mockExtractImages.mockResolvedValue([
-            { data: new Uint8ClampedArray(20 * 20), width: 20, height: 20, channels: 1, key: 'icon' }
-        ]);
-
-        const result = await processor.extractText(buffer, { language: 'eng' });
-
-        expect(mockFromBitmap).not.toHaveBeenCalled();
-        expect(mockRecognize).not.toHaveBeenCalled();
-        expect(result.text).toBe('');
-    });
-
-    it('OCRs an RGBA page image', async () => {
-        const processor = new PDFProcessor();
-        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
-        mockExtractImages.mockResolvedValue([
-            { data: new Uint8ClampedArray(60 * 60 * 4), width: 60, height: 60, channels: 4, key: 'rgba' }
-        ]);
-        mockRecognize.mockResolvedValue({ text: 'rgba text', confidence: 0.7 });
-
-        const result = await processor.extractText(buffer, { language: 'eng' });
-
-        expect(mockFromBitmap).toHaveBeenCalledOnce();
-        expect(result.text).toBe('rgba text');
-    });
-
-    it('skips a page whose image has an unsupported channel count, logging the failure', async () => {
-        const processor = new PDFProcessor();
-        mockExtractText.mockResolvedValue({ totalPages: 1, text: [''] });
-        mockExtractImages.mockResolvedValue([
-            { data: new Uint8ClampedArray(50 * 50 * 2), width: 50, height: 50, channels: 2, key: 'weird' }
-        ]);
-
-        const result = await processor.extractText(buffer, { language: 'eng' });
-
-        expect(mockRecognize).not.toHaveBeenCalled();
-        expect(result.text).toBe('');
         expect(mockLog.error).toHaveBeenCalledWith(expect.stringContaining('PDF OCR failed for page 1'));
     });
 
@@ -245,13 +237,12 @@ describe('PDFProcessor', () => {
         const processor = new PDFProcessor();
         const totalPages = 55;
         mockExtractText.mockResolvedValue({ totalPages, text: Array(totalPages).fill('') });
-        mockExtractImages.mockResolvedValue([scannedImage]);
         mockRecognize.mockResolvedValue({ text: 'p', confidence: 0.9 });
 
         const result = await processor.extractText(buffer, { language: 'eng' });
 
-        // MAX_OCR_PAGES = 50; the remaining 5 scanned pages are skipped, not OCR'd.
-        expect(mockRecognize).toHaveBeenCalledTimes(50);
+        // MAX_OCR_PAGES = 50; the remaining 5 scanned pages are skipped, not rendered.
+        expect(mockRenderPage).toHaveBeenCalledTimes(50);
         expect(result.text.split('\n\n')).toHaveLength(50);
         expect(mockLog.info).toHaveBeenCalledWith(expect.stringContaining('page cap reached'));
     });

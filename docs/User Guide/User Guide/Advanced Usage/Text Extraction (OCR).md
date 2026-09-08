@@ -30,7 +30,7 @@ OCR in Trilium supports the following formats:
 The PDF extraction supports:
 
 *   PDFs with text information (e.g. a PDF created by a browser or a word processing application), in which the text is extracted.
-*   Scanned PDFs, in which the text is extracted through an OCR process.
+*   Scanned PDFs, and other PDFs whose text cannot be selected (such as documents whose text was converted to outlines), in which the text is extracted through an OCR process.
 *   Mixed PDFs, containing both text and images with text content.
 
 Note that OCR extraction is limited to 50 pages per PDF, pages containing text information (not as an image) are not subject to this limitation.

@@ -1,6 +1,7 @@
 import { getLog } from "@triliumnext/core";
 
 import { OCRProcessingOptions, OCRResult } from '../ocr_service.js';
+import renderer, { RenderedPage } from '../pdf_renderer.js';
 import recognizer from '../tesseract_recognizer.js';
 import { FileProcessor } from './file_processor.js';
 
@@ -11,8 +12,7 @@ type PdfDocument = Awaited<ReturnType<typeof import('unpdf').getDocumentProxy>>;
  * sent to OCR. A flat character count cannot separate the two cases: a scan carrying a header, a
  * watermark or a partial text layer clears any small bound while the body of the page stays unread.
  * This works out to roughly 240 characters on Letter and A4 — far below a sparse but genuine text
- * page, far above a header. A text page misjudged by it still keeps its text, because a page with
- * no image large enough to recognize yields no OCR text and falls back to what it had.
+ * page, far above a header.
  */
 const MIN_EMBEDDED_TEXT_DENSITY = 0.0005;
 
@@ -32,17 +32,14 @@ const MAX_OCR_PAGES = 50;
 const EMBEDDED_TEXT_CONFIDENCE = 0.99;
 
 /**
- * Embedded images smaller than this on either side are skipped: scanned pages are
- * full-page raster, whereas tiny images are almost always icons, bullets or rules
- * that hold no recognizable text and would only waste an OCR pass.
- */
-const MIN_OCR_IMAGE_DIM = 50;
-
-/**
  * PDF processor. Prefers the PDF's embedded text layer (fast and exact) and falls back to OCR for
- * pages carrying too little text for their size, by extracting each page's embedded images and
- * running them through the shared Tesseract recognizer. Detection is per page, so mixed PDFs (some
- * real-text pages, some scans) are handled correctly.
+ * pages carrying too little text for their size, rasterizing those through PDFium and reading them
+ * with the shared Tesseract recognizer. Detection is per page, so mixed PDFs (some real-text pages,
+ * some scans) are handled correctly.
+ *
+ * Reading the rendered page rather than the images it paints is what lets a scan be recognized when
+ * its text is drawn as vector outlines, when it is split across several images, or when the page
+ * carries a rotation the images know nothing about.
  */
 export class PDFProcessor extends FileProcessor {
 
@@ -65,6 +62,9 @@ export class PDFProcessor extends FileProcessor {
 
         const pageResults: string[] = [];
         const pageConfidences: number[] = [];
+        // pdf.js takes ownership of the bytes it is handed, so the renderer gets a copy of its own.
+        // Made on the first page that needs it, since a PDF with a full text layer never renders.
+        let renderBytes: Uint8Array | null = null;
         let ocrPagesProcessed = 0;
         let ocrPagesSkipped = 0;
 
@@ -88,7 +88,8 @@ export class PDFProcessor extends FileProcessor {
             }
 
             ocrPagesProcessed++;
-            const ocr = await this.ocrPage(pdf, pageNum, language);
+            renderBytes ??= new Uint8Array(buffer);
+            const ocr = await this.ocrPage(renderBytes, pageNum, language);
             if (ocr.text.length > 0) {
                 pageResults.push(ocr.text);
                 pageConfidences.push(ocr.confidence);
@@ -122,39 +123,13 @@ export class PDFProcessor extends FileProcessor {
     }
 
     /**
-     * OCR a single scanned page by recognizing each embedded image it paints and
-     * concatenating the results. Failures on an individual page are logged and
-     * treated as "no text" so one bad page never aborts the whole document.
+     * OCR a single page by rasterizing it and recognizing the result. Failures on an individual page
+     * are logged and treated as "no text" so one bad page never aborts the whole document.
      */
-    private async ocrPage(pdf: PdfDocument, pageNum: number, language: string): Promise<{ text: string; confidence: number }> {
+    private async ocrPage(pdf: Uint8Array, pageNum: number, language: string): Promise<{ text: string; confidence: number }> {
         try {
-            const { extractImages } = await import('unpdf');
-            const images = await extractImages(pdf, pageNum);
-            if (images.length === 0) {
-                return { text: "", confidence: 0 };
-            }
-
-            const parts: string[] = [];
-            const confidences: number[] = [];
-
-            for (const image of images) {
-                if (image.width < MIN_OCR_IMAGE_DIM || image.height < MIN_OCR_IMAGE_DIM) {
-                    continue;
-                }
-                const png = await toPngBuffer(image);
-                const { text, confidence } = await recognizer.recognize(png, language);
-                if (text.length > 0) {
-                    parts.push(text);
-                    confidences.push(confidence);
-                }
-            }
-
-            return {
-                text: parts.join("\n"),
-                confidence: confidences.length > 0
-                    ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
-                    : 0
-            };
+            const page = await renderer.renderPage(pdf, pageNum);
+            return await recognizer.recognize(await toPngBuffer(page), language);
         } catch (error) {
             getLog().error(`PDF OCR failed for page ${pageNum}: ${error}`);
             return { text: "", confidence: 0 };
@@ -176,52 +151,22 @@ async function getPageArea(pdf: PdfDocument, pageNum: number): Promise<number> {
     }
 }
 
-interface ExtractedImage {
-    data: Uint8ClampedArray;
-    width: number;
-    height: number;
-    // Typed as a plain number rather than `1 | 3 | 4`: the value is whatever unpdf
-    // hands us at runtime, so it is validated below rather than trusted here.
-    channels: number;
-}
-
 /**
- * Encode a raw image extracted from a PDF into a PNG buffer that Tesseract can
- * decode. unpdf returns 1- (grayscale), 3- (RGB) or 4-channel (RGBA) pixel data;
- * Jimp bitmaps are always RGBA, so narrower formats are expanded here. An
- * unexpected channel count throws rather than silently producing garbled pixels.
+ * Encode a rendered page into a PNG buffer that Tesseract can decode. The renderer produces BGRA
+ * and Jimp bitmaps are RGBA, so the blue and red channels swap places. Alpha is forced opaque: a
+ * transparent page background would otherwise reach Tesseract as black.
  */
-async function toPngBuffer(image: ExtractedImage): Promise<Buffer> {
-    const { data, width, height, channels } = image;
-    const pixelCount = width * height;
-
-    let rgba: Buffer;
-    if (channels === 4) {
-        // Already RGBA — reuse the underlying bytes instead of copying pixel by pixel.
-        rgba = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
-    } else if (channels === 3 || channels === 1) {
-        rgba = Buffer.alloc(pixelCount * 4);
-        for (let i = 0; i < pixelCount; i++) {
-            const out = i * 4;
-            if (channels === 1) {
-                const value = data[i];
-                rgba[out] = value;
-                rgba[out + 1] = value;
-                rgba[out + 2] = value;
-            } else {
-                const src = i * 3;
-                rgba[out] = data[src];
-                rgba[out + 1] = data[src + 1];
-                rgba[out + 2] = data[src + 2];
-            }
-            rgba[out + 3] = 255;
-        }
-    } else {
-        throw new Error(`Unsupported image channel count: ${channels}`);
+async function toPngBuffer({ data, width, height }: RenderedPage): Promise<Buffer> {
+    const rgba = Buffer.alloc(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+        const out = i * 4;
+        rgba[out] = data[out + 2];
+        rgba[out + 1] = data[out + 1];
+        rgba[out + 2] = data[out];
+        rgba[out + 3] = 255;
     }
 
-    // Dynamically imported so jimp only loads when a scanned page is actually rasterized.
+    // Dynamically imported so jimp only loads when a page is actually rasterized.
     const { Jimp } = await import("jimp");
-    const jimpImage = Jimp.fromBitmap({ data: rgba, width, height });
-    return jimpImage.getBuffer("image/png");
+    return Jimp.fromBitmap({ data: rgba, width, height }).getBuffer("image/png");
 }
