@@ -53,6 +53,7 @@ import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
+import { useBoardSort } from "./sort";
 import {
     affectsSortOrder, applyCardMove, ColumnMap, filterColumnMap, getBoardData, resolveColumnSorts,
     resolveSortWatch, sortColumnMap, unfilteredCardIndex
@@ -395,8 +396,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         () => resolvePromotedAttributes(
             parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
         [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
+    const defaultSort = useBoardSort(parentNote);
     const columnSorts = useMemo(
-        () => resolveColumnSorts(viewConfig?.columns), [ viewConfig ]);
+        () => resolveColumnSorts(viewConfig?.columns, defaultSort, usableColumns),
+        [ viewConfig, defaultSort, usableColumns ]);
     const sortContext = useMemo<SortContext>(() => ({
         definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
         creationDate: getCreationDate,

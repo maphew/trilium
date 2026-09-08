@@ -3589,7 +3589,8 @@ describe("a column that sorts its cards", () => {
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
 
         await pickSort(board, "bx bx-move-vertical");
-        expect(saved.at(-1)?.columns?.[0]).toStrictEqual({ value: "To Do", descendingOrder: true });
+        expect(saved.at(-1)?.columns?.[0])
+            .toStrictEqual({ value: "To Do", orderBy: "manual", descendingOrder: true });
         expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
     });
 
@@ -3611,6 +3612,28 @@ describe("a column that sorts its cards", () => {
         expect(sortButton(descending.board)?.classList.contains("bx-sort-down")).toBe(true);
     });
 
+    it("draws a column stored as default in the board's own order, button and all", async () => {
+        const { board } = await renderSortedBoard(
+            { orderBy: "default" }, undefined, { orderBy: "title" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+        // The button says the column is sorted, whichever order it took.
+        expect(sortButton(board)?.classList.contains("bx-sort-up")).toBe(true);
+
+        const backwards = await renderSortedBoard(
+            { orderBy: "default" }, undefined, { orderBy: "title", isDescending: true });
+        expect(cardTitlesIn(backwards.board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+        expect(sortButton(backwards.board)?.classList.contains("bx-sort-down")).toBe(true);
+    });
+
+    /** The board holding no order of its own leaves such a column as the reader arranged it. */
+    it("leaves a column stored as default alone while the board holds no order", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "default" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+        expect(sortButton(board)).toBeNull();
+    });
+
     it("opens the sort menu, and takes the column away once it is arranged by hand", async () => {
         const { board } = await renderSortedBoard({ orderBy: "title" });
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
@@ -3619,8 +3642,8 @@ describe("a column that sorts its cards", () => {
         const items = show.mock.calls.at(-1)?.[0].items ?? [];
         expect(items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator")))
             .toEqual([
-                "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus", "separator",
-                "bx bx-sort-up", "bx bx-sort-down"
+                "bx bx-collection", "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus",
+                "separator", "bx bx-sort-up", "bx bx-sort-down"
             ]);
         show.mockRestore();
 
@@ -3698,13 +3721,21 @@ describe("a column that sorts its cards", () => {
 
     async function renderSortedBoard(
         sort: { orderBy?: string, descendingOrder?: boolean, collapsed?: boolean },
-        promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> }
+        promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> },
+        /** The order the board holds, which a column stored as `default` takes. */
+        boardSort?: { orderBy: string, isDescending?: boolean }
     ) {
         const priorities = promoted?.values ?? {};
         const note = buildNote({
             title: "Board",
             "#collection": "",
             "#viewType": "board",
+            ...(boardSort
+                ? {
+                    "#sortColumns": boardSort.orderBy,
+                    ...(boardSort.isDescending ? { "#sortColumnsDescending": "" } : {})
+                }
+                : {}),
             ...(promoted
                 ? { "#label:priority(inheritable)": promoted["#label:priority(inheritable)"] }
                 : {}),

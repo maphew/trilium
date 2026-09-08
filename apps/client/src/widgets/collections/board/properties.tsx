@@ -4,6 +4,7 @@ import { useCallback } from "preact/hooks";
 
 import type FNote from "../../../entities/fnote";
 import { t } from "../../../services/i18n";
+import ActionButton from "../../react/ActionButton";
 import { Card, OptionCardSection } from "../../react/Card";
 import FormToggle from "../../react/FormToggle";
 import { useNoteLabelBoolean } from "../../react/hooks";
@@ -11,7 +12,11 @@ import Modal from "../../react/Modal";
 import PromotedAttributesCard from "../../react/PromotedAttributesCard";
 import TemplateSelectionCard from "../../react/TemplateSelectionCard";
 import type { PromotedAttribute } from "../promoted_attributes";
+import SortDropdown from "../SortDropdown";
+import { parseSortKey } from "../sorting";
 import BoardApi from "./api";
+import { openSortActionsMenu } from "./context_menu";
+import { useBoardSort } from "./sort";
 
 /** The board's settings, other than its columns and cards. */
 export default function BoardProperties({ api, note, shown, onClose }: {
@@ -62,6 +67,7 @@ export default function BoardProperties({ api, note, shown, onClose }: {
 function General({ api, note }: { api: BoardApi, note: FNote }) {
     const [ inboxShown ] = useNoteLabelBoolean(note, "enableInboxColumn");
     const [ archivedShown ] = useNoteLabelBoolean(note, "includeArchived");
+    const defaultSort = useBoardSort(note);
 
     return (
         <Card className="board-properties-general" heading={t("board_view.general")}>
@@ -83,6 +89,36 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                 <FormToggle
                     currentValue={archivedShown}
                     onChange={(shown) => api.setArchivedShown(shown)}
+                />
+            </OptionCardSection>
+
+            <OptionCardSection
+                name="board-sort-cards"
+                label={t("board_view.sort-cards")}
+            >
+                <SortDropdown
+                    className="board-sort-picker"
+                    orderBy={defaultSort?.orderBy}
+                    isDescending={!!defaultSort?.isDescending}
+                    attributes={api.getPromotedAttributes()}
+                    noneTitle={t("board_view.sort-manually")}
+                    hideDefault
+                    // `hideDefault` leaves the menu no DEFAULT_SORT entry, and `parseSortKey`
+                    // rejects that key as well: `setDefaultSort` takes a plain sort key.
+                    onSelect={(orderBy) => api.setDefaultSort(parseSortKey(orderBy))}
+                    onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
+                />
+
+                <ActionButton
+                    className="board-sort-actions"
+                    icon="bx bx-dots-vertical-rounded"
+                    text={t("board_view.sort-actions")}
+                    onClick={(event) => {
+                        // The press would otherwise reach the document, where the menu closes
+                        // itself on any click outside it.
+                        event.stopPropagation();
+                        openSortActionsMenu(api, event);
+                    }}
                 />
             </OptionCardSection>
         </Card>

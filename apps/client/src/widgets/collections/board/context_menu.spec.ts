@@ -15,7 +15,11 @@ import { openBoardContextMenu, openColumnContextMenu, openNoteContextMenu } from
 
 // The card menu opens with the shared link items, which reach for the active note context.
 vi.mock("../../../menus/link_context_menu", () => ({
-    default: { getItems: () => [], handleLinkContextMenuItem: () => {} }
+    default: {
+        getQuickEditItem: () => ({ title: "Quick edit" }),
+        getOpenNoteItem: () => ({ title: "Open note", items: [] }),
+        handleLinkContextMenuItem: () => {}
+    }
 }));
 
 // i18next is never initialised under test, so `t` echoes the key it is given. The promise is what
@@ -67,6 +71,7 @@ describe("Board column context menu", () => {
         const withDefaults = Object.assign({
             getColumnTitle: (name: string) => name,
             getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+            getEffectiveColumnSort: () => ({ orderBy: undefined, isDescending: false }),
             getPromotedAttributes: () => []
         }, api);
         openColumnContextMenu(withDefaults, event, {
@@ -305,8 +310,7 @@ describe("Board column context menu", () => {
         // the box around it is what this is about.
         for (const item of after) {
             expect(item && "title" in item ? item.title : "")
-                .toMatch(/^<span class="board-column-name">.*<\/span>$/);
-            expect(item).toMatchObject({ className: "board-column-item" });
+                .toMatch(/^<span class="tn-menu-name">.*<\/span>$/);
         }
     });
 
@@ -421,6 +425,7 @@ describe("Board column context menu", () => {
         function sortApi() {
             return {
                 getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+                getEffectiveColumnSort: () => ({ orderBy: undefined, isDescending: false }),
                 getPromotedAttributes: () => [],
                 setColumnSort: vi.fn(),
                 setColumnSortDirection: vi.fn()
@@ -434,19 +439,22 @@ describe("Board column context menu", () => {
             return entry.items ?? [];
         }
 
-        it("calls the unsorted order Manually rather than None", () => {
-            const first = sortItems(sortApi())[0];
+        it("leads with the board's own order, and calls the unsorted one Manually", () => {
+            const items = sortItems(sortApi());
 
-            expect(first && "title" in first ? first.title : "")
-                .toBe("board_view.sort-manually");
+            expect(items.slice(0, 2).map(item => item && "title" in item ? item.title : ""))
+                .toEqual([ "board_view.sort-board-default", "board_view.sort-manually" ]);
         });
 
         it("writes what is picked against the column the menu was opened on", () => {
             const api = sortApi();
             const items = sortItems(api, "Done");
 
-            pick(items[1]);
-            expect(api.setColumnSort).toHaveBeenCalledWith("Done", "title");
+            pick(items[0]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("Done", "default");
+
+            pick(items[2]);
+            expect(api.setColumnSort).toHaveBeenLastCalledWith("Done", "title");
 
             pick(items.at(-1));
             expect(api.setColumnSortDirection).toHaveBeenCalledWith("Done", true);
@@ -462,6 +470,26 @@ describe("Board column context menu", () => {
 describe("Board item context menu", () => {
     afterEach(() => vi.restoreAllMocks());
 
+    /**
+     * The two entries a card is worked on with come first; the other ways of opening it fold into
+     * one submenu behind them.
+     */
+    it("leads with quick edit, the title editor and the open submenu", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => ""
+        } as unknown as BoardApi;
+
+        const leading = openItemMenu(api).slice(0, 3);
+
+        expect(leading.map(item => item && "title" in item ? item.title : "")).toEqual([
+            "Quick edit", "board_view.edit-title", "Open note"
+        ]);
+        // The key that opens the same popup for the card the cursor stands on.
+        expect(leading[0]).toMatchObject({ shortcut: "Space" });
+    });
 
     /** The same editor F2 opens, for a reader who came to the card with the mouse. */
     it("opens the card's title editor", () => {
@@ -525,8 +553,8 @@ describe("Board item context menu", () => {
         expect(focusCard).toHaveBeenCalled();
     });
 
-    /** The group still holds the two inserts, so the divider that heads it stays. */
-    it("keeps the divider while the column is arranged by hand", () => {
+    /** The two inserts and the copy made below them, under the divider that heads the group. */
+    it("lists the places a card is put, and the copy of it, in one group", () => {
         const items = openItemMenu({
             columns: [],
             isColumnArchived: () => false,
@@ -535,10 +563,11 @@ describe("Board item context menu", () => {
             isFirstInColumn: () => true
         } as unknown as BoardApi);
 
-        const at = items.findIndex(item => item && "uiIcon" in item
-            && item.uiIcon === "bx bx-rename");
+        const at = lastOfLeadingGroup(items);
         expect(items[at + 1]).toMatchObject({ kind: "separator" });
-        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-list-plus" });
+        expect(items.slice(at + 2, at + 5).map(item =>
+            item && "uiIcon" in item ? item.uiIcon : undefined))
+            .toEqual([ "bx bx-list-plus", "bx bx-empty", "bx bx-outline" ]);
     });
 
     it("says nothing about moving up the card already at the head", () => {
@@ -577,11 +606,37 @@ describe("Board item context menu", () => {
         expect(icons).toContain("bx bx-rename");
         expect(icons).toContain("bx bx-outline");
 
-        // The divider goes with them: the heading below already breaks the menu there.
-        const at = items.findIndex(item => item && "uiIcon" in item
-            && item.uiIcon === "bx bx-rename");
-        expect(items[at + 1]).toMatchObject({ kind: "header" });
+        // The field at the foot of the column and the copy are what the group has left.
+        const at = lastOfLeadingGroup(items);
+        expect(items[at + 1]).toMatchObject({ kind: "separator" });
+        expect(items[at + 2]).toMatchObject({ title: "board_view.insert-new" });
+        expect(items[at + 3]).toMatchObject({ uiIcon: "bx bx-outline" });
+        expect(items[at + 4]).toMatchObject({ kind: "header" });
     });
+
+    /** The column names its own cards at the foot, so that is where the menu sends the reader. */
+    it("opens the field at the foot of a sorted column", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isColumnSorted: () => true
+        } as unknown as BoardApi;
+        const newItem = vi.fn();
+
+        const entry = openItemMenu(api, "To Do", vi.fn(), vi.fn(), 2, newItem)
+            .find(item => item && "title" in item && item.title === "board_view.insert-new");
+        if (!entry || !("handler" in entry)) throw new Error("expected an insert-new entry");
+
+        entry.handler?.(entry, {} as never);
+        expect(newItem).toHaveBeenCalled();
+    });
+
+    /** Where the entries a card is opened and named with end, which the next group follows. */
+    function lastOfLeadingGroup(items: MenuItem<unknown>[]) {
+        return items.findIndex(item => item && "title" in item && item.title === "Open note");
+    }
 
     it("copies a card into the board, after the one it was made from", async () => {
         const api = {
@@ -668,12 +723,13 @@ describe("Board item context menu", () => {
 
     /** A name as the menu writes it, which is what `names` reads back. */
     function boxed(name: string) {
-        return `<span class="board-column-name">${name}</span>`;
+        return `<span class="tn-menu-name">${name}</span>`;
     }
 
     /** Opens the menu a card offers, and hands back what it was given to show. */
     function openItemMenu(
-        api: BoardApi, column = "To Do", focusCard = vi.fn(), insert = vi.fn(), index = 2) {
+        api: BoardApi, column = "To Do", focusCard = vi.fn(), insert = vi.fn(), index = 2,
+        newItem = vi.fn()) {
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
         const event = {
             preventDefault: () => {},
@@ -682,22 +738,56 @@ describe("Board item context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every item menu asks what the board calls its grouping field and whether the column
-        // sorts itself; a test answers only where that is what it is about.
+        // Every item menu asks what the board calls its grouping field, which attributes the cards
+        // show and whether the column sorts itself; a test answers only where that is what it is
+        // about.
         const withDefaults = Object.assign(
             {
                 getStatusLabel: () => "Status",
                 getColumnTitle: (name: string) => name,
+                getPromotedAttributes: () => [],
                 isFirstInColumn: () => false,
                 isColumnSorted: () => false
             },
             api);
         openNoteContextMenu(
             withDefaults, event, buildNote({ title: "Card" }) as FNote, "branchId", column, index,
-            focusCard, insert);
+            focusCard, insert, newItem);
 
         return show.mock.calls.at(-1)?.[0].items ?? [];
     }
+
+    /**
+     * The values a card shows are set from its own menu, under the columns rather than among them:
+     * one heading says which column the card is in, the next what it holds.
+     */
+    it("offers the attributes the cards show, in a section of their own after the columns", () => {
+        const api = {
+            columns: [ "To Do" ],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            getPromotedAttributes: () => [ {
+                name: "done",
+                definitionName: "label:done",
+                type: "label",
+                title: "Done",
+                labelType: "boolean",
+                hidden: false,
+                definitionValue: "",
+                isOwned: true,
+                isInheritable: true
+            } ]
+        } as unknown as BoardApi;
+
+        const items = openItemMenu(api);
+        const at = items.findIndex(item => item && "kind" in item && item.kind === "header"
+            && item.title === "attribute_menu.attributes");
+
+        expect(items[at + 1]).toMatchObject({ uiIcon: "bx bx-toggle-left" });
+        expect(items.slice(0, at).some(item => item && "title" in item
+            && typeof item.title === "string" && item.title.includes("tn-menu-name"))).toBe(true);
+    });
 
     /** Reads the run of column entries the menu puts under its Status header. */
     function statusItems(api: BoardApi, column = "To Do") {
@@ -727,15 +817,15 @@ describe("Board item context menu", () => {
 
         // Each name sits in a box of its own, which is what the stylesheet sizes.
         expect(columns.map(item => item && "title" in item ? item.title : undefined)).toEqual([
-            '<span class="board-column-name">To Do</span>',
-            '<span class="board-column-name">Done</span>'
+            '<span class="tn-menu-name">To Do</span>',
+            '<span class="tn-menu-name">Done</span>'
         ]);
         // The tick goes at the trailing edge, leaving each column's own icon where it stands.
         expect(columns.map(item => item && "trailingIcon" in item ? item.trailingIcon : undefined))
             .toEqual([ "bx bx-check", undefined ]);
-        // And carries the class the stylesheet weights it by.
+        // And the one the card is under carries the class the stylesheet weights it by.
         expect(columns.map(item => item && "className" in item ? item.className : undefined))
-            .toEqual([ "board-column-item board-current-column", "board-column-item" ]);
+            .toEqual([ "board-current-column", undefined ]);
 
         const done = columns[1];
         if (done && "handler" in done) done.handler?.(done, {} as never);
@@ -778,11 +868,12 @@ describe("Board item context menu", () => {
 
         // The name sits in a box of its own, which is what the width is set on, and nothing of the
         // name itself is left as markup.
-        expect(title).toBe('<span class="board-column-name">'
+        expect(title).toBe('<span class="tn-menu-name">'
             + "Done &lt;button id&#x3D;&quot;planted&quot;&gt;press&lt;&#x2F;button&gt;</span>");
     });
 
-    it("names every column entry for the stylesheet to size", () => {
+    /** The one the card is under is set apart, which is all the entries are classed for. */
+    it("marks the column the card is under", () => {
         const api = {
             columns: [ "To Do", "Done" ],
             isColumnArchived: () => false,
@@ -792,7 +883,7 @@ describe("Board item context menu", () => {
 
         expect(statusItems(api)
             .map(item => item && "className" in item ? item.className : undefined))
-            .toEqual([ "board-column-item board-current-column", "board-column-item" ]);
+            .toEqual([ "board-current-column", undefined ]);
     });
 
     it("shows each column with the icon and colour it carries", () => {

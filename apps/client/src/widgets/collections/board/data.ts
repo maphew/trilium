@@ -3,7 +3,8 @@ import FNote from "../../../entities/fnote";
 import type LoadResults from "../../../services/load_results";
 import type { PromotedAttribute } from "../promoted_attributes";
 import {
-    parseSortKey, sortedAttributeName, sortItems, type SortContext, type SortKey
+    DEFAULT_SORT, parseStoredSortKey, sortedAttributeName, sortItems, type SortContext,
+    type SortKey
 } from "../sorting";
 import { INBOX_COLUMN, resolveBoardColumns } from "./columns";
 import { BoardColumnData, BoardViewData } from "./index";
@@ -81,14 +82,30 @@ export interface SortWatch {
     attributeNames: Set<string>;
 }
 
-/** What each column sorts by, leaving out every column that keeps the manual order. */
-export function resolveColumnSorts(columns: BoardColumnData[] | undefined) {
+/**
+ * What each column sorts by, leaving out every column that keeps the manual order.
+ *
+ * @param defaultSort the order the board holds, which a column takes until it is given one of its
+ *                    own. Such a column keeps the manual order while the board holds none.
+ * @param drawnColumns every column the board shows, since one the config says nothing about takes
+ *                     the board's order like the rest.
+ */
+export function resolveColumnSorts(
+    columns: BoardColumnData[] | undefined, defaultSort?: ColumnSort, drawnColumns?: string[]
+) {
     const sorts = new Map<string, ColumnSort>();
+    const stored = new Map((columns ?? []).map(column => [ column.value, column ]));
 
-    for (const { value, orderBy, descendingOrder } of columns ?? []) {
-        const key = parseSortKey(orderBy);
-        if (key) {
-            sorts.set(value, { orderBy: key, isDescending: !!descendingOrder });
+    for (const value of new Set([ ...drawnColumns ?? [], ...stored.keys() ])) {
+        const entry = stored.get(value);
+        const key = parseStoredSortKey(entry?.orderBy);
+
+        if (key === DEFAULT_SORT) {
+            if (defaultSort) {
+                sorts.set(value, defaultSort);
+            }
+        } else if (key) {
+            sorts.set(value, { orderBy: key, isDescending: !!entry?.descendingOrder });
         }
     }
 

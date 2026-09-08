@@ -33,7 +33,11 @@ vi.mock("../../../services/branches", () => ({
 
 // The card menu opens with the link items on top, which want a tab manager this spec has none of.
 vi.mock("../../../menus/link_context_menu", () => ({
-    default: { getItems: () => [], handleLinkContextMenuItem: vi.fn() }
+    default: {
+        getQuickEditItem: () => ({ title: "Quick edit" }),
+        getOpenNoteItem: () => ({ title: "Open note", items: [] }),
+        handleLinkContextMenuItem: vi.fn()
+    }
 }));
 
 vi.mock("../../../services/i18n", () => ({

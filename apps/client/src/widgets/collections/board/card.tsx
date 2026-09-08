@@ -35,7 +35,8 @@ function Card({
     isDragging,
     isEditing,
     onFocusCard,
-    onInsert
+    onInsert,
+    onNewItem
 }: {
     api: BoardApi,
     note: FNote,
@@ -63,7 +64,9 @@ function Card({
      * Opens the field a new card is named in at a place in the column, which is what makes the
      * card. The index is where the field stands among the cards.
      */
-    onInsert: (index: number) => void
+    onInsert: (index: number) => void,
+    /** Opens the field at the foot of the column, for a card whose column sorts itself. */
+    onNewItem: () => void
 }) {
     const { setBranchIdToEdit } = useContext(BoardActionsContext);
     const shownAttributes = useContext(BoardPromotedAttributesContext);
@@ -92,8 +95,9 @@ function Card({
     });
 
     const handleContextMenu = useCallback((e: ContextMenuEvent) => {
-        openNoteContextMenu(api, e, note, branch.branchId, column, index, onFocusCard, onInsert);
-    }, [ api, note, branch, column, index, onFocusCard, onInsert ]);
+        openNoteContextMenu(
+            api, e, note, branch.branchId, column, index, onFocusCard, onInsert, onNewItem);
+    }, [ api, note, branch, column, index, onFocusCard, onInsert, onNewItem ]);
 
     const handleOpen = useCallback((e: MouseEvent) => {
         // A double click is one gesture, and its second click would open the note over itself: the

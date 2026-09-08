@@ -1782,14 +1782,26 @@ describe("the promoted attributes a card shows", () => {
 });
 
 describe("how a column orders its cards", () => {
-    it("reads a column nobody has sorted as the order the user arranged", () => {
+    /** Storing nothing is what takes the board's order, so a fresh column reads as taking it. */
+    it("reads a column nobody has sorted as taking the board's order", () => {
         const { api } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
 
-        expect(api.getColumnSort("To Do")).toEqual({ orderBy: undefined, isDescending: false });
-        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: undefined, isDescending: false });
+        expect(api.getColumnSort("To Do")).toEqual({ orderBy: "default", isDescending: false });
+        expect(api.getColumnSort("Unwritten")).toEqual({ orderBy: "default", isDescending: false });
     });
 
-    it("stores what a column sorts by, and clears it back to the manual order", async () => {
+    it("reads a column stored as manual as the order the user arranged", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "manual" } ] },
+            [ "To Do" ],
+            buildNote({ title: "Board", "#sortColumns": "title" }));
+
+        expect(api.getColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.getEffectiveColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.isColumnSorted("To Do")).toBe(false);
+    });
+
+    it("stores what a column sorts by, and writes the manual order out", async () => {
         const { api, saved } = createApi(
             { columns: [ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ] },
             [ "To Do", "Done" ]);
@@ -1802,10 +1814,13 @@ describe("how a column orders its cards", () => {
         expect(api.getColumnSort("To Do"))
             .toEqual({ orderBy: "attr:dueDate", isDescending: false });
 
-        // Strict, so the assertion catches the key being stored as undefined rather than dropped.
+        // Written rather than dropped: a column storing nothing takes the board's order.
         await api.setColumnSort("To Do", undefined);
-        expect(saved.at(-1)?.columns)
-            .toStrictEqual([ { value: "To Do", icon: "bx bx-list-ul" }, { value: "Done" } ]);
+        expect(saved.at(-1)?.columns).toStrictEqual([
+            { value: "To Do", icon: "bx bx-list-ul", orderBy: "manual" },
+            { value: "Done" }
+        ]);
+        expect(api.getColumnSort("To Do").orderBy).toBeUndefined();
     });
 
     it("stores the direction and clears it rather than storing it false", async () => {
@@ -1846,6 +1861,117 @@ describe("how a column orders its cards", () => {
         await api.setColumnSort("Doing", "title");
         expect(saved.at(-1)?.columns)
             .toEqual([ { value: "To Do" }, { value: "Doing", orderBy: "title" } ]);
+    });
+});
+
+describe("a column that takes the board's order", () => {
+    /** A board holding an order of its own, which a column can be stored as taking. */
+    function boardSorting() {
+        return buildNote({
+            title: "Board", "#sortColumns": "attr:dueDate", "#sortColumnsDescending": ""
+        });
+    }
+
+    it("keeps the stored value apart from the order the column is drawn in", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "default" } ] }, [ "To Do" ], boardSorting());
+
+        // What the menu marks, and what the cards are ordered by.
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "default", isDescending: false });
+        expect(api.getEffectiveColumnSort("To Do"))
+            .toEqual({ orderBy: "attr:dueDate", isDescending: true });
+        expect(api.isColumnSorted("To Do")).toBe(true);
+    });
+
+    it("keeps the manual order while the board holds none", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "default" } ] }, [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do").orderBy).toBe("default");
+        expect(api.getEffectiveColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.isColumnSorted("To Do")).toBe(false);
+    });
+
+    it("leaves a column with an order of its own alone", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "title", descendingOrder: true } ] },
+            [ "To Do" ],
+            boardSorting());
+
+        expect(api.getEffectiveColumnSort("To Do"))
+            .toEqual({ orderBy: "title", isDescending: true });
+    });
+
+    it("stores the value a pick names", async () => {
+        const { api, saved } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        await api.setColumnSort("To Do", "default");
+        expect(saved.at(-1)?.columns).toEqual([ { value: "To Do", orderBy: "default" } ]);
+    });
+});
+
+describe("the order the board offers its columns", () => {
+    beforeEach(() => vi.restoreAllMocks());
+
+    it("reads the labels the board carries, and a board with none as the manual order", () => {
+        const plain = createApi({}, []);
+        expect(plain.api.getDefaultSort()).toEqual({ orderBy: undefined, isDescending: false });
+
+        const { api } = createApi({}, [], buildNote({
+            title: "Board",
+            "#sortColumns": "attr:dueDate",
+            "#sortColumnsDescending": ""
+        }));
+        expect(api.getDefaultSort()).toEqual({ orderBy: "attr:dueDate", isDescending: true });
+    });
+
+    // A key written by hand, or by a newer version, leaves the board offering the manual order.
+    it("reads a key it does not know as the manual order", () => {
+        const { api } = createApi({}, [], buildNote({
+            title: "Board", "#sortColumns": "dateModified"
+        }));
+
+        expect(api.getDefaultSort().orderBy).toBeUndefined();
+    });
+
+    it("writes what is picked to the board note, and takes the label off for the manual order",
+        async () => {
+            const setAttribute = vi.spyOn(attributes, "setAttribute")
+                .mockResolvedValue(undefined as never);
+            const setBoolean = vi.spyOn(attributes, "setBooleanWithInheritance")
+                .mockResolvedValue(undefined as never);
+            const { api, board } = createApi({}, []);
+
+            await api.setDefaultSort("title");
+            expect(setAttribute).toHaveBeenCalledWith(board, "label", "sortColumns", "title");
+
+            await api.setDefaultSort(undefined);
+            expect(setAttribute).toHaveBeenLastCalledWith(board, "label", "sortColumns", null);
+
+            await api.setDefaultSortDirection(true);
+            expect(setBoolean).toHaveBeenCalledWith(board, "sortColumnsDescending", true);
+        });
+
+    it("puts every column back to the board's order, keeping what else each one holds", async () => {
+        const { api, saved } = createApi(
+            {
+                columns: [
+                    { value: "To Do", icon: "bx bx-list-ul", orderBy: "manual" },
+                    { value: "Done", orderBy: "title", descendingOrder: true }
+                ]
+            },
+            [ "To Do", "Doing", "Done" ]);
+
+        await api.resetColumnSortsToDefault();
+
+        // One write for the board. Strict, so the assertion catches a key stored as undefined
+        // rather than dropped, and the column with no entry is left without one.
+        expect(saved.length).toBe(1);
+        expect(saved.at(-1)?.columns).toStrictEqual([
+            { value: "To Do", icon: "bx bx-list-ul" },
+            { value: "Done" }
+        ]);
     });
 });
 

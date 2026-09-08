@@ -168,6 +168,8 @@ export default function Column({
 
         setInsertBefore({ branchId: itemsRef.current?.[index]?.branch.branchId });
     }, []);
+    /** Opens the field at the foot of the column, which its button and its menu also open. */
+    const beginNewItem = useCallback(() => setIsCreatingNewItem(true), []);
     /** The card the footer just made, which is revealed and scrolled to as it is drawn. */
     const [ createdNoteId, setCreatedNoteId ] = useState<string>();
     /**
@@ -425,7 +427,7 @@ export default function Column({
             keepCollapsed,
             nested,
             onEditTitle: () => setColumnNameToEdit(column),
-            onNewItem: () => setIsCreatingNewItem(true),
+            onNewItem: beginNewItem,
             onAddColumn: async (direction) => {
                 setColumnNameToEdit(await api.insertColumn(column, direction));
             },
@@ -674,6 +676,7 @@ export default function Column({
                             isEditing={branch.branchId === branchIdToEdit}
                             onFocusCard={onFocusCard}
                             onInsert={beginInsert}
+                            onNewItem={beginNewItem}
                         />
                     </Fragment>
                 ))}
@@ -715,8 +718,8 @@ export default function Column({
  * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
  */
 /**
- * Where a menu opened from a button belongs: at the pointer, or against the button itself when a
- * keyboard press opened it and carries no pointer position.
+ * Where a menu opened from a button stands: at the pointer for a press, and below the button for a
+ * keyboard, which reports no position of its own.
  */
 function menuOrigin(e: JSX.TargetedMouseEvent<HTMLElement>): [ number, number ] {
     if (e.detail) {

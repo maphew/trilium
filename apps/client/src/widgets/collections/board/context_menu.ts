@@ -7,10 +7,10 @@ import contextMenu, { ContextMenuEvent, MenuItem } from "../../../menus/context_
 import link_context_menu from "../../../menus/link_context_menu";
 import branches from "../../../services/branches";
 import dialog from "../../../services/dialog";
-import { getArchiveMenuItem } from "../../../menus/context_menu_utils";
+import { getArchiveMenuItem, menuName } from "../../../menus/context_menu_utils";
 import { t } from "../../../services/i18n";
-import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
+import { buildAttributeMenuItems } from "../attribute_menu";
 import { buildSortMenuItems, type SortMenuOptions } from "../sort_menu";
 import Api from "./api";
 import { INBOX_COLUMN } from "./columns";
@@ -253,13 +253,38 @@ export function openColumnSortMenu(api: Api, x: number, y: number, column: strin
     });
 }
 
+/**
+ * What can be done to the orders the columns hold, offered beside the board's own order.
+ *
+ * Opened at the pointer from the button in the properties card, as the template entries there open
+ * theirs.
+ */
+export function openSortActionsMenu(api: Api, event: { pageX: number, pageY: number }) {
+    contextMenu.show({
+        x: event.pageX,
+        y: event.pageY,
+        items: [
+            {
+                title: t("board_view.reset-columns-to-default"),
+                uiIcon: "bx bx-reset",
+                handler: () => api.resetColumnSortsToDefault()
+            }
+        ],
+        selectMenuItemHandler() {}
+    });
+}
+
 /** What the board asks the shared sort menu for, wherever it is opened. */
 function sortMenuOptions(api: Api, column: string): SortMenuOptions {
     return {
-        ...api.getColumnSort(column),
+        orderBy: api.getColumnSort(column).orderBy,
+        // The direction the column is drawn in, which the board decides for a column taking its
+        // order.
+        isDescending: api.getEffectiveColumnSort(column).isDescending,
         attributes: api.getPromotedAttributes(),
         // A board arranges its cards by hand rather than leaving them unsorted.
         noneTitle: t("board_view.sort-manually"),
+        defaultTitle: t("board_view.sort-board-default"),
         onSelect: (orderBy) => api.setColumnSort(column, orderBy),
         onDirectionChange: (isDescending) => api.setColumnSortDirection(column, isDescending)
     };
@@ -340,11 +365,9 @@ function buildMoveColumnItems(api: Api, column: ColumnMenuTarget): MenuItem<stri
         const title = api.getColumnTitle(name);
 
         return [ {
-            // Boxed as the status list boxes its names, so a long one is clipped rather than
-            // widening the menu. `t()` escapes what it interpolates.
-            title: `<span class="board-column-name">`
+            // `t()` escapes what it interpolates, so the sentence it builds is boxed as it stands.
+            title: `<span class="tn-menu-name">`
                 + `${t("board_view.move-column-after", { column: title })}</span>`,
-            className: "board-column-item",
             uiIcon: api.getColumnIcon(name),
             iconColorClass: api.getColumnColorClass(name),
             badges: api.isColumnArchived(name)
@@ -390,18 +413,13 @@ function buildColumnItems(
     api: Api, note: FNote, column: string, onFocusCard: (noteId: string) => void
 ): MenuItem<CommandNames>[] {
     const items: MenuItem<CommandNames>[] = api.columns.map((name) => ({
-        // The menu reads a title as markup, which is what puts the name in a box of its own: a
-        // bare run of text inside the item's flex row is an anonymous box, and nothing can be said
-        // about its width. What a crafted name would plant there is escaped into the text it is
-        // meant to be; every other title the board builds from a name goes through `t()`, which
-        // escapes what it interpolates.
-        title: `<span class="board-column-name">${escapeHtml(api.getColumnTitle(name))}</span>`,
+        title: menuName(api.getColumnTitle(name)),
         uiIcon: api.getColumnIcon(name),
         iconColorClass: api.getColumnColorClass(name),
         // The one it is already under is shown rather than hidden, so the list reads as the whole
         // set of columns and says which of them this card belongs to.
         trailingIcon: name === column ? "bx bx-check" : undefined,
-        className: name === column ? "board-column-item board-current-column" : "board-column-item",
+        className: name === column ? "board-current-column" : undefined,
         badges: api.isColumnArchived(name)
             ? [ { title: t("board_view.archived-badge") } ]
             : undefined,
@@ -444,28 +462,44 @@ export function openNoteContextMenu(
     /** Refocuses the card after a column change has redrawn it elsewhere. */
     onFocusCard: (noteId: string) => void,
     /** Opens the new-card editor at an index in the column, above or below this card. */
-    onInsert: (index: number) => void
+    onInsert: (index: number) => void,
+    /** Opens the editor at the foot of the column, which a sorted column offers instead. */
+    onNewItem: () => void
 ) {
     event.preventDefault();
     event.stopPropagation();
 
-    // Where a card goes among the others, which a sorted column decides for itself. Kept in a
-    // group of its own only while it holds something, or the menu shows a stray divider.
-    const placement: MenuItem<CommandNames>[] = api.isColumnSorted(column) ? [] : [
+    // A sorted column decides where its cards go, so the entries naming a place are left out.
+    const isSorted = api.isColumnSorted(column);
+
+    // What the card is placed beside, and the copy made below it.
+    const placement: MenuItem<CommandNames>[] = [
+        // A sorted column takes its new cards at the foot, where its own button makes them.
+        ...(isSorted ? [ {
+            title: t("board_view.insert-new"),
+            uiIcon: "bx bx-plus",
+            handler: onNewItem
+        } ] : [
+            {
+                title: t("board_view.insert-above"),
+                uiIcon: "bx bx-list-plus",
+                shortcut: "Shift+Enter",
+                handler: () => onInsert(index)
+            },
+            {
+                title: t("board_view.insert-below"),
+                uiIcon: "bx bx-empty",
+                shortcut: "Enter",
+                handler: () => onInsert(index + 1)
+            }
+        ]),
         {
-            title: t("board_view.insert-above"),
-            uiIcon: "bx bx-list-plus",
-            shortcut: "Shift+Enter",
-            handler: () => onInsert(index)
-        },
-        {
-            title: t("board_view.insert-below"),
-            uiIcon: "bx bx-empty",
-            shortcut: "Enter",
-            handler: () => onInsert(index + 1)
+            title: t("board_view.duplicate-item"),
+            uiIcon: "bx bx-outline",
+            handler: () => api.duplicateItem(note.noteId, branchId)
         },
         // Left out for the card already at the head, which has nowhere to go.
-        ...(api.isFirstInColumn(branchId, column) ? [] : [ {
+        ...(isSorted || api.isFirstInColumn(branchId, column) ? [] : [ {
             title: t("board_view.move-to-top"),
             uiIcon: "bx bx-vertical-top",
             shortcut: "Ctrl+Home",
@@ -482,24 +516,23 @@ export function openNoteContextMenu(
         x: event.pageX,
         y: event.pageY,
         items: [
-            ...link_context_menu.getItems(event),
+            // Space opens the same popup for the card the cursor stands on.
+            { ...link_context_menu.getQuickEditItem(), shortcut: "Space" },
             {
                 title: t("board_view.edit-title"),
                 uiIcon: "bx bx-rename",
                 shortcut: "F2",
                 handler: () => api.startEditing(branchId)
             },
-            ...(placement.length
-                ? [ { kind: "separator" } as MenuItem<CommandNames>, ...placement ]
-                : []),
+            link_context_menu.getOpenNoteItem(event),
+            { kind: "separator" },
+            ...placement,
             { kind: "header", title: api.getStatusLabel() },
             ...buildColumnItems(api, note, column, onFocusCard),
-            { kind: "separator" },
-            {
-                title: t("board_view.duplicate-item"),
-                uiIcon: "bx bx-outline",
-                handler: () => api.duplicateItem(note.noteId, branchId)
-            },
+            ...buildAttributeMenuItems<CommandNames>({
+                note,
+                attributes: api.getPromotedAttributes()
+            }),
             { kind: "separator" },
             getArchiveMenuItem(note),
             {

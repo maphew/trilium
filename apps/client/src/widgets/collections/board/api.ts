@@ -18,7 +18,9 @@ import {
     type PromotedAttribute, resolvePromotedAttributes, storedPromotedAttributes,
     visiblePromotedAttributeNames
 } from "../promoted_attributes";
-import { parseSortKey, type SortKey } from "../sorting";
+import {
+    DEFAULT_SORT, MANUAL_SORT, parseSortKey, parseStoredSortKey, type SortKey, type StoredSortKey
+} from "../sorting";
 import { BoardColumnData, BoardViewData } from ".";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import {
@@ -26,6 +28,7 @@ import {
     DEFAULT_GROUP_BY, INBOX_COLUMN, INBOX_COLUMN_ICON
 } from "./columns";
 import { ColumnMap } from "./data";
+import { SORT_DESCENDING_LABEL, SORT_LABEL } from "./sort";
 
 /** Which end of a column a new card is made at. */
 export type CardPlacement = "top" | "bottom";
@@ -617,26 +620,85 @@ export default class BoardApi {
     }
 
     /**
-     * How a column orders its cards.
+     * Reads a column's stored `orderBy` and `descendingOrder`.
      *
-     * @returns the key to sort by, absent for the manual order, and its direction.
+     * @returns {@link DEFAULT_SORT} when the column stores nothing, undefined for the manual
+     *          order, and otherwise the stored key. Use {@link getEffectiveColumnSort} to resolve
+     *          {@link DEFAULT_SORT} against the board's own order.
      */
     getColumnSort(column: string) {
         const stored = this.viewConfig?.columns?.find(col => col.value === column);
         return {
-            orderBy: parseSortKey(stored?.orderBy),
+            orderBy: parseStoredSortKey(stored?.orderBy),
             isDescending: !!stored?.descendingOrder
         };
     }
 
-    /** Sets what a column sorts by. Pass `undefined` for the manual order. */
-    async setColumnSort(column: string, orderBy: SortKey | undefined) {
-        await this.updateColumn(column, { orderBy });
+    /**
+     * Resolves {@link getColumnSort} against {@link getDefaultSort}: a column storing
+     * {@link DEFAULT_SORT} sorts by the board's key and direction, and by nothing when the board
+     * holds no key.
+     */
+    getEffectiveColumnSort(column: string) {
+        const stored = this.getColumnSort(column);
+        if (stored.orderBy !== DEFAULT_SORT) {
+            return { orderBy: stored.orderBy, isDescending: stored.isDescending };
+        }
+
+        const board = this.getDefaultSort();
+        return { orderBy: board.orderBy, isDescending: board.isDescending };
+    }
+
+    /**
+     * Sets what a column sorts by. `undefined` stores {@link MANUAL_SORT}, since a column storing
+     * nothing sorts by the board's order instead.
+     */
+    async setColumnSort(column: string, orderBy: StoredSortKey | undefined) {
+        await this.updateColumn(column, { orderBy: orderBy ?? MANUAL_SORT });
     }
 
     /** Sets whether a column's order runs backwards. */
     async setColumnSortDirection(column: string, isDescending: boolean) {
         await this.updateColumn(column, { descendingOrder: isDescending });
+    }
+
+    /**
+     * Reads `#sortColumns` and `#sortColumnsDescending` off the board note, which is where the
+     * order the columns default to is stored rather than in `board.json`.
+     */
+    getDefaultSort() {
+        return {
+            orderBy: parseSortKey(this.parentNote?.getLabelValue(SORT_LABEL)),
+            isDescending: !!this.parentNote?.isLabelTruthy(SORT_DESCENDING_LABEL)
+        };
+    }
+
+    /** Sets what the board offers to sort by. Pass `undefined` for the manual order. */
+    async setDefaultSort(orderBy: SortKey | undefined) {
+        if (!this.parentNote) return;
+        await attributes.setAttribute(this.parentNote, "label", SORT_LABEL, orderBy ?? null);
+    }
+
+    /** Sets whether the order the board offers runs backwards. */
+    async setDefaultSortDirection(isDescending: boolean) {
+        if (!this.parentNote) return;
+        await attributes.setBooleanWithInheritance(
+            this.parentNote, SORT_DESCENDING_LABEL, isDescending);
+    }
+
+    /**
+     * Removes `orderBy` and `descendingOrder` from every stored column, so all of them sort by the
+     * board's order again.
+     *
+     * Only columns `board.json` holds an entry for are written; a column with no entry already
+     * sorts by the board's order. Written through {@link updateColumns} in one go, since
+     * `updateColumn` rewrites the whole config and a run of them would each start from the config
+     * as it stood before the first.
+     */
+    async resetColumnSortsToDefault() {
+        const stored = this.viewConfig?.columns ?? [];
+        this.updateColumns(
+            stored.map(({ value }) => value), { orderBy: undefined, descendingOrder: false });
     }
 
     /** Whether the inbox also collects notes deeper than the board's direct children. */
@@ -811,7 +873,23 @@ export default class BoardApi {
      * a note carries is shown without ever being written, so the first pick for it creates one.
      */
     private updateColumn(column: string, patch: Partial<BoardColumnData>) {
-        const columns = this.viewConfig?.columns ?? [];
+        this.storeColumns(this.withColumn(this.viewConfig?.columns ?? [], column, patch));
+    }
+
+    /** The same for several columns at once, written as one config. */
+    private updateColumns(columns: string[], patch: Partial<BoardColumnData>) {
+        let next = this.viewConfig?.columns ?? [];
+        for (const column of columns) {
+            next = this.withColumn(next, column, patch);
+        }
+
+        this.storeColumns(next);
+    }
+
+    /** The columns as they read with the patch applied to one of them. */
+    private withColumn(
+        columns: BoardColumnData[], column: string, patch: Partial<BoardColumnData>
+    ): BoardColumnData[] {
         const patched = (stored: BoardColumnData): BoardColumnData => {
             const updated = { ...stored, ...patch };
             if (!updated.icon) delete updated.icon;
@@ -827,8 +905,7 @@ export default class BoardApi {
         };
 
         if (columns.some(col => col.value === column)) {
-            this.storeColumns(columns.map(col => col.value === column ? patched(col) : col));
-            return;
+            return columns.map(col => col.value === column ? patched(col) : col);
         }
 
         // A column with no entry yet is written where the board draws it, after the last column
@@ -845,7 +922,7 @@ export default class BoardApi {
 
         const placed = [ ...columns ];
         placed.splice(at, 0, patched({ value: column }));
-        this.storeColumns(placed);
+        return placed;
     }
 
     reorderColumn(fromIndex: number, toIndex: number) {
@@ -1168,7 +1245,7 @@ export default class BoardApi {
 
     /** Whether a column orders its own cards rather than keeping the order the user set. */
     isColumnSorted(column: string) {
-        return !!this.getColumnSort(column).orderBy;
+        return !!this.getEffectiveColumnSort(column).orderBy;
     }
 
     /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */

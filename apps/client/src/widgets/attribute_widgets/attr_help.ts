@@ -157,6 +157,8 @@ export const ATTR_HELP: AttrHelpMap = {
         maxNestingDepth: t("attribute_detail.max_nesting_depth"),
         includeArchived: t("attribute_detail.include_archived"),
         enableInboxColumn: t("attribute_detail.enable_inbox_column"),
+        sortColumns: t("attribute_detail.sort_columns"),
+        sortColumnsDescending: t("attribute_detail.sort_columns_descending"),
         "calendar:view": t("attribute_detail.calendar_view"),
         "calendar:initialDate": t("attribute_detail.calendar_initial_date"),
         "calendar:hideWeekends": t("attribute_detail.calendar_hide_weekends"),

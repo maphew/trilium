@@ -740,6 +740,8 @@
     "max_nesting_depth": "How many levels of children a table shows. Notes cannot be reordered while it is set.",
     "include_archived": "Includes archived notes in this collection, which are otherwise left out.",
     "enable_inbox_column": "For board collections, shows the inbox column, which lists all child notes that are not assigned to a board column.",
+    "sort_columns": "For board collections, the order the columns sort their cards in, which a column follows unless it is given an order of its own. Holds <code>title</code>, <code>creationDate</code> or <code>attr:</code> followed by a promoted attribute's name.",
+    "sort_columns_descending": "For board collections, runs the order in <code>#sortColumns</code> backwards.",
     "calendar_view": "Which view a calendar opens in: <code>timeGridDay</code>, <code>timeGridWeek</code>, <code>dayGridMonth</code>, <code>multiMonthYear</code> or <code>listMonth</code>.",
     "calendar_initial_date": "The date a calendar opens on. Opens on today when unset.",
     "calendar_hide_weekends": "Hides Saturday and Sunday from the calendar. Applies whatever its value.",
@@ -1386,6 +1388,8 @@
   "promoted_attributes": {
     "promoted_attributes": "Promoted Attributes",
     "create_attribute": "Create a new attribute",
+    "label_name": "Label: {{name}}",
+    "relation_name": "Relationship: {{name}}",
     "edit_attribute": "Edit this attribute",
     "delete_attribute": "Delete this attribute",
     "delete_confirmation": "Delete <strong>{{name}}</strong> and its values from every note in this collection? This cannot be undone.",
@@ -2959,7 +2963,12 @@
     "reformat_collapsible": "Collapsible",
     "reformat_action_items": "Action items"
   },
+  "attribute_menu": {
+    "attributes": "Attributes",
+    "not-set": "Not set"
+  },
   "link_context_menu": {
+    "open_note": "Open note",
     "open_note_in_new_tab": "Open note in a new tab",
     "open_note_in_new_split": "Open note in a new split",
     "open_note_in_other_split": "Open note in the other split",
@@ -3414,6 +3423,7 @@
     "status-header": "Status",
     "duplicate-item": "Duplicate",
     "edit-title": "Edit title & icon",
+    "insert-new": "Insert new",
     "insert-above": "Insert new above",
     "insert-below": "Insert new below",
     "move-to-top": "Move to top",
@@ -3511,6 +3521,10 @@
     "card-outside-filter": "This card is outside of the current filtering scope",
     "sort": "Sort",
     "sort-manually": "Manually",
+    "sort-cards": "Sort cards",
+    "sort-board-default": "Board's default",
+    "sort-actions": "More actions",
+    "reset-columns-to-default": "Reset all columns to default",
     "sorted-no-reorder": "Cards cannot be reordered, since this is a sorted column."
   },
   "dashboard_view": {
@@ -4218,6 +4232,7 @@
     "submit": "Apply the filter"
   },
   "sorting": {
+    "default": "Default",
     "none": "None",
     "title": "Title",
     "creation-date": "Creation date & time",
