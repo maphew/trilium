@@ -1386,6 +1386,8 @@
   "promoted_attributes": {
     "promoted_attributes": "Promoted Attributes",
     "create_attribute": "Create a new attribute",
+    "label_name": "Label: {{name}}",
+    "relation_name": "Relationship: {{name}}",
     "edit_attribute": "Edit this attribute",
     "delete_attribute": "Delete this attribute",
     "delete_confirmation": "Delete <strong>{{name}}</strong> and its values from every note in this collection? This cannot be undone.",
