@@ -164,7 +164,17 @@ export function resolveBoardColumns(
     // list holds every one of them: that list is the arrangement made here, which a definition
     // shared with other notes cannot express, and which it lags by a round trip after every insert
     // and reorder. Equal lengths are enough to tell, the attachment being one of the sources above.
-    return persisted.length === columns.length ? persisted : columns;
+    const ordered = persisted.length === columns.length ? persisted : columns;
+
+    // The inbox leads whatever the board groups by. It collects the cards carrying no value, which
+    // is a different set under every grouping, and only the board's own list can name it: a
+    // definition cannot, so the columns it leads with would otherwise push the inbox to the end.
+    const inbox = ordered.indexOf(INBOX_COLUMN);
+    if (inbox > 0) {
+        ordered.unshift(...ordered.splice(inbox, 1));
+    }
+
+    return ordered;
 }
 
 /** Whether a value identifies a column of its own, rather than the absence of one. */

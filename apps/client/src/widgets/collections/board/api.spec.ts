@@ -1637,6 +1637,39 @@ describe("collapsing a column", () => {
     });
 });
 
+describe("reordering around the inbox", () => {
+    /** The inbox leads whatever the board groups by, so a reorder cannot take it off the front. */
+    function boardWithInbox() {
+        return createApi(
+            { columns: [ { value: "" }, { value: "To Do" }, { value: "Done" } ] },
+            [ "", "To Do", "Done" ]
+        );
+    }
+
+    it("refuses to carry the inbox off the front", () => {
+        const { api, saved } = boardWithInbox();
+
+        expect(api.reorderColumn(0, 2)).toBeUndefined();
+        expect(saved).toEqual([]);
+    });
+
+    it("refuses to place another column in front of it", () => {
+        const { api, saved } = boardWithInbox();
+
+        expect(api.reorderColumn(2, 0)).toBeUndefined();
+        expect(saved).toEqual([]);
+    });
+
+    it("leaves the columns behind it free to move among themselves", () => {
+        const { api, saved } = boardWithInbox();
+
+        api.reorderColumn(2, 1);
+
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "" }, { value: "Done" }, { value: "To Do" } ]);
+    });
+});
+
 describe("reordering columns the board is not showing all of", () => {
     /**
      * A column the config keeps but the board does not show, such as a disabled inbox, is missing

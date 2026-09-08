@@ -936,6 +936,14 @@ export default class BoardApi {
     reorderColumn(fromIndex: number, toIndex: number) {
         if (!this.columns || fromIndex === toIndex) return;
 
+        // The inbox leads whatever the board groups by, so neither carrying it off the front nor
+        // placing a column before it can stand. Refused here rather than at each gesture: the
+        // drag, the keyboard and the menu all reorder through this.
+        const leadsWithInbox = this.columns[0] === INBOX_COLUMN;
+        if (this.columns[fromIndex] === INBOX_COLUMN || (leadsWithInbox && toIndex === 0)) {
+            return;
+        }
+
         const newColumns = [...this.columns];
         const [movedColumn] = newColumns.splice(fromIndex, 1);
 

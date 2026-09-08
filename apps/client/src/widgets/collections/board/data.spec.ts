@@ -7,6 +7,7 @@ import type { EntityChange } from "../../../server_types";
 import { buildNote } from "../../../test/easy-froca";
 import type { PromotedAttribute } from "../promoted_attributes";
 import type { SortContext, SortKey } from "../sorting";
+import { INBOX_COLUMN } from "./columns";
 import {
     affectsSortOrder, applyCardMove, type ColumnMap, type ColumnSort, filterColumnMap,
     getBoardData, resolveColumnSorts, resolveSortWatch, sortColumnMap, unfilteredCardIndex
@@ -694,6 +695,31 @@ describe("getBoardData column storage", () => {
             .toEqual([ { value: "Minor" }, { value: "Major" } ]);
         expect(newPersistedData?.columns).toEqual(config.columns);
         expect(newPersistedData?.priorityViewColumns).toEqual(config.priorityViewColumns);
+    });
+
+    /**
+     * The inbox collects the cards carrying no value, which is a different set under every
+     * grouping. Only the board's own list can name it, so a grouping the definition leads would
+     * put it behind every option that definition offers.
+     */
+    it("puts the inbox first under a grouping the board has never been on", async () => {
+        const board = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            "#label:priority(inheritable)": "promoted,single,select,options=High;Low",
+            children: [
+                { title: "First", "#priority": "High" },
+                { title: "Unassigned" }
+            ]
+        });
+
+        const { columns, byColumn } = await getBoardData(
+            board, "priority", {}, false, [ "High", "Low" ], new Map(), true);
+
+        expect(columns).toEqual([ INBOX_COLUMN, "High", "Low" ]);
+        expect((byColumn.get(INBOX_COLUMN) ?? []).map(({ note }) => note.title))
+            .toEqual([ "Unassigned" ]);
     });
 
     it("keeps a column's icon across a rewrite of its own grouping", async () => {

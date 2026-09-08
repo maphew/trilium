@@ -183,6 +183,20 @@ describe("the inbox column", () => {
             .toEqual([ "To Do", "Done" ]);
     });
 
+    /**
+     * Only the board's own list can name the inbox, and that list is read after the definition's
+     * options, so a grouping the definition leads would put the inbox behind every one of them.
+     */
+    it("leads even where the definition leads on the order", () => {
+        expect(resolveBoardColumns([ "High", "Low" ], [ "" ], [ "High", "Low" ]))
+            .toEqual([ "", "High", "Low" ]);
+    });
+
+    it("leads a list the board arranged itself, wherever that list carries it", () => {
+        expect(resolveBoardColumns([ "To Do", "Done" ], [ "To Do", "", "Done" ], []))
+            .toEqual([ "", "To Do", "Done" ]);
+    });
+
     /** Deleting is recorded as `undefined`, which the inbox's own name must not be taken for. */
     it("is told apart from a column being deleted", () => {
         const pending = new Map([ [ "Done", undefined ] ]);
