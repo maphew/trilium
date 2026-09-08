@@ -3521,7 +3521,8 @@
     "sort-manually": "Manually",
     "sort-cards": "Sort cards",
     "sort-board-default": "Board's default",
-    "apply-sort-to-columns": "Apply to all columns",
+    "sort-actions": "More actions",
+    "reset-columns-to-default": "Reset all columns to default",
     "sorted-no-reorder": "Cards cannot be reordered, since this is a sorted column."
   },
   "dashboard_view": {

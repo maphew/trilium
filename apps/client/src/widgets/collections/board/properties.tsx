@@ -4,7 +4,7 @@ import { useCallback } from "preact/hooks";
 
 import type FNote from "../../../entities/fnote";
 import { t } from "../../../services/i18n";
-import Button from "../../react/Button";
+import ActionButton from "../../react/ActionButton";
 import { Card, OptionCardSection } from "../../react/Card";
 import FormToggle from "../../react/FormToggle";
 import { useNoteLabel, useNoteLabelBoolean } from "../../react/hooks";
@@ -15,6 +15,7 @@ import type { PromotedAttribute } from "../promoted_attributes";
 import SortDropdown from "../SortDropdown";
 import { parseSortKey } from "../sorting";
 import BoardApi from "./api";
+import { openSortActionsMenu } from "./context_menu";
 
 /** The board's settings, other than its columns and cards. */
 export default function BoardProperties({ api, note, shown, onClose }: {
@@ -109,9 +110,16 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                     onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
                 />
 
-                <Button
-                    text={t("board_view.apply-sort-to-columns")}
-                    onClick={() => api.applyDefaultSortToColumns()}
+                <ActionButton
+                    className="board-sort-actions"
+                    icon="bx bx-dots-vertical-rounded"
+                    text={t("board_view.sort-actions")}
+                    onClick={(event) => {
+                        // The press would otherwise reach the document, where the menu closes
+                        // itself on any click outside it.
+                        event.stopPropagation();
+                        openSortActionsMenu(api, event);
+                    }}
                 />
             </OptionCardSection>
         </Card>

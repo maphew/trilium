@@ -1953,46 +1953,25 @@ describe("the order the board offers its columns", () => {
             expect(setBoolean).toHaveBeenCalledWith(board, "sortColumnsDescending", true);
         });
 
-    it("hands the order to every column at once, keeping what else each one holds", async () => {
+    it("puts every column back to the board's order, keeping what else each one holds", async () => {
         const { api, saved } = createApi(
             {
                 columns: [
-                    { value: "To Do", icon: "bx bx-list-ul", orderBy: "creationDate" },
-                    { value: "Done", descendingOrder: true }
-                ]
-            },
-            [ "To Do", "Doing", "Done" ],
-            buildNote({
-                title: "Board", "#sortColumns": "title", "#sortColumnsDescending": ""
-            }));
-
-        await api.applyDefaultSortToColumns();
-
-        // One write for the board, and the column with no entry of its own gains one where it is
-        // drawn rather than at the end.
-        expect(saved.length).toBe(1);
-        expect(saved.at(-1)?.columns).toEqual([
-            { value: "To Do", icon: "bx bx-list-ul", orderBy: "title", descendingOrder: true },
-            { value: "Doing", orderBy: "title", descendingOrder: true },
-            { value: "Done", orderBy: "title", descendingOrder: true }
-        ]);
-    });
-
-    it("puts every column back to the manual order where that is what the board holds", async () => {
-        const { api, saved } = createApi(
-            {
-                columns: [
-                    { value: "To Do", orderBy: "title" },
+                    { value: "To Do", icon: "bx bx-list-ul", orderBy: "manual" },
                     { value: "Done", orderBy: "title", descendingOrder: true }
                 ]
             },
-            [ "To Do", "Done" ]);
+            [ "To Do", "Doing", "Done" ]);
 
-        await api.applyDefaultSortToColumns();
+        await api.resetColumnSortsToDefault();
 
-        // Strict, so the assertion catches the keys being stored as undefined rather than dropped.
-        expect(saved.at(-1)?.columns)
-            .toStrictEqual([ { value: "To Do" }, { value: "Done" } ]);
+        // One write for the board. Strict, so the assertion catches a key stored as undefined
+        // rather than dropped, and the column with no entry is left without one.
+        expect(saved.length).toBe(1);
+        expect(saved.at(-1)?.columns).toStrictEqual([
+            { value: "To Do", icon: "bx bx-list-ul" },
+            { value: "Done" }
+        ]);
     });
 });
 

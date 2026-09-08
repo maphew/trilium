@@ -4,6 +4,7 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type FNote from "../../../entities/fnote";
+import contextMenu, { type MenuCommandItem } from "../../../menus/context_menu";
 import type { PromotedAttribute } from "../promoted_attributes";
 import type { SortKey } from "../sorting";
 import BoardApi from "./api";
@@ -101,7 +102,7 @@ describe("Board properties", () => {
             setDefaultSortDirection: async (isDescending: boolean) => {
                 sorting.push(`descending:${isDescending}`);
             },
-            applyDefaultSortToColumns: async () => { sorting.push("apply"); }
+            resetColumnSortsToDefault: async () => { sorting.push("reset"); }
         } as unknown as BoardApi;
 
         draw = () => act(() => {
@@ -186,19 +187,34 @@ describe("Board properties", () => {
             expect(picker()?.querySelector(".bx-sort-down")).toBeTruthy();
         });
 
-        it("hands the order to every column when asked to", () => {
-            act(() => { applyButton()?.click(); });
+        it("offers a menu beside the picker for putting the columns back to it", () => {
+            const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+            // The menu closes itself on any click reaching the document, so the press that opens
+            // it must not get there.
+            const onDocument = vi.fn();
+            document.addEventListener("click", onDocument);
 
-            expect(sorting).toEqual([ "apply" ]);
+            act(() => { actionsButton()?.click(); });
+            document.removeEventListener("click", onDocument);
+            expect(onDocument).not.toHaveBeenCalled();
+
+            const items = show.mock.calls.at(-1)?.[0].items ?? [];
+            expect(items.map(item => item && "title" in item ? item.title : ""))
+                .toEqual([ "board_view.reset-columns-to-default" ]);
+
+            const entry = items[0];
+            if (!entry || !("handler" in entry)) throw new Error("expected a menu entry");
+            act(() => { entry.handler?.(entry as MenuCommandItem<unknown>, {} as never); });
+
+            expect(sorting).toEqual([ "reset" ]);
         });
 
         function picker() {
             return general()?.querySelector<HTMLElement>(".board-sort-picker");
         }
 
-        function applyButton() {
-            return [ ...general()?.querySelectorAll<HTMLElement>("button") ?? [] ]
-                .find(button => button.textContent?.includes("board_view.apply-sort-to-columns"));
+        function actionsButton() {
+            return general()?.querySelector<HTMLElement>(".board-sort-actions");
         }
     });
 

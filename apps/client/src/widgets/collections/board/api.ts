@@ -689,14 +689,16 @@ export default class BoardApi {
     }
 
     /**
-     * Gives every column the order the board holds, replacing whatever each column sorted by.
+     * Puts every column back to the board's order, dropping the one each column picked for itself.
      *
-     * Written in one go: `updateColumn` rewrites the whole config, so a run of them would each
-     * report the board as it stood before the first.
+     * Only the columns the config holds an entry for are written: one with no entry already takes
+     * the board's order. Written in one go, since `updateColumn` rewrites the whole config and a
+     * run of them would each start from it as it stood before the first.
      */
-    async applyDefaultSortToColumns() {
-        const { orderBy, isDescending } = this.getDefaultSort();
-        this.updateColumns(this.columns, { orderBy, descendingOrder: isDescending });
+    async resetColumnSortsToDefault() {
+        const stored = this.viewConfig?.columns ?? [];
+        this.updateColumns(
+            stored.map(({ value }) => value), { orderBy: undefined, descendingOrder: false });
     }
 
     /** Whether the inbox also collects notes deeper than the board's direct children. */
