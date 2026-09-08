@@ -34,6 +34,13 @@ const SCROLL_MARGIN = 60;
 const TOUCH_SCROLL_MARGIN = 100;
 
 /**
+ * How fast the card scrolls with the pointer at the very edge, in pixels a second. Slower than the
+ * edge scroller's default: a card's segments are short, so the whole list passes by in a few
+ * hundred pixels.
+ */
+const SCROLL_SPEED = 600;
+
+/**
  * Elements that handle a press themselves, so a press starting on one never drags the segment.
  * `renderItem` can draw anything, so ARIA roles and `contenteditable` count as well as the native
  * controls.
@@ -132,6 +139,7 @@ export function SortableCard<T extends SortableItem>({
         margin: matchMedia("(pointer: coarse)").matches
             ? TOUCH_SCROLL_MARGIN
             : SCROLL_MARGIN,
+        speed: SCROLL_SPEED,
         reach: () => reachRef.current,
         // The pointer has not moved, but the content under it has.
         onScroll: () => dragToRef.current(pointerRef.current.y)
