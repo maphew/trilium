@@ -24,7 +24,11 @@ import { OutsideFilterBadge } from "./card";
 
 // The card menu opens with the shared link items, which reach for the active note context.
 vi.mock("../../../menus/link_context_menu", () => ({
-    default: { getItems: () => [], handleLinkContextMenuItem: () => {} }
+    default: {
+        getQuickEditItem: () => ({ title: "Quick edit" }),
+        getOpenNoteItem: () => ({ title: "Open note", items: [] }),
+        handleLinkContextMenuItem: () => {}
+    }
 }));
 
 // i18next is never initialised under test, so every label would read as undefined. The awaited

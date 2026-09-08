@@ -449,23 +449,32 @@ export function openNoteContextMenu(
     event.preventDefault();
     event.stopPropagation();
 
-    // Where a card goes among the others, which a sorted column decides for itself. Kept in a
-    // group of its own only while it holds something, or the menu shows a stray divider.
-    const placement: MenuItem<CommandNames>[] = api.isColumnSorted(column) ? [] : [
+    // A sorted column decides where its cards go, so it is offered no place to put one.
+    const isSorted = api.isColumnSorted(column);
+
+    // What the card is placed beside, and the copy made below it.
+    const placement: MenuItem<CommandNames>[] = [
+        ...(isSorted ? [] : [
+            {
+                title: t("board_view.insert-above"),
+                uiIcon: "bx bx-list-plus",
+                shortcut: "Shift+Enter",
+                handler: () => onInsert(index)
+            },
+            {
+                title: t("board_view.insert-below"),
+                uiIcon: "bx bx-empty",
+                shortcut: "Enter",
+                handler: () => onInsert(index + 1)
+            }
+        ]),
         {
-            title: t("board_view.insert-above"),
-            uiIcon: "bx bx-list-plus",
-            shortcut: "Shift+Enter",
-            handler: () => onInsert(index)
-        },
-        {
-            title: t("board_view.insert-below"),
-            uiIcon: "bx bx-empty",
-            shortcut: "Enter",
-            handler: () => onInsert(index + 1)
+            title: t("board_view.duplicate-item"),
+            uiIcon: "bx bx-outline",
+            handler: () => api.duplicateItem(note.noteId, branchId)
         },
         // Left out for the card already at the head, which has nowhere to go.
-        ...(api.isFirstInColumn(branchId, column) ? [] : [ {
+        ...(isSorted || api.isFirstInColumn(branchId, column) ? [] : [ {
             title: t("board_view.move-to-top"),
             uiIcon: "bx bx-vertical-top",
             shortcut: "Ctrl+Home",
@@ -482,24 +491,19 @@ export function openNoteContextMenu(
         x: event.pageX,
         y: event.pageY,
         items: [
-            ...link_context_menu.getItems(event),
+            // Space opens the same popup for the card the cursor stands on.
+            { ...link_context_menu.getQuickEditItem(), shortcut: "Space" },
             {
                 title: t("board_view.edit-title"),
                 uiIcon: "bx bx-rename",
                 shortcut: "F2",
                 handler: () => api.startEditing(branchId)
             },
-            ...(placement.length
-                ? [ { kind: "separator" } as MenuItem<CommandNames>, ...placement ]
-                : []),
+            link_context_menu.getOpenNoteItem(event),
+            { kind: "separator" },
+            ...placement,
             { kind: "header", title: api.getStatusLabel() },
             ...buildColumnItems(api, note, column, onFocusCard),
-            { kind: "separator" },
-            {
-                title: t("board_view.duplicate-item"),
-                uiIcon: "bx bx-outline",
-                handler: () => api.duplicateItem(note.noteId, branchId)
-            },
             { kind: "separator" },
             getArchiveMenuItem(note),
             {

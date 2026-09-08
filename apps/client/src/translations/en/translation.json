@@ -2960,6 +2960,7 @@
     "reformat_action_items": "Action items"
   },
   "link_context_menu": {
+    "open_note": "Open note",
     "open_note_in_new_tab": "Open note in a new tab",
     "open_note_in_new_split": "Open note in a new split",
     "open_note_in_other_split": "Open note in the other split",

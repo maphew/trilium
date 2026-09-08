@@ -15,7 +15,11 @@ import { openBoardContextMenu, openColumnContextMenu, openNoteContextMenu } from
 
 // The card menu opens with the shared link items, which reach for the active note context.
 vi.mock("../../../menus/link_context_menu", () => ({
-    default: { getItems: () => [], handleLinkContextMenuItem: () => {} }
+    default: {
+        getQuickEditItem: () => ({ title: "Quick edit" }),
+        getOpenNoteItem: () => ({ title: "Open note", items: [] }),
+        handleLinkContextMenuItem: () => {}
+    }
 }));
 
 // i18next is never initialised under test, so `t` echoes the key it is given. The promise is what
@@ -462,6 +466,26 @@ describe("Board column context menu", () => {
 describe("Board item context menu", () => {
     afterEach(() => vi.restoreAllMocks());
 
+    /**
+     * The two entries a card is worked on with come first; the other ways of opening it fold into
+     * one submenu behind them.
+     */
+    it("leads with quick edit, the title editor and the open submenu", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => ""
+        } as unknown as BoardApi;
+
+        const leading = openItemMenu(api).slice(0, 3);
+
+        expect(leading.map(item => item && "title" in item ? item.title : "")).toEqual([
+            "Quick edit", "board_view.edit-title", "Open note"
+        ]);
+        // The key that opens the same popup for the card the cursor stands on.
+        expect(leading[0]).toMatchObject({ shortcut: "Space" });
+    });
 
     /** The same editor F2 opens, for a reader who came to the card with the mouse. */
     it("opens the card's title editor", () => {
@@ -525,8 +549,8 @@ describe("Board item context menu", () => {
         expect(focusCard).toHaveBeenCalled();
     });
 
-    /** The group still holds the two inserts, so the divider that heads it stays. */
-    it("keeps the divider while the column is arranged by hand", () => {
+    /** The two inserts and the copy made below them, under the divider that heads the group. */
+    it("lists the places a card is put, and the copy of it, in one group", () => {
         const items = openItemMenu({
             columns: [],
             isColumnArchived: () => false,
@@ -535,10 +559,11 @@ describe("Board item context menu", () => {
             isFirstInColumn: () => true
         } as unknown as BoardApi);
 
-        const at = items.findIndex(item => item && "uiIcon" in item
-            && item.uiIcon === "bx bx-rename");
+        const at = lastOfLeadingGroup(items);
         expect(items[at + 1]).toMatchObject({ kind: "separator" });
-        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-list-plus" });
+        expect(items.slice(at + 2, at + 5).map(item =>
+            item && "uiIcon" in item ? item.uiIcon : undefined))
+            .toEqual([ "bx bx-list-plus", "bx bx-empty", "bx bx-outline" ]);
     });
 
     it("says nothing about moving up the card already at the head", () => {
@@ -577,11 +602,17 @@ describe("Board item context menu", () => {
         expect(icons).toContain("bx bx-rename");
         expect(icons).toContain("bx bx-outline");
 
-        // The divider goes with them: the heading below already breaks the menu there.
-        const at = items.findIndex(item => item && "uiIcon" in item
-            && item.uiIcon === "bx bx-rename");
-        expect(items[at + 1]).toMatchObject({ kind: "header" });
+        // The copy is all the group has left, and the heading follows it.
+        const at = lastOfLeadingGroup(items);
+        expect(items[at + 1]).toMatchObject({ kind: "separator" });
+        expect(items[at + 2]).toMatchObject({ uiIcon: "bx bx-outline" });
+        expect(items[at + 3]).toMatchObject({ kind: "header" });
     });
+
+    /** Where the entries a card is opened and named with end, which the next group follows. */
+    function lastOfLeadingGroup(items: MenuItem<unknown>[]) {
+        return items.findIndex(item => item && "title" in item && item.title === "Open note");
+    }
 
     it("copies a card into the board, after the one it was made from", async () => {
         const api = {
