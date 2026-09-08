@@ -184,7 +184,12 @@ async function activateNeighbouringNotePath(branchIdsToDelete: string[], deleteA
         return;
     }
 
-    const siblingNoteId = findSurvivingSibling(parentPath[parentPath.length - 1], activeNotePath[earliestIndex], branchIdsToDelete, deleteAllClones);
+    const siblingNoteId = findSurvivingSibling(
+        parentPath[parentPath.length - 1],
+        activeNotePath[earliestIndex],
+        branchIdsToDelete,
+        deleteAllClones
+    );
     const targetPath = siblingNoteId ? [ ...parentPath, siblingNoteId ] : parentPath;
     await activeContext?.setNote(targetPath.join("/"));
 }
@@ -194,7 +199,12 @@ async function activateNeighbouringNotePath(branchIdsToDelete: string[], deleteA
  * are deleted: the next sibling, else the previous one. Archived siblings are skipped, since the
  * tree can be set to hide them.
  */
-function findSurvivingSibling(parentNoteId: string, noteId: string, branchIdsToDelete: string[], deleteAllClones: boolean) {
+function findSurvivingSibling(
+    parentNoteId: string,
+    noteId: string,
+    branchIdsToDelete: string[],
+    deleteAllClones: boolean
+) {
     const parentNote = froca.getNoteFromCache(parentNoteId);
     if (!parentNote) {
         return null;
@@ -207,13 +217,18 @@ function findSurvivingSibling(parentNoteId: string, noteId: string, branchIdsToD
     }
 
     // Deleting all clones removes every branch of the deleted notes, not only the selected ones.
-    const deletedNoteIds = new Set(branchIdsToDelete.map((branchId) => froca.getBranch(branchId)?.noteId));
+    const deletedNoteIds = new Set(
+        branchIdsToDelete.map((branchId) => froca.getBranch(branchId)?.noteId)
+    );
     const survives = (branch: FBranch) =>
         !branchIdsToDelete.includes(branch.branchId)
         && !(deleteAllClones && deletedNoteIds.has(branch.noteId))
         && !froca.getNoteFromCache(branch.noteId)?.isArchived;
 
-    const candidates = [ ...siblingBranches.slice(index + 1), ...siblingBranches.slice(0, index).reverse() ];
+    const candidates = [
+        ...siblingBranches.slice(index + 1),
+        ...siblingBranches.slice(0, index).reverse()
+    ];
     return candidates.find(survives)?.noteId ?? null;
 }
 

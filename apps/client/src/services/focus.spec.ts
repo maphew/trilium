@@ -11,9 +11,9 @@ afterEach(() => {
 describe("focus service", () => {
     it("does nothing (no focus change) when nothing was focused at save time", () => {
         // saveFocusedElement() always assigns a jQuery object: $(":focus") is never null, only an
-        // empty wrapped set (or, under happy-dom, the <body> itself). So the early-return at the top
-        // of focusSavedElement() is NOT hit here; execution falls through to .hasClass("ck") (false)
-        // and then to a focus() that changes nothing.
+        // empty wrapped set (or, under happy-dom, the <body> itself). So the early-return at the
+        // top of focusSavedElement() is NOT hit here; execution falls through to .hasClass("ck")
+        // (false) and then to a focus() that changes nothing.
         const $body = $(document.body);
         ($body[0] as HTMLElement).focus();
         // happy-dom keeps focus on <body> by default; record the active element to prove it is unchanged.

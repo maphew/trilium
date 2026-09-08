@@ -307,7 +307,7 @@ describe("deleteNotes", () => {
 });
 
 describe("activateNeighbouringNotePath (via deleteNotes navigation)", () => {
-    /** Confirms the delete dialog with the given options and captures where the active tab navigates. */
+    /** Confirms the delete dialog with the given options and captures where the tab navigates. */
     function confirmDeletion(notePathArray: string[], deleteAllClones = false) {
         const setNote = vi.fn(async () => {});
         appContext.tabManager = {
@@ -319,9 +319,12 @@ describe("activateNeighbouringNotePath (via deleteNotes navigation)", () => {
         return setNote;
     }
 
-    it("activates the next sibling, or the previous one when the deleted note is the last", async () => {
+    it("activates the next sibling, or the previous one for the last note", async () => {
         const parent = buildNote({ title: "P", children: [
-            { id: "sibA", title: "A" }, { id: "sibB", title: "B" }, { id: "sibC", title: "C" }, { id: "sibD", title: "D" }
+            { id: "sibA", title: "A" },
+            { id: "sibB", title: "B" },
+            { id: "sibC", title: "C" },
+            { id: "sibD", title: "D" }
         ] });
         const p = parent.noteId;
 
@@ -340,9 +343,11 @@ describe("activateNeighbouringNotePath (via deleteNotes navigation)", () => {
         expect(setNote).toHaveBeenCalledWith(`root/${p}/sibB`);
     });
 
-    it("skips siblings that the deletion also removes and archived ones, falling back to the parent", async () => {
+    it("skips removed and archived siblings, falling back to the parent", async () => {
         const parent = buildNote({ title: "P2", children: [
-            { id: "arcA", title: "A", "#archived": "" }, { id: "selB", title: "B" }, { id: "selC", title: "C" }
+            { id: "arcA", title: "A", "#archived": "" },
+            { id: "selB", title: "B" },
+            { id: "selC", title: "C" }
         ] });
         const p = parent.noteId;
 
@@ -425,8 +430,9 @@ describe("activateNeighbouringNotePath (via deleteNotes navigation)", () => {
             getActiveContext: () => ({ notePathArray: undefined, setNote })
         } as any;
         appContext.triggerCommand = vi.fn((_name: any, data: any) => {
-            // Remove the branch after filtering but before navigation, so activateNeighbouringNotePath's
-            // `froca.getBranch(...)` returns undefined and the `if (branch)` false arm is taken.
+            // Remove the branch after filtering but before navigation, so that
+            // activateNeighbouringNotePath's `froca.getBranch(...)` returns undefined and the
+            // `if (branch)` false arm is taken.
             delete froca.branches["ancBranch"];
             data.callback({ proceed: true, deleteAllClones: false, eraseNotes: false });
         }) as any;
