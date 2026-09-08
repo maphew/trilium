@@ -16,7 +16,7 @@
   /* Matches the height a normal header takes, so a collapsed column reads as one turned on
      its side. */
   --board-collapsed-column-width: 2.25em;
-  --board-column-width: 250px;
+  --board-column-width: 275px;
   --board-column-border-width: 2px;
   --board-collapse-duration: 1s;
   --board-collapse-duration-quick: 0.3s;
@@ -190,6 +190,15 @@ body.mobile .board-view-container .board-add-column {
   padding: 0.1em 0.6em;
   font-size: 0.75em;
   margin-inline-start: 0.5em;
+}
+
+/* One line, however long the name: the rest is clipped with an ellipsis. `min-width` is what lets
+   the title shrink past its text, a flex item sizing itself to its content otherwise. */
+.board-view-container .board-column:not(.collapsed) h3 > .title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .board-view-container .board-column h3 > .spacer {
@@ -751,12 +760,12 @@ body.mobile .board-view-container .board-add-column {
   /* Anchored at the top of the column's content, which the transform then counts down from. Left
      to its own place in the flow it would start below every card. */
   top: 0;
-  left: 0;
-  right: 0;
   height: 40px;
-  /* The gap below is the card's, in em, so it has to be read at the card's own font size. */
-  font-size: var(--card-font-size);
-  margin-block: 0 0.65em;
+  /* The cards' own edges: `left`/`right` are measured from the padding box, so the column's
+     horizontal padding is added back here. Read at the column's font size, as that padding is. */
+  inset-inline: 0.5em;
+  /* The gap below is the card's `margin-block`, which the card reads at `--card-font-size`. */
+  margin-block: 0 calc(0.65 * var(--card-font-size));
   border-radius: 5px;
   background-color: rgba(0, 0, 0, 0.15);
   opacity: 0;
@@ -786,7 +795,9 @@ body.mobile .board-view-container .board-add-column {
   justify-content: center;
   height: 100%;
   overflow: hidden;
-  font-size: 0.75em;
+  padding-inline: 12px;
+  /* 0.75 of a card's text, the placeholder no longer being set at the card's font size. */
+  font-size: calc(0.75 * var(--card-font-size));
   line-height: 1.2;
   text-align: center;
   color: var(--muted-text-color);
@@ -795,7 +806,9 @@ body.mobile .board-view-container .board-add-column {
 /* The space a carried column would take, so it must measure the same: the board spaces its columns
    with its own gap, and a margin here is width the columns after it are pushed along by. */
 .column-drop-placeholder {
-  width: 250px;
+  /* The column's own width. The mobile rule below repeats what the column is given there, which
+     is scoped to the column element and so out of reach from here. */
+  width: var(--board-column-width);
   flex-shrink: 0;
   height: 200px;
   border-radius: 8px;
