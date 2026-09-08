@@ -759,7 +759,10 @@
     "promoted-attributes-hint": "カードに表示する属性を選択し、表示順序をドラッグして並べ替えます。",
     "new-template-name": "新しいカードテンプレート",
     "filter-placeholder": "ボードをフィルター…",
-    "card-outside-filter": "このカードは現在のフィルタリング範囲外です"
+    "card-outside-filter": "このカードは現在のフィルタリング範囲外です",
+    "sort": "並べ替え",
+    "sort-manually": "手動",
+    "sorted-no-reorder": "並べ替えが適用されている列のため、カードの順序を変更することはできません。"
   },
   "code_buttons": {
     "execute_button_title": "スクリプトを実行",
@@ -4149,5 +4152,12 @@
     "clear": "フィルターを解除",
     "fetch-error": "フィルターを実行できませんでした。",
     "submit": "フィルターを適用"
+  },
+  "sorting": {
+    "none": "なし",
+    "title": "タイトル",
+    "creation-date": "作成日時",
+    "ascending": "昇順",
+    "descending": "降順"
   }
 }
