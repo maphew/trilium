@@ -55,6 +55,7 @@ describe("resolvePromotedAttributes", () => {
                 definitionName: "label:dueDate",
                 type: "label",
                 title: "Due",
+                promotedAlias: "Due",
                 hidden: false,
                 definitionValue: "promoted,single,text",
                 isOwned: true,
@@ -63,7 +64,8 @@ describe("resolvePromotedAttributes", () => {
             // No alias, so the name is prefixed by the kind that defines it.
             expect.objectContaining({
                 name: "requiresResearch",
-                title: "promoted_attributes.label_name:requiresResearch"
+                title: "promoted_attributes.label_name:requiresResearch",
+                promotedAlias: undefined
             }),
             expect.objectContaining({
                 name: "owner",

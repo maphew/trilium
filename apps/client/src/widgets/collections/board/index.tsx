@@ -9,9 +9,10 @@ import {
     Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
 
-import type { HighlightedTokenInfo } from "@triliumnext/commons";
+import { type HighlightedTokenInfo, normalizeBoardGroupBy } from "@triliumnext/commons";
 
 import FNote from "../../../entities/fnote";
+import attributes from "../../../services/attributes";
 import froca from "../../../services/froca";
 import { t } from "../../../services/i18n";
 import { getCreationDate, loadCreationDates } from "../../../services/note_dates";
@@ -47,10 +48,12 @@ import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geo
 import { forgetCardHeights } from "./drag_measure";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
+import { adoptLegacyColumns, readColumns } from "./column_storage";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
 import Column, { EXPAND_MS, placeCard, settleCards } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
+import BoardGroupBy, { groupingOptions } from "./group_by";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
 import { useBoardSort } from "./sort";
@@ -72,7 +75,13 @@ export interface HoldOpen {
 }
 
 export interface BoardViewData {
+    /**
+     * The columns of the default grouping. Every other grouping keeps its own list under
+     * `<attribute>ViewColumns`, so switching the grouping cannot mix two of them.
+     */
     columns?: BoardColumnData[];
+    /** @see BoardViewData.columns */
+    [key: `${string}ViewColumns`]: BoardColumnData[] | undefined;
     /**
      * What a new card can be made from, as {@link NoteTypeOption} ids. Absent until the reader picks
      * for the board, which is what `DEFAULT_CARD_TEMPLATES` stands in for.
@@ -286,9 +295,33 @@ const BOARD_HINTS: ShortcutHintDefinition = [
     }
 ];
 
-export default function BoardView({ note: parentNote, noteIds, viewConfig, saveConfig }: ViewModeProps<BoardViewData>) {
+export default function BoardView({
+    note: parentNote, noteIds, viewConfig: storedConfig, saveConfig
+}: ViewModeProps<BoardViewData>) {
     const { noteContext } = useNoteContext();
-    const [ statusAttributeWithPrefix ] = useNoteLabelWithDefault(parentNote, "board:groupBy", DEFAULT_GROUP_BY);
+    const [ requestedGroupBy, setRequestedGroupBy ] =
+        useNoteLabelWithDefault(parentNote, "board:groupBy", DEFAULT_GROUP_BY);
+    /**
+     * The grouping the board draws and writes for.
+     *
+     * It follows `#board:groupBy` only once the columns of the grouping it names are resolved, so
+     * no write can put one grouping's columns under another's key. A different board takes its
+     * label at once: it has no previous grouping of its own to keep in step.
+     */
+    const [ committed, setCommitted ] = useState({ note: parentNote, groupBy: requestedGroupBy });
+    const groupBy = committed.note === parentNote ? committed.groupBy : requestedGroupBy;
+    // A board that has never had its grouping switched keeps its columns under `columns`. They
+    // belong to the grouping it opened on, and are moved under that grouping's own key before
+    // anything reads them. Read from the label the board opened with rather than from the grouping
+    // in force: switching to another one must not carry the columns of the one being left.
+    const openedOn = useRef({ note: parentNote, groupBy: requestedGroupBy });
+    if (openedOn.current.note !== parentNote) {
+        openedOn.current = { note: parentNote, groupBy: requestedGroupBy };
+    }
+    const openedOnGroupBy = openedOn.current.groupBy;
+    const adoptedConfig = useMemo(
+        () => adoptLegacyColumns(storedConfig, openedOnGroupBy), [ storedConfig, openedOnGroupBy ]);
+    let viewConfig = adoptedConfig ?? storedConfig;
     const [ includeArchived ] = useNoteLabelBoolean(parentNote, "includeArchived");
     const [ inboxEnabled ] = useNoteLabelBoolean(parentNote, "enableInboxColumn");
     /** Every card the board holds, which an active filter narrows before the cards are drawn. */
@@ -360,7 +393,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // takes up that board's own, leaving a write still in flight to undo into the one it recorded
     // itself in. Done while rendering, so the `api` below is handed the map the refresh reads.
     useContextualShortcutHints(BOARD_HINTS);
-    const boardIdentity = `${parentNote.noteId}|${statusAttributeWithPrefix}`;
+    const boardIdentity = `${parentNote.noteId}|${groupBy}`;
     if (pendingRenamesRef.current.board !== boardIdentity) {
         pendingRenamesRef.current = {
             board: boardIdentity,
@@ -375,8 +408,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         () => (columns ?? []).filter(column => column !== INBOX_COLUMN || inboxEnabled),
         [ columns, inboxEnabled ]);
     const statusDefinition = useMemo(
-        () => getStatusDefinition(parentNote, statusAttributeWithPrefix),
-        [ parentNote, statusAttributeWithPrefix, definitionRevision ]);
+        () => getStatusDefinition(parentNote, groupBy),
+        [ parentNote, groupBy, definitionRevision ]);
     // One api for as long as the board is shown, pointed at each refresh's data rather than built
     // again: a new object would be a new prop on every card, and `memo` would then redraw all of
     // them for a move that touched one. Another board takes a new one, since this instance is
@@ -389,17 +422,23 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         onQueryChanged: persistFilterQuery,
         collectionNoteIds: noteIds
     });
-    const statusAttribute = statusAttributeWithPrefix.replace(/^[~#]/, "");
+    const statusAttribute = groupBy.replace(/^[~#]/, "");
     // Every promoted attribute the board defines, hidden ones included: a column can sort by a
     // field its cards do not draw.
     const promotedAttributes = useMemo(
         () => resolvePromotedAttributes(
             parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
         [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
+    // Keyed on the label rather than on the committed grouping, so the button names what the reader
+    // just picked while the columns below are still being read.
+    const groupingChoices = useMemo(
+        () => groupingOptions(parentNote, viewConfig?.promotedAttributes, requestedGroupBy),
+        [ parentNote, viewConfig, requestedGroupBy, definitionRevision ]);
+    const currentGrouping = normalizeBoardGroupBy(requestedGroupBy) || DEFAULT_GROUP_BY;
     const defaultSort = useBoardSort(parentNote);
     const columnSorts = useMemo(
-        () => resolveColumnSorts(viewConfig?.columns, defaultSort, usableColumns),
-        [ viewConfig, defaultSort, usableColumns ]);
+        () => resolveColumnSorts(readColumns(viewConfig, groupBy), defaultSort, usableColumns),
+        [ viewConfig, groupBy, defaultSort, usableColumns ]);
     const sortContext = useMemo<SortContext>(() => ({
         definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
         creationDate: getCreationDate,
@@ -426,13 +465,13 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         apiRef.current = {
             board: boardIdentity,
             api: new Api(
-                byColumn, usableColumns, parentNote, statusAttributeWithPrefix, viewConfig,
+                byColumn, usableColumns, parentNote, groupBy, viewConfig,
                 saveConfig, setBranchIdToEdit, pendingRenamesRef.current.writes, statusDefinition,
                 allByColumn, filter.keepNote)
         };
     } else {
         apiRef.current.api.update(
-            byColumn, usableColumns, parentNote, statusAttributeWithPrefix, viewConfig,
+            byColumn, usableColumns, parentNote, groupBy, viewConfig,
             saveConfig, setBranchIdToEdit, statusDefinition, allByColumn, filter.keepNote);
     }
     const api = apiRef.current.api;
@@ -505,8 +544,9 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
 
     // Read off the config rather than off `columns`, which the resolver hands back as names alone.
     const storedColumns = useMemo(
-        () => new Map((viewConfig?.columns ?? []).map(stored => [ stored.value, stored ])),
-        [ viewConfig ]);
+        () => new Map((readColumns(viewConfig, groupBy) ?? []).map(
+            stored => [ stored.value, stored ])),
+        [ viewConfig, groupBy ]);
 
     // Filtered here rather than in the resolution, which is what gets written back: dropped there,
     // an archived column would be erased from the config and the definition instead of kept out of
@@ -579,7 +619,16 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         draggedColumn
     }), [ branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn ]);
 
-    function refresh() {
+    /**
+     * Reads the board and draws it.
+     *
+     * @param target the grouping to read, which defaults to what `#board:groupBy` names. Where that
+     *               is one the board has not moved to yet, the refresh only reads: it hands the new
+     *               grouping's cards and columns over and commits the switch, and the refresh that
+     *               commit triggers is what stores anything, with the api on the grouping it stores
+     *               for.
+     */
+    function refresh(target = requestedGroupBy) {
         // A move under way has already been drawn where it will land. Held here rather than at each
         // caller, since a card crossing columns changes both the note and the board's children, and
         // either of those reaches this by a path of its own.
@@ -602,10 +651,17 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         // board the user has left can arrive after the next board's. What it has to say is about
         // sources no longer on screen, the pending renames it reports as settled included.
         const refreshId = ++refreshSeqRef.current;
+        const isSwitching = target !== groupBy;
+        // Read for the grouping being drawn. The renames belong to the grouping the board is on,
+        // and its columns are not the ones being resolved here.
+        const definition = isSwitching ? getStatusDefinition(parentNote, target) : statusDefinition;
+        const renames = isSwitching
+            ? new Map<string, string | undefined>()
+            : pendingRenamesRef.current.writes.renames;
 
         getBoardData(
-            parentNote, statusAttributeWithPrefix, viewConfig ?? {}, includeArchived,
-            statusDefinition?.options ?? [], pendingRenamesRef.current.writes.renames, inboxEnabled)
+            parentNote, target, viewConfig ?? {}, includeArchived,
+            definition?.options ?? [], renames, inboxEnabled)
             .then(({
                 byColumn: allCards, columns, newPersistedData, isInRelationMode, settledRenames
             }) => {
@@ -613,13 +669,23 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                     return;
                 }
 
-                for (const settled of settledRenames) {
-                    settleColumn(pendingRenamesRef.current.writes, settled);
+                if (!isSwitching) {
+                    for (const settled of settledRenames) {
+                        settleColumn(pendingRenamesRef.current.writes, settled);
+                    }
                 }
 
                 setAllByColumn(allCards);
                 setIsRelationMode(isInRelationMode);
                 setColumns(columns);
+
+                // The cards, the columns and the api that writes for them move to the new grouping
+                // together. Nothing is stored from here: the api still writes for the grouping the
+                // board is leaving.
+                if (isSwitching) {
+                    setCommitted({ note: parentNote, groupBy: target });
+                    return;
+                }
 
                 // A column a write is carrying has already been taken out of `columns`, and the
                 // two writes below would put that answer on disk before the notes have given it.
@@ -634,7 +700,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 // is changing it: it resolves a name the change has already taken away from
                 // whichever source it has not heard about yet, and writes it back as a column.
                 // What this board itself changes is written where it is changed.
-                if (newPersistedData && !viewConfig?.columns?.length) {
+                if (newPersistedData && !readColumns(viewConfig, groupBy)?.length) {
                     viewConfig = { ...newPersistedData };
                     saveConfig(newPersistedData);
                 }
@@ -657,7 +723,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                     return;
                 }
 
-                api.syncColumnsToDefinition(columns)
+                api.syncColumnsToDefinition(columns, groupBy)
                     .catch((e) => console.error("Failed to sync the board columns to the attribute definition:", e));
             });
     }
@@ -841,10 +907,20 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
 
     // The board is not drawn afresh for another note, so the column opened on one would otherwise
     // still be open on the next, over whatever that board stores for a column of the same name.
-    useEffect(() => selectColumn(undefined), [ parentNote, selectColumn ]);
+    // The same holds across a grouping, whose columns are a different set entirely.
+    useEffect(() => selectColumn(undefined), [ parentNote, groupBy, selectColumn ]);
 
+    // Stored once, and only for a board still carrying a pre-switching column list.
+    useEffect(() => {
+        if (adoptedConfig) {
+            saveConfig(adoptedConfig);
+        }
+    }, [ adoptedConfig, saveConfig ]);
+
+    // `groupBy` is a dependency as well as `requestedGroupBy`: committing a switch is what asks for
+    // the refresh that stores the new grouping's columns.
     useEffect(refresh, [
-        parentNote, noteIds, viewConfig, statusAttributeWithPrefix, statusDefinition, inboxEnabled
+        parentNote, noteIds, viewConfig, requestedGroupBy, groupBy, statusDefinition, inboxEnabled
     ]);
 
     // The drag reports where the column landed among the ones on screen, which is not where it
@@ -923,7 +999,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
         // The column list is read off the definition, which may be edited from the attribute panel,
         // another split, or a synced instance. Re-reading it re-runs the refresh through the effect.
-        if (loadResults.getAttributeRows().some(attr => attr.name === `label:${api.statusAttribute}`)) {
+        // Any definition the board carries, not only the grouping's: the others are what it offers
+        // to group by instead.
+        if (loadResults.getAttributeRows().some(attr =>
+                attr.name?.startsWith("label:") && attributes.isAffecting(attr, parentNote))) {
             setDefinitionRevision(revision => revision + 1);
         }
 
@@ -948,10 +1027,18 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         <div className="board-view">
             <CollectionProperties
                 note={parentNote}
-                rightChildren={<CollectionFilterInput
-                    filter={filter}
-                    placeholder={t("board_view.filter-placeholder")}
-                />}
+                rightChildren={<>
+                    <BoardGroupBy
+                        note={parentNote}
+                        options={groupingChoices}
+                        current={currentGrouping}
+                        onSelect={setRequestedGroupBy}
+                    />
+                    <CollectionFilterInput
+                        filter={filter}
+                        placeholder={t("board_view.filter-placeholder")}
+                    />
+                </>}
             />
             <BoardActionsContext.Provider value={boardActions}>
                 <BoardPromotedAttributesContext.Provider value={shownAttributes}>

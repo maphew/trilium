@@ -1143,7 +1143,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
     it("gives a board with no definition its own promoted select carrying the resolved columns", async () => {
         const { api } = createApi({}, [], buildBoard({}));
 
-        await api.syncColumnsToDefinition([ "To Do", "Done" ]);
+        await api.syncColumnsToDefinition([ "To Do", "Done" ], api.groupBy);
 
         expect(definitionWritten()).toMatchObject({
             // The upsert endpoint, which matches the board's own attribute of this name.
@@ -1166,8 +1166,8 @@ describe("BoardApi.syncColumnsToDefinition", () => {
         const { api } = createApi({}, [], buildBoard({}));
 
         await Promise.all([
-            api.syncColumnsToDefinition([ "To Do" ]),
-            api.syncColumnsToDefinition([ "To Do", "Done" ])
+            api.syncColumnsToDefinition([ "To Do" ], api.groupBy),
+            api.syncColumnsToDefinition([ "To Do", "Done" ], api.groupBy)
         ]);
 
         expect(put).toHaveBeenCalledTimes(2);
@@ -1183,7 +1183,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
     it("names a board grouping by its own label after that label rather than after status", async () => {
         const { api } = createApi({}, [], buildBoard({}), "priority");
 
-        await api.syncColumnsToDefinition([ "High" ]);
+        await api.syncColumnsToDefinition([ "High" ], api.groupBy);
 
         expect(definitionWritten()).toMatchObject({
             name: "label:priority",
@@ -1201,7 +1201,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
             "#label:status": "single,select,options=To Do"
         }));
 
-        await api.syncColumnsToDefinition([ "To Do", "Done" ]);
+        await api.syncColumnsToDefinition([ "To Do", "Done" ], api.groupBy);
 
         expect(definitionWritten().value).toBe("single,select,options=To Do;Done");
     });
@@ -1215,7 +1215,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
             "#label:status": "promoted,single,select,options=To Do;Done"
         }));
 
-        await api.syncColumnsToDefinition([ "To Do", "Done" ]);
+        await api.syncColumnsToDefinition([ "To Do", "Done" ], api.groupBy);
 
         expect(put).not.toHaveBeenCalled();
     });
@@ -1226,7 +1226,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
 
         // A note given `#status=Blocked` from the table view shows up as a column here, and the
         // definition has to learn about it as well.
-        await api.syncColumnsToDefinition([ "To Do", "Blocked" ]);
+        await api.syncColumnsToDefinition([ "To Do", "Blocked" ], api.groupBy);
 
         const written = definitionWritten();
         expect(written.value).toBe("promoted,single,select,options=To Do;Blocked");
@@ -1241,7 +1241,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
             "#label:status": "single,select,options=To Do;Done"
         }));
 
-        await api.syncColumnsToDefinition([ "Done", "To Do" ]);
+        await api.syncColumnsToDefinition([ "Done", "To Do" ], api.groupBy);
 
         expect(definitionWritten().value).toBe("single,select,options=Done;To Do");
     });
@@ -1252,7 +1252,7 @@ describe("BoardApi.syncColumnsToDefinition", () => {
         ]);
         const { api } = createApi({}, [], board);
 
-        await api.syncColumnsToDefinition([ "To Do" ]);
+        await api.syncColumnsToDefinition([ "To Do" ], api.groupBy);
 
         const written = definitionWritten();
         // The endpoint only ever matches attributes owned by this note, so the template's own row is
@@ -1273,21 +1273,98 @@ describe("BoardApi.syncColumnsToDefinition", () => {
         const board = buildBoard(owned ?? {}, inherited ? [ inherited ] : []);
         const { api } = createApi({}, [], board, groupBy);
 
-        await api.syncColumnsToDefinition([ "To Do" ]);
+        await api.syncColumnsToDefinition([ "To Do" ], api.groupBy);
 
         expect(put).not.toHaveBeenCalled();
     });
 
     it("does not invent an empty definition, but does empty one the board owns", async () => {
         const { api: withoutDefinition } = createApi({}, [], buildBoard({}));
-        await withoutDefinition.syncColumnsToDefinition([]);
+        await withoutDefinition.syncColumnsToDefinition([], withoutDefinition.groupBy);
         expect(put).not.toHaveBeenCalled();
 
         const { api: withDefinition } = createApi({}, [], buildBoard({
             "#label:status": "promoted,single,select,options=To Do"
         }));
-        await withDefinition.syncColumnsToDefinition([]);
+        await withDefinition.syncColumnsToDefinition([], withDefinition.groupBy);
         expect(definitionWritten().value).toBe("promoted,single,select");
+    });
+});
+
+describe("BoardApi column storage", () => {
+    /** A board grouped by `priority`, with columns stored for it and for the default grouping. */
+    function priorityBoard(byColumn: ColumnMap = new Map()) {
+        return createApi({
+            columns: [ { value: "To Do", icon: "bx bx-time" } ],
+            priorityViewColumns: [ { value: "High", icon: "bx bx-up-arrow", limit: 3 } ]
+        }, [ "High" ], buildBoard({}), "priority", byColumn);
+    }
+
+    it("reads what a column is drawn with from the grouping's own key", () => {
+        const { api } = priorityBoard();
+
+        expect(api.getColumnIcon("High")).toBe("bx bx-up-arrow");
+        expect(api.getColumnLimit("High")).toBe(3);
+        // The default grouping's column, which this grouping knows nothing about.
+        expect(api.getColumnIcon("To Do")).toBe(DEFAULT_COLUMN_ICON);
+    });
+
+    it("stores a new column under its key, leaving the other grouping's alone", async () => {
+        const { api, saved } = priorityBoard();
+
+        await api.addNewColumn("Low");
+
+        expect(saved.at(-1)?.priorityViewColumns?.map(col => col.value)).toEqual([ "High", "Low" ]);
+        expect(saved.at(-1)?.columns).toEqual([ { value: "To Do", icon: "bx bx-time" } ]);
+    });
+
+    it("keeps a column's icon and colour out of the other grouping's list", async () => {
+        const { api, saved } = priorityBoard();
+
+        await api.setColumnIcon("High", "bx bx-star");
+        await api.setColumnColor("High", "#0f0");
+
+        expect(saved.at(-1)?.priorityViewColumns)
+            .toEqual([ { value: "High", icon: "bx bx-star", color: "#0f0", limit: 3 } ]);
+        expect(saved.at(-1)?.columns).toEqual([ { value: "To Do", icon: "bx bx-time" } ]);
+    });
+
+    it("removes a column from the grouping's key alone", async () => {
+        const { api, saved } = priorityBoard(new Map([ [ "High", [] ] ]));
+
+        await api.removeColumn("High");
+
+        expect(saved.at(-1)?.priorityViewColumns).toEqual([]);
+        expect(saved.at(-1)?.columns).toEqual([ { value: "To Do", icon: "bx bx-time" } ]);
+    });
+
+    it("stores the default grouping under the key every board already uses", async () => {
+        const { api, saved } = createApi(
+            { columns: [ { value: "To Do" } ] }, [ "To Do" ], buildBoard({}));
+
+        await api.addNewColumn("Done");
+
+        expect(saved.at(-1)?.columns?.map(col => col.value)).toEqual([ "To Do", "Done" ]);
+        expect(Object.keys(saved.at(-1) ?? {})).not.toContain("statusViewColumns");
+    });
+
+    /**
+     * The board reads for a grouping it is being switched to before the api is pointed at it, so a
+     * sync answering for that read would put one grouping's columns into another's definition.
+     */
+    it("refuses a sync made for a grouping it is not on", async () => {
+        const put = vi.spyOn(server, "put").mockResolvedValue(undefined);
+        const { api } = createApi({}, [], buildBoard({}), "priority");
+
+        await api.syncColumnsToDefinition([ "To Do", "Done" ], "status");
+        expect(put).not.toHaveBeenCalled();
+
+        await api.syncColumnsToDefinition([ "High", "Low" ], "priority");
+        expect(put).toHaveBeenCalledTimes(1);
+        expect(put.mock.calls[0][0]).toBe("notes/boardNote/set-attribute");
+        expect(put.mock.calls[0][1]).toMatchObject({
+            name: "label:priority", value: "promoted,single,select,options=High;Low"
+        });
     });
 });
 
@@ -1557,6 +1634,39 @@ describe("collapsing a column", () => {
         expect(saved.at(-1)?.columns).toEqual([
             { value: "To Do", icon: "bx bx-star", limit: 3, collapsed: true }
         ]);
+    });
+});
+
+describe("reordering around the inbox", () => {
+    /** The inbox leads whatever the board groups by, so a reorder cannot take it off the front. */
+    function boardWithInbox() {
+        return createApi(
+            { columns: [ { value: "" }, { value: "To Do" }, { value: "Done" } ] },
+            [ "", "To Do", "Done" ]
+        );
+    }
+
+    it("refuses to carry the inbox off the front", () => {
+        const { api, saved } = boardWithInbox();
+
+        expect(api.reorderColumn(0, 2)).toBeUndefined();
+        expect(saved).toEqual([]);
+    });
+
+    it("refuses to place another column in front of it", () => {
+        const { api, saved } = boardWithInbox();
+
+        expect(api.reorderColumn(2, 0)).toBeUndefined();
+        expect(saved).toEqual([]);
+    });
+
+    it("leaves the columns behind it free to move among themselves", () => {
+        const { api, saved } = boardWithInbox();
+
+        api.reorderColumn(2, 1);
+
+        expect(saved.at(-1)?.columns)
+            .toEqual([ { value: "" }, { value: "Done" }, { value: "To Do" } ]);
     });
 });
 

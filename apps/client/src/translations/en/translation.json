@@ -3518,6 +3518,8 @@
     },
     "status-alias": "Status",
     "filter-placeholder": "Filter board...",
+    "group-by": "Group cards by",
+    "grouping-already-defined": "\"{{- name}}\" is already defined on this board. Pick it from the list to group by it.",
     "card-outside-filter": "This card is outside of the current filtering scope",
     "sort": "Sort",
     "sort-manually": "Manually",
