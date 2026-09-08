@@ -222,7 +222,7 @@
   },
   "note_autocomplete": {
     "search-for": "Cerca \"{{term}}\"",
-    "create-note": "Crea e collega la nota secondaria “{{term}}”",
+    "create-note": "Crea la nota “{{term}}”",
     "insert-external-link": "Inserisci il collegamento esterno a \"{{term}}\"",
     "clear-text-field": "Pulisci il campo di testo",
     "show-recent-notes": "Mostra le note recenti",
@@ -252,7 +252,23 @@
     "exit-3d": "Rimetti la mappa in piano",
     "close-details": "Vicino",
     "marker-color": "Colore del pennarello",
-    "copy-coordinates": "Copia coordinate"
+    "copy-coordinates": "Copia coordinate",
+    "search": "Cerca",
+    "search-placeholder": "Cerca per un posto",
+    "search-online": "Cerca online per \"{{- query}}\"",
+    "searching-online": "Cercando online…",
+    "no-places-found": "Nessun posto trovato",
+    "results-nearby": "Nelle vicinanze",
+    "results-far": "Lontano",
+    "add-place-as-marker": "Aggiungi come segno",
+    "previous-result": "Risultato precedente",
+    "next-result": "Prossimo risultato",
+    "results-on-map": "Su questa mappa",
+    "go-to-coordinates": "Vai a {{- coordinates}}",
+    "locate": "Mostra la tua posizione",
+    "locate-waiting": "Trovando la tua posizione…",
+    "locate-return": "Ritorna alla tua posizione",
+    "locate-unavailable": "La tua posizione non è raggiungibile"
   },
   "geo-map-context": {
     "open-location": "Apri la posizione",
@@ -260,7 +276,7 @@
     "add-note": "Aggiungi un marcatore in questa posizione",
     "move-marker": "Trasferirsi in un'altra località",
     "remove-from-map-confirmation": "Sei sicuro di voler rimuovere la nota \"{{title}}\" dalla mappa?",
-    "delete-note": "Elimina la nota",
+    "delete-note": "Elimina nota",
     "delete-note-confirmation": "Sei sicuro di voler eliminare la nota \"{{title}}\"? Una traccia viene disegnata a partire dalla propria nota, quindi non può essere rimossa dalla mappa singolarmente."
   },
   "debug": {
@@ -285,7 +301,7 @@
     "creating_lightly_anonymized_database": "Creazione di un database leggermente anonimizzato...",
     "error_creating_anonymized_database": "Impossibile creare un database anonimo, controllare i log del backend per i dettagli",
     "description": "Crea una copia anonimizzata del tuo database da condividere con gli sviluppatori durante la risoluzione dei problemi, senza divulgare dati personali.",
-    "anonymized_databases_location": "I database anonimizzati vengono archiviati in {{- anonymizedFolder}}.",
+    "anonymized_databases_location": "I database anonimizzati vengono archiviati in <Folder/>.",
     "download": "Scarica",
     "delete_confirmation": "Elimina il database anonimizzato {{fileName}}? Il database originale non subirà alcuna modifica."
   },
@@ -530,14 +546,14 @@
     "cancel": "Cancellare"
   },
   "board_view": {
-    "insert-below": "Inserisci sotto",
-    "delete-column": "Elimina la colonna",
+    "insert-below": "Inserire il nuovo sotto",
+    "delete-column": "Elimina la colonna...",
     "delete-column-confirmation": "Sei sicuro di vole eliminare questa colonna? Il corrispondente attributo sarà eliminato anche nelle note sotto questa colonna.",
     "delete-note": "Elimina nota...",
     "remove-from-board": "Rimuovi dalla bacheca",
     "archive-note": "Nota d'archivio",
     "unarchive-note": "Decomprimi nota",
-    "insert-above": "Inserisci sopra",
+    "insert-above": "Inserire il nuovo sopra",
     "new-item": "Nuovo articolo",
     "new-item-placeholder": "Inserisci il titolo della nota...",
     "add-column": "Aggiungi colonna",
@@ -545,7 +561,55 @@
     "edit-note-title": "Fare clic per modificare il titolo della nota",
     "column-already-exists": "Questa colonna esiste già nella bacheca.",
     "column-definition-save-error": "Le colonne sono state salvate sulla lavagna, ma non è stato possibile salvarle nell'attributo di stato.",
-    "status-alias": "Stato"
+    "status-alias": "Stato",
+    "status-header": "Stato",
+    "duplicate-item": "Duplica",
+    "card-count_one": "{{count}} oggetto",
+    "card-count_many": "{{count}} oggetti",
+    "card-count_other": "{{count}} oggetti",
+    "add-new-item": "Aggiungi una nuova nota",
+    "add-existing-item": "Aggiungi una nota esistente...",
+    "add-existing-item-title": "Aggiungi una nota esistente alla lavagna",
+    "add-existing-item-ok": "Aggiungi alla colonna",
+    "add-new-column": "Aggiungi nuova colonna",
+    "create-new-note": "Crea nota",
+    "create-new-column": "Crea colonna",
+    "create-hold-hint": "Tasto destro o tieni premuto per più opzioni.",
+    "add-column-before": "Prima",
+    "add-column-after": "Dopo",
+    "new-column": "Nuova colonna",
+    "rename-column": "Rinomina colonna",
+    "general": "Generale",
+    "set-limit": "Imposta limite...",
+    "set-limit-ok": "Imposta limite",
+    "limit-count": "Massimo numero di note nella colonna",
+    "move-column": "Muovi colonna",
+    "move-column-after": "Dopo {{column}}",
+    "change-column-icon": "Cambia l'icona della colonna",
+    "change-note-icon": "Cambia icona",
+    "column-menu": "Menù della colonna",
+    "save-error": "Il cambiamento non è potuto essere stato salvato.",
+    "hints": {
+      "navigation": "Navigazione",
+      "navigate_items": "Naviga tra oggetti",
+      "navigate_columns": "Naviga tra colonne",
+      "first_last_item": "Primo / ultimo oggetto della colonna",
+      "editing": "Modificando",
+      "insert_item": "Inserire oggetto sotto / sopra",
+      "insert_column": "Inserire colonna dopo / prima",
+      "open_item": "Apri oggetto",
+      "rename": "Rinomina oggetto o colonna",
+      "remove_item": "Rimuovi oggetto dalla lavagna",
+      "delete_item": "Elimina la nota",
+      "moving": "Muovendo",
+      "move_item": "Muovi oggetto su / giù",
+      "move_across": "Muovi alla colonna precedente / successiva",
+      "move_to_end_column": "Muovi alla prima / ultima colonna",
+      "move_column": "Muovi alla colonna di sinistra / destra",
+      "move_column_to_edge": "Muovi alla colonna all'estrema sinistra / destra"
+    },
+    "filter-placeholder": "Filtra lavagna...",
+    "sort-manually": "Manualmente"
   },
   "backup": {
     "enable_weekly_backup": "Backup settimanale",
@@ -572,9 +636,9 @@
     "reset_location_confirmation": "Desideri ripristinare la posizione predefinita per il backup del database?",
     "default_location": "Posizione predefinita",
     "restore_backup": "Ripristinare un backup",
-    "backups_summary_one": "{{count}} backup, il più recente risalente a {{age}} anni fa.",
-    "backups_summary_many": "{{count}} backup, il più recente risalente a {{age}} anni fa.",
-    "backups_summary_other": "{{count}} backup, il più recente risalente a {{age}} anni fa.",
+    "backups_summary_one": "{{count}} backup, il più recente risalente a {{age}} anni fa",
+    "backups_summary_many": "{{count}} backup, il più recente risalente a {{age}} anni fa",
+    "backups_summary_other": "{{count}} backup, il più recente risalente a {{age}} anni fa",
     "standalone_heading": "Esegui il backup dei dati di Trilium",
     "standalone_description": "Qui puoi scaricare un backup della tua knowledge base di Trilium oppure ripristinare un backup esistente.",
     "create_and_download": "Scarica il backup",
@@ -813,7 +877,8 @@
     "friday": "Venerdì",
     "default-content-language": "Lingua predefinita dei contenuti",
     "default-content-language-description": "Le note sulla lingua vengono scritte nella lingua desiderata, a meno che non ne venga impostata una direttamente nella nota, nella sezione Proprietà di base. Questa impostazione influisce su caratteristiche come l'allineamento da destra a sinistra e il tipo di virgolette utilizzate durante la digitazione.",
-    "default-content-language-auto": "In base alla lingua dell'applicazione"
+    "default-content-language-auto": "In base alla lingua dell'applicazione",
+    "dates-title": "Date & calendario"
   },
   "import": {
     "importIntoNote": "Importa nella nota",
@@ -854,7 +919,7 @@
   },
   "include_note": {
     "dialog_title": "Includi nota",
-    "label_note": "Note",
+    "label_note": "Nota",
     "placeholder_search": "cerca una nota per nome",
     "box_size_prompt": "Dimensione della casella della nota inclusa:",
     "box_size_small": "piccola (~ 10 righe)",
@@ -1205,7 +1270,8 @@
     "share_open_graph_image_relation": "Una nota immagine fungeva da <code>og:image</code> della pagina condivisa. Imposta invece l'etichetta con lo stesso nome in modo che punti a un indirizzo.",
     "share_html": "Una nota HTML inserita nella pagina condivisa, dove <code>#shareHtmlLocation</code> è presente nella nota. Deve trovarsi all'interno del sottoalbero condiviso.",
     "template_new_note_default_parent": "Nota relativa all'utilizzo di un modello: le note create a partire dal modello (ad esempio tramite il completamento con @) vengono inserite sotto la nota di destinazione, a meno che non venga esplicitamente scelta un'altra posizione.",
-    "ai_quick_action": "Propone questa nota come istruzione nel menu dell'assistente AI dell'editor di testo. Il titolo indica l'azione, il contenuto è il prompt."
+    "ai_quick_action": "Propone questa nota come istruzione nel menu dell'assistente AI dell'editor di testo. Il titolo indica l'azione, il contenuto è il prompt.",
+    "custom_font": "Segna i file dei caratteri che sono offerti nel selettore di caratteri nelle opzioni di Trilium, sotto il titolo degli appunti."
   },
   "attribute_editor": {
     "help_text_body1": "Per aggiungere un'etichetta, basta digitare ad esempio <code>#rock</code> oppure, se si desidera aggiungere anche un valore, ad esempio <code>#year = 2020</code>",
@@ -1697,7 +1763,13 @@
     "remove_value": "Rimuovi questo valore",
     "select_values_placeholder": "Seleziona un'opzione o creane una",
     "values_placeholder": "Digita un valore e premi Invio",
-    "add_value": "Aggiungi questo valore"
+    "add_value": "Aggiungi questo valore",
+    "create_attribute": "Crea un nuovo attributo",
+    "edit_attribute": "Modifica questo attributo",
+    "delete_attribute": "Elimina questo attributo",
+    "delete_confirmation": "Eliminare <strong>{{name}}</strong> e i suoi valori da tutte le note in questa collezione? Quest'operazione non può essere annullata.",
+    "shown_on_items": "Mostra sugli oggetti",
+    "hidden_from_items": "Nascosto dagli oggetti"
   },
   "script_executor": {
     "query": "Domanda",
@@ -1836,8 +1908,8 @@
     "generic-fonts": "Caratteri generici",
     "sans-serif-system-fonts": "Caratteri sans-serif",
     "serif-system-fonts": "Caratteri Serif",
-    "monospace-system-fonts": "Caratteri di sistema a spaziatura fissa",
-    "handwriting-system-fonts": "Caratteri del sistema di scrittura a mano",
+    "monospace-system-fonts": "Caratteri a spaziatura fissa",
+    "handwriting-system-fonts": "Caratteri di scrittura a mano",
     "serif": "Serif",
     "sans-serif": "Sans Serif",
     "monospace": "Monospaziatura",
@@ -1848,7 +1920,15 @@
     "size_relative_to_general": "La dimensione è relativa alla dimensione generale del carattere",
     "apply_changes": "Aggiorna la pagina per applicare le modifiche",
     "monospace_ligatures": "Legature di programmazione",
-    "monospace_ligatures_description": "Se il font a spaziatura fissa lo supporta, visualizza le coppie di caratteri come != e -> come simboli singoli (≠, →). Il testo rimane invariato."
+    "monospace_ligatures_description": "Se il font a spaziatura fissa lo supporta, visualizza le coppie di caratteri come != e -> come simboli singoli (≠, →). Il testo rimane invariato.",
+    "main_font_short": "Interfaccia",
+    "note_tree_font_short": "Albero delle note",
+    "note_detail_font_short": "Documento",
+    "monospace_font_short": "Monospazio",
+    "user-fonts": "Caratteri personalizzati",
+    "proportional-system-fonts": "Caratteri proporzionali",
+    "search_placeholder": "Cerca caratteri",
+    "no_fonts_found": "Nessun carattere corrisponde a cosa stai cercando."
   },
   "max_content_width": {
     "title": "Larghezza del contenuto",
@@ -2144,7 +2224,8 @@
     "custom_dictionary_edit": "Parole personalizzate",
     "custom_dictionary_edit_description": "Modifica l'elenco delle parole che non devono essere segnalate dal correttore ortografico. Le modifiche saranno visibili dopo il riavvio.",
     "custom_dictionary_open": "Modifica il dizionario",
-    "related_description": "Configura le lingue del controllo ortografico e il dizionario personalizzato."
+    "related_description": "Configura le lingue del controllo ortografico e il dizionario personalizzato.",
+    "enable_description": "Sottolinea parole errate mentre scrivi, con correzioni offerte nel menu del tasto destro."
   },
   "api_log": {
     "close": "Vicino"
@@ -2205,7 +2286,9 @@
     "ai-chat": "Chat con IA",
     "spreadsheet": "Foglio di calcolo",
     "llm-chat": "Chat con IA",
-    "markdown": "Markdown"
+    "markdown": "Markdown",
+    "note-types": "Tipi di note",
+    "built-in-templates": "Modello predefinito"
   },
   "protect_note": {
     "toggle-on": "Proteggi la nota",
@@ -2289,7 +2372,12 @@
   "search_result": {
     "no_notes_found": "Non sono state trovate note per i parametri di ricerca specificati.",
     "search_not_executed": "La ricerca non è stata ancora eseguita.",
-    "search_now": "Cerca ora"
+    "search_now": "Cerca ora",
+    "result_count_one": "{{count}} risultato",
+    "result_count_many": "{{count}} risultati",
+    "result_count_other": "{{count}} risultati",
+    "page_size": "Per pagina",
+    "snippet_unavailable": "Nessuna anteprima disponibile."
   },
   "sql_result": {
     "no_rows": "Nessuna riga è stata restituita per questa query",
@@ -2349,7 +2437,8 @@
     "consistency-checks-failed": "Controlli di coerenza falliti! Vedi i log per i dettagli.",
     "encountered-error": "Si è verificato l'errore \"{{message}}\", controlla la console.",
     "lost-websocket-connection-title": "Connessione al server persa",
-    "lost-websocket-connection-message": "Controlla la configurazione del proxy inverso (ad esempio nginx o Apache) per assicurarti che le connessioni WebSocket siano correttamente consentite e non bloccate."
+    "lost-websocket-connection-message": "Controlla la configurazione del proxy inverso (ad esempio nginx o Apache) per assicurarti che le connessioni WebSocket siano correttamente consentite e non bloccate.",
+    "sync-hash-check-failed-title": "Sincronizzazione fermata"
   },
   "hoisted_note": {
     "confirm_unhoisting": "La nota richiesta '{{requestedNote}}' è esterna al sottoalbero della nota sollevata '{{hoistedNote}}' e devi rimuoverla per accedervi. Vuoi procedere con la rimozione?"
@@ -2455,7 +2544,8 @@
   },
   "svg": {
     "export_to_png": "Non è stato possibile esportare il diagramma in formato PNG.",
-    "export_to_svg": "Il diagramma non può essere esportato in formato SVG."
+    "export_to_svg": "Il diagramma non può essere esportato in formato SVG.",
+    "zoom_in": "Ingrandisci"
   },
   "code_theme": {
     "title": "Aspetto",
@@ -2477,7 +2567,8 @@
     "vector_dark": "Vettore (scuro)",
     "show-scale": "Mostra scala",
     "show-labels": "Mostra nomi dei marcatori",
-    "cluster-markers": "Raggruppa i marcatori vicini"
+    "cluster-markers": "Raggruppa i marcatori vicini",
+    "presentation-theme": "Tema"
   },
   "table_context_menu": {
     "delete_row": "Elimina riga"
@@ -2627,7 +2718,8 @@
     "save_status_unsaved_tooltip": "Ci sono modifiche non salvate. Verranno salvate automaticamente tra un attimo.",
     "save_status_error_tooltip": "Si è verificato un errore durante il salvataggio della nota. Se possibile, prova a copiare il contenuto della nota altrove e a ricaricare l'applicazione.",
     "doc_url": "Documentazione online",
-    "doc_url_description": "Clicca qui per visualizzare questa pagina sul sito web della documentazione online."
+    "doc_url_description": "Clicca qui per visualizzare questa pagina sul sito web della documentazione online.",
+    "office_preview": "Anteprima"
   },
   "breadcrumb": {
     "workspace_badge": "Area di lavoro",
@@ -2709,7 +2801,8 @@
     "pages_loading": "Caricamento in corso...",
     "annotations_one": "{{count}} annotazione",
     "annotations_many": "{{count}} annotazioni",
-    "annotations_other": "{{count}} annotazioni"
+    "annotations_other": "{{count}} annotazioni",
+    "annotation_drawing": "Disegnare sulla pagina {{pageNumber}}"
   },
   "web_view_setup": {
     "title": "Crea una visualizzazione live di una pagina web direttamente in Trilium",
@@ -2993,7 +3086,7 @@
     "provider_model_count_other": "{{count}} modelli",
     "beta": "Beta",
     "provider_desc_claude_agent": "Richiede Claude Code sul computer su cui è in esecuzione Trilium.",
-    "provider_unavailable_standalone": "Non disponibile nella versione browser: questo provider funziona eseguendo Claude Code come programma separato e qui non è presente una macchina su cui eseguirlo.",
+    "provider_unavailable_standalone": "Non disponibile nella versione browser: questo provider funziona eseguendo un programma separato sulla macchina, e qui non è presente una macchina su cui eseguirlo.",
     "claude_agent_description": "Utilizza il tuo abbonamento Claude Pro/Max tramite Claude Code, quindi non è necessaria alcuna chiave API. Claude Code deve essere installato sulla macchina su cui è in esecuzione Trilium (il server in caso di hosting autonomo, oppure questo computer se si utilizza un computer fisso); accedi una sola volta eseguendo il comando \"claude /login\" su tale computer.",
     "add_provider_title_named": "Aggiungi {{- name}}",
     "provider_group_cloud": "Fornitori di servizi cloud",
@@ -3188,7 +3281,11 @@
     "maintenance": "Manutenzione",
     "analyze_space_usage": "Analizzare l'utilizzo dello spazio",
     "analyze_space_usage_description": "Individua quali appunti occupano più spazio e fatti un’idea più chiara delle loro dimensioni.",
-    "analyze_space_usage_button": "Analizzare"
+    "analyze_space_usage_button": "Analizzare",
+    "cleanup": "Pulisci il database",
+    "start_over": "Ricomincia",
+    "related_backup": "Copia di riserva",
+    "related_backup_description": "Crea o ristora le copie di riserva dei database, gestisci automaticamente le copie di riserva."
   },
   "revisions_snapshot": {
     "title": "Note sulle revisioni"
@@ -3357,7 +3454,7 @@
       "equation-preview": "Anteprima dell'equazione",
       "error-rendering-equation": "equazione di rendering dell'errore",
       "expandable": "Espandibile",
-      "footnote": "Nota",
+      "footnote": "Nota a piè di pagina",
       "footnote-widget": "widget nota a piè di pagina",
       "full": "Pieno",
       "import-markdown-from-the-clipboard": "Importa il Markdown dagli appunti",
@@ -3704,7 +3801,8 @@
   "database_file_list": {
     "size_on_disk": "{{size}} su disco",
     "invalid_backup": "File di backup non valido",
-    "unsupported_version": "Versione del formato del file di backup non supportata"
+    "unsupported_version": "Versione del formato del file di backup non supportata",
+    "delete": "Elimina"
   },
   "password_with_confirmation": {
     "password": "Password",
@@ -3959,7 +4057,10 @@
     "compress_result_none": "Non ci sono immagini da comprimere.",
     "compress_result_stopped": "Interrotto dopo {{done}} di {{total}} immagini, riducendone le dimensioni da {{before}} a {{after}}.",
     "compress_result_stopped_no_gain": "Interrotto dopo {{done}} di {{total}} immagini, nessuna delle quali poteva essere ridotta ulteriormente.",
-    "compress_result_stopped_none": "Interrotto prima che venisse elaborata qualsiasi immagine."
+    "compress_result_stopped_none": "Interrotto prima che venisse elaborata qualsiasi immagine.",
+    "status_notes": "Note",
+    "status_total": "Totale",
+    "status_deleted_items": "Elimina oggetti"
   },
   "automatic_replacements": {
     "title": "Sostituzioni automatiche",
@@ -3996,5 +4097,60 @@
     "clear-color": "Colore trasparente",
     "set-color": "Imposta il colore",
     "set-custom-color": "Imposta colore personalizzato"
+  },
+  "note_picker": {
+    "title": "Scegli una nota",
+    "label": "Nota",
+    "ok": "Scegli"
+  },
+  "font_preview": {
+    "pangram": "La veloce volpe marrone salta oltre il cane pigro",
+    "specimen_placeholder": "Scrivi per un'anteprima del tuo testo…",
+    "size": "Anteprima dimensione",
+    "size_pixels": "{{size}} px",
+    "in_picker": "Nel selettore di caratteri",
+    "offer_in_picker": "Offri questo carattere nelle impostazioni di aspetto",
+    "remove_from_picker": "Smetti di offrire questo carattere nelle impostazioni di aspetto"
+  },
+  "template_selection": {
+    "add-existing": "Aggiungi modello esistente",
+    "add-title": "Aggiungi un modello",
+    "create": "Crea un nuovo modello",
+    "new-name": "Nuovo modello",
+    "menu": "Menu del modello",
+    "remove": "Rimuovi dalla lista"
+  },
+  "item_picker": {
+    "title": "Scegli un oggetto",
+    "search": "Cerca…"
+  },
+  "sortable_card": {
+    "reorder": "Trascina per riordinare"
+  },
+  "ai_assistant": {
+    "title": "Assistente IA",
+    "action_ask": "Chiedi all'IA…",
+    "group_generate": "Genera",
+    "group_adjust": "Aggiusta",
+    "group_tone": "Cambia il tono",
+    "group_reformat": "Riformatta",
+    "group_translate": "Traduci",
+    "group_custom": "Personalizzato",
+    "command_make_shorter": "Fallo più corto",
+    "command_make_longer": "Fallo più lungo",
+    "action_improve_writing": "Migliora la scrittura",
+    "action_summarize": "Riassumi",
+    "action_explain": "Spiega",
+    "action_continue": "Continua a scrivere",
+    "adjust_shorter": "Più corto",
+    "adjust_longer": "Più lungo",
+    "adjust_simpler": "Più semplice",
+    "tone_professional": "Professionale",
+    "tone_direct": "Diretto",
+    "tone_friendly": "Amichevole",
+    "tone_confident": "Confidente",
+    "reformat_bullet_list": "Lista puntata",
+    "reformat_table": "Tavolo",
+    "reformat_diagram": "Diagramma"
   }
 }
