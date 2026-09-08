@@ -73,6 +73,52 @@ describe("ViewModeStorage", () => {
         expect(server.post).toHaveBeenCalledTimes(1);
     });
 
+    /**
+     * Each write carries the whole config, so two of them in flight can arrive in either order and
+     * the earlier one landing last puts back the config it was built before. A board switching its
+     * grouping while a column change is still being written would lose that grouping's columns.
+     */
+    it("sends one write at a time, in the order they were asked for", async () => {
+        const storage = new ViewModeStorage<Config>(noteWithStoredConfig(undefined), "geoMap");
+        const sent: string[] = [];
+        let releaseFirst = () => {};
+        vi.mocked(server.post)
+            .mockImplementationOnce(async () => {
+                await new Promise<void>((resolve) => { releaseFirst = resolve; });
+            });
+
+        const first = storage.store({ view: { zoom: 1 } });
+        const second = storage.store({ view: { zoom: 2 } });
+        // Lets the queue reach the first request, which is held open below.
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // The second is held back rather than raced against the first.
+        expect(server.post).toHaveBeenCalledTimes(1);
+
+        releaseFirst();
+        await Promise.all([ first, second ]);
+
+        expect(server.post).toHaveBeenCalledTimes(2);
+        for (const [ , payload ] of vi.mocked(server.post).mock.calls) {
+            sent.push((payload as { content: string }).content);
+        }
+        expect(sent).toEqual([
+            JSON.stringify({ view: { zoom: 1 } }),
+            JSON.stringify({ view: { zoom: 2 } })
+        ]);
+    });
+
+    /** One write failing is not a reason to drop the next: the config it carries is still wanted. */
+    it("keeps writing after one is refused", async () => {
+        const storage = new ViewModeStorage<Config>(noteWithStoredConfig(undefined), "geoMap");
+        vi.mocked(server.post).mockRejectedValueOnce(new Error("offline"));
+
+        await expect(storage.store({ view: { zoom: 1 } })).rejects.toThrow("offline");
+        await storage.store({ view: { zoom: 2 } });
+
+        expect(server.post).toHaveBeenCalledTimes(2);
+    });
+
     it("reports an external change once, and not its own writes", async () => {
         const stored = JSON.stringify({ view: { zoom: 8 } });
         const note = noteWithStoredConfig(stored);

@@ -12,6 +12,8 @@ export default class ViewModeStorage<T extends object> {
     readonly attachmentName: string;
     /** The serialized content last stored or restored, used to tell our own echoes apart from external changes. */
     private lastKnownContent?: string;
+    /** The write in flight, which the next one is queued behind. See {@link store}. */
+    private lastWrite: Promise<unknown> = Promise.resolve();
 
     constructor(note: FNote, viewType: ViewModeStorageType) {
         this.note = note;
@@ -28,6 +30,10 @@ export default class ViewModeStorage<T extends object> {
      * announces it to every client, each of which then fetches the attachment back to see what
      * changed. Nothing did. Opened in a dozen tabs, a view could raise a dozen such writes and a
      * fetch of each of them per tab, all for a config nobody touched.
+     *
+     * Writes are queued rather than sent as they come. Each one carries the whole config, and two
+     * requests can arrive in either order: the earlier one landing last would put back the config
+     * it was built before, losing whatever the later one added.
      */
     async store(data: T) {
         const content = JSON.stringify(data);
@@ -42,7 +48,14 @@ export default class ViewModeStorage<T extends object> {
             content,
             position: 0
         };
-        await server.post(`notes/${this.note.noteId}/attachments?matchBy=title`, payload);
+
+        // Caught before the queue is extended, so a write that fails does not hold back the next
+        // one; the failure is still reported to whoever asked for this write.
+        const url = `notes/${this.note.noteId}/attachments?matchBy=title`;
+        this.lastWrite = this.lastWrite
+            .catch(() => {})
+            .then(() => server.post(url, payload));
+        await this.lastWrite;
     }
 
     async restore() {
