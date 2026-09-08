@@ -108,12 +108,14 @@ export function sortEntries({
  * what the items are ordered by, and there is no title left to show for it.
  */
 export function sortMenuTitle(
-    { orderBy, attributes, noneTitle }: Pick<SortMenuOptions, "orderBy" | "attributes" | "noneTitle">
+    { orderBy, attributes, noneTitle, defaultTitle }:
+        Pick<SortMenuOptions, "orderBy" | "attributes" | "noneTitle" | "defaultTitle">
 ): string {
     const { orders } = sortEntries({
         orderBy,
         attributes,
         noneTitle,
+        defaultTitle,
         isDescending: false,
         onSelect: () => {},
         onDirectionChange: () => {}
@@ -124,7 +126,9 @@ export function sortMenuTitle(
         return current.title;
     }
 
-    return orderBy ? sortedAttributeName(orderBy) ?? orderBy : orders[0].title;
+    return orderBy && orderBy !== DEFAULT_SORT
+        ? sortedAttributeName(orderBy) ?? orderBy
+        : orders[0].title;
 }
 
 /**

@@ -103,7 +103,9 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                     attributes={api.getPromotedAttributes()}
                     noneTitle={t("board_view.sort-manually")}
                     hideDefault
-                    onSelect={(orderBy) => api.setDefaultSort(orderBy)}
+                    // The board's own order is a key of its own: `hideDefault` leaves it no
+                    // entry for taking one from above, which `parseSortKey` also rules out.
+                    onSelect={(orderBy) => api.setDefaultSort(parseSortKey(orderBy))}
                     onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
                 />
 

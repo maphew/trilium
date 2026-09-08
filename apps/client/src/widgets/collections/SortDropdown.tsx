@@ -16,7 +16,7 @@ import { type SortEntry, sortEntries, type SortMenuOptions, sortMenuTitle } from
 export default function SortDropdown({
     className, ...options
 }: SortMenuOptions & { className?: string }) {
-    const { orderBy, isDescending, attributes, noneTitle } = options;
+    const { orderBy, isDescending, attributes, noneTitle, defaultTitle } = options;
     const { orders, directions } = sortEntries(options);
 
     return (
@@ -24,7 +24,7 @@ export default function SortDropdown({
             className={clsx("sort-dropdown", className)}
             text={<>
                 <Icon icon={isDescending ? "bx bx-sort-down" : "bx bx-sort-up"} />
-                {sortMenuTitle({ orderBy, attributes, noneTitle })}
+                {sortMenuTitle({ orderBy, attributes, noneTitle, defaultTitle })}
             </>}
             mobileBottomSheet
             // The card the dropdown stands in is a backdrop root, which would otherwise flatten the
