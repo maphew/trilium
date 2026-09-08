@@ -2959,6 +2959,10 @@
     "reformat_collapsible": "Collapsible",
     "reformat_action_items": "Action items"
   },
+  "attribute_menu": {
+    "attributes": "Attributes",
+    "not-set": "Not set"
+  },
   "link_context_menu": {
     "open_note": "Open note",
     "open_note_in_new_tab": "Open note in a new tab",

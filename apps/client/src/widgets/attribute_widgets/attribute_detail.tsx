@@ -32,6 +32,7 @@ import NoteLink, { NewNoteLink } from "../react/NoteLink.jsx";
 import { disposeReactWidget, ParentComponent, renderReactWidgetAtElement } from "../react/react_utils.jsx";
 import OptionsRow, { OptionsRowWithToggle } from "../type_widgets/options/components/OptionsRow.jsx";
 import { ATTR_HELP, AttrHelpEntry } from "./attr_help.js";
+import { DEFINITION_TYPE_ICONS, RELATION_DEFINITION_TYPE } from "./attribute_types.js";
 import LabelValueInput, { getTypedInputForLabel } from "./label_value_input.js";
 import ValuesInput from "./values_input.jsx";
 
@@ -824,23 +825,21 @@ const TARGET_NOTE_OPTS = { allowCreatingNotes: true };
  * The value standing for a definition that points at a note rather than holding a value of its own.
  * Not a label type: it is what the definition is named after, `relation:foo` rather than `label:foo`.
  */
-export const RELATION_DEFINITION_TYPE = "relation";
-
 /** Exported so that hosts listing definitions can name their label type as the popup does. */
 export const LABEL_TYPES = [
-    { value: "text", title: t("attribute_detail.text"), icon: "bx bx-text" },
-    { value: "textarea", title: t("attribute_detail.textarea"), icon: "bx bx-align-left" },
-    { value: "number", title: t("attribute_detail.number"), icon: "bx bx-hash" },
-    { value: "boolean", title: t("attribute_detail.boolean"), icon: "bx bx-toggle-left" },
-    { value: "select", title: t("attribute_detail.select_type"), icon: "bx bx-list-ul" },
-    { value: "date", title: t("attribute_detail.date"), icon: "bx bx-calendar" },
-    { value: "datetime", title: t("attribute_detail.date_time"), icon: "bx bx-calendar-event" },
-    { value: "time", title: t("attribute_detail.time"), icon: "bx bx-time" },
-    { value: "url", title: t("attribute_detail.url"), icon: "bx bx-link" },
-    { value: "email", title: t("attribute_detail.email"), icon: "bx bx-envelope" },
-    { value: "phone", title: t("attribute_detail.phone"), icon: "bx bx-phone" },
-    { value: "color", title: t("attribute_detail.color_type"), icon: "bx bx-palette" }
-];
+    { value: "text", title: t("attribute_detail.text") },
+    { value: "textarea", title: t("attribute_detail.textarea") },
+    { value: "number", title: t("attribute_detail.number") },
+    { value: "boolean", title: t("attribute_detail.boolean") },
+    { value: "select", title: t("attribute_detail.select_type") },
+    { value: "date", title: t("attribute_detail.date") },
+    { value: "datetime", title: t("attribute_detail.date_time") },
+    { value: "time", title: t("attribute_detail.time") },
+    { value: "url", title: t("attribute_detail.url") },
+    { value: "email", title: t("attribute_detail.email") },
+    { value: "phone", title: t("attribute_detail.phone") },
+    { value: "color", title: t("attribute_detail.color_type") }
+].map((type) => ({ ...type, icon: DEFINITION_TYPE_ICONS[type.value] }));
 
 /**
  * What a definition can set its field up to hold, the note it can point at instead included. The last
@@ -854,7 +853,7 @@ export const DEFINITION_TYPES: { value: string; title: string; icon: string; sta
     {
         value: RELATION_DEFINITION_TYPE,
         title: t("attribute_detail.relation_type"),
-        icon: "bx bx-transfer",
+        icon: DEFINITION_TYPE_ICONS[RELATION_DEFINITION_TYPE],
         startsGroup: true
     }
 ];

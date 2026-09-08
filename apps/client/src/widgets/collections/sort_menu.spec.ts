@@ -4,12 +4,8 @@ import type { MenuItem } from "../../menus/context_menu";
 import type { PromotedAttribute } from "./promoted_attributes";
 import { buildSortMenuItems, type SortMenuOptions } from "./sort_menu";
 
-// i18next is never initialised under test, so `t` echoes the key it is given. The promise is what
-// the command registry awaits as `PromotedAttributesCard` is pulled in for the attribute icons.
-vi.mock("../../services/i18n", () => ({
-    t: (key: string) => key,
-    translationsInitializedPromise: Promise.resolve()
-}));
+// i18next is never initialised under test, so `t` echoes the key it is given.
+vi.mock("../../services/i18n", () => ({ t: (key: string) => key }));
 
 describe("buildSortMenuItems", () => {
     it("offers no sorting, the two built-in keys and the direction", () => {

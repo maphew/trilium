@@ -3,7 +3,7 @@ import "./sort_menu.css";
 import type { MenuItem } from "../../menus/context_menu";
 import { t } from "../../services/i18n";
 import { escapeHtml } from "../../services/utils";
-import { promotedAttributeType } from "../react/PromotedAttributesCard";
+import { promotedAttributeIcon } from "../attribute_widgets/attribute_types";
 import type { PromotedAttribute } from "./promoted_attributes";
 import type { SortKey } from "./sorting";
 
@@ -56,7 +56,7 @@ export function buildSortMenuItems<T>({
             // clips a long one instead of widening the menu.
             title: `<span class="sort-menu-name">${escapeHtml(attribute.title)}</span>`,
             className: "sort-menu-item",
-            uiIcon: promotedAttributeType(attribute).icon,
+            uiIcon: promotedAttributeIcon(attribute),
             trailingIcon: checkFor(`attr:${attribute.name}`),
             handler: () => onSelect(`attr:${attribute.name}`)
         })),
