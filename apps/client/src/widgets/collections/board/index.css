@@ -404,7 +404,6 @@ body.mobile .board-view-container .board-add-column {
   .ck-find-result {
     background: var(--note-list-view-search-result-highlight-background);
     color: var(--note-list-view-search-result-highlight-color);
-    font-weight: 600;
     text-decoration: underline;
   }
 }
