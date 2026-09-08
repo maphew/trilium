@@ -154,7 +154,8 @@ describe("buildAttributeMenuItems", () => {
                 "#state(inheritable)": "Doing",
                 children: [ { title: "Card" } ]
             });
-            const note = froca.getNoteFromCache(parent.getChildNoteIds()[0]);
+            const note = froca.notes[parent.getChildNoteIds()[0]];
+            if (!note) throw new Error("expected the card to be built");
 
             pick(options(note)[0]);
             expect(writes.setLabelValues).toHaveBeenCalledWith(note, "state", [ "" ]);
