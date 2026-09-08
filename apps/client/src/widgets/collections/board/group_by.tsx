@@ -1,9 +1,17 @@
 import { DEFAULT_BOARD_GROUP_BY, normalizeBoardGroupBy } from "@triliumnext/commons";
 
+import { createPortal } from "preact/compat";
+import { useCallback, useRef, useState } from "preact/hooks";
+
 import type FNote from "../../../entities/fnote";
+import type { Attribute } from "../../../services/attribute_parser";
+import attributes from "../../../services/attributes";
 import { t } from "../../../services/i18n";
+import {
+    AttributeDetail, type AttributeDetailOpts
+} from "../../attribute_widgets/attribute_detail";
 import Dropdown from "../../react/Dropdown";
-import { FormListItem } from "../../react/FormList";
+import { FormDropdownDivider, FormListItem } from "../../react/FormList";
 import Icon from "../../react/Icon";
 import {
     type PromotedAttribute, type PromotedAttributeSetting, resolvePromotedAttributes
@@ -17,34 +25,109 @@ export interface GroupingOption {
     title: string;
 }
 
-/** Switches which attribute the board's columns are made from. */
-export default function BoardGroupBy({ options, current, onSelect }: {
+/**
+ * What a grouping made here starts from. The reader names it and gives its columns in the editor.
+ *
+ * A grouping is a select: its options are the board's columns, so no other kind describes one. It
+ * is promoted because the column a card sits in is the point of the board, inheritable so that the
+ * cards carry it, and single because a card stands in one column.
+ */
+const NEW_GROUPING: Attribute = {
+    type: "label",
+    name: "label:myLabel",
+    value: "promoted,single,select",
+    isInheritable: true
+};
+
+/** Switches which attribute the board's columns are made from, and makes new ones. */
+export default function BoardGroupBy({ note, options, current, onSelect }: {
+    /** The board note, which carries the definitions and any made here. */
+    note: FNote;
     options: GroupingOption[];
     /** The grouping in force, as {@link groupingOptions} spells its value. */
     current: string;
     onSelect: (groupBy: string) => void;
 }) {
+    const [ detail, setDetail ] = useState<AttributeDetailOpts | null>(null);
+    /** The definition the editor last reported, which {@link save} writes. */
+    const edited = useRef<Attribute>();
     const selected = options.find(option => option.value === current);
 
+    const create = useCallback((event: MouseEvent) => {
+        const definition = { ...NEW_GROUPING };
+        edited.current = undefined;
+        setDetail({
+            attribute: definition,
+            allAttributes: [ definition ],
+            isOwned: true,
+            x: event.pageX,
+            y: event.pageY,
+            focus: "name",
+            // The board answers for all three: a grouping is a promoted, inheritable select whose
+            // options are its columns, and a card stands in one column at a time.
+            hideType: true,
+            hideMultiplicity: true,
+            hideInheritance: true
+        });
+    }, []);
+
+    /** Writes the definition the editor was left holding, and groups by it. */
+    const save = useCallback(async () => {
+        const definition = edited.current;
+        setDetail(null);
+
+        const [ , name ] = definition?.name.split(":", 2) ?? [];
+        if (!definition || !name) {
+            return;
+        }
+
+        await attributes.setLabel(
+            note.noteId, definition.name, definition.value, definition.isInheritable);
+        onSelect(name);
+    }, [ note, onSelect ]);
+
     return (
-        <Dropdown
-            className="board-group-by"
-            noDropdownListStyle
-            title={t("board_view.group-by")}
-            text={<>
-                <Icon icon="bx bx-category-alt" />&nbsp;
-                {selected?.title ?? current}
-            </>}
-        >
-            {options.map(option => (
+        <>
+            <Dropdown
+                className="board-group-by"
+                noDropdownListStyle
+                title={t("board_view.group-by")}
+                text={<>
+                    <Icon icon="bx bx-category-alt" />&nbsp;
+                    {selected?.title ?? current}
+                </>}
+            >
+                {options.map(option => (
+                    <FormListItem
+                        key={option.value}
+                        onClick={() => onSelect(option.value)}
+                        selected={option.value === current}
+                        disabled={option.value === current}
+                    >{option.title}</FormListItem>
+                ))}
+
+                <FormDropdownDivider />
+
                 <FormListItem
-                    key={option.value}
-                    onClick={() => onSelect(option.value)}
-                    selected={option.value === current}
-                    disabled={option.value === current}
-                >{option.title}</FormListItem>
-            ))}
-        </Dropdown>
+                    className="board-group-by-create"
+                    icon="bx bx-plus"
+                    onClick={create}
+                >{t("promoted_attributes.create_attribute")}</FormListItem>
+            </Dropdown>
+
+            {/* Outside the menu, which takes its items down as it closes: the editor is opened by
+                one of them and outlives it. */}
+            {createPortal(
+                <AttributeDetail
+                    opts={detail}
+                    currentNoteId={note.noteId}
+                    onDismiss={() => setDetail(null)}
+                    onCancel={() => setDetail(null)}
+                    onAttributesChanged={([ definition ]) => { edited.current = definition; }}
+                    onSaveAndClose={save}
+                />,
+                document.body)}
+        </>
     );
 }
 

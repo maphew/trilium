@@ -55,6 +55,11 @@ export interface AttributeDetailOpts {
      */
     hideInheritance?: boolean;
     /**
+     * Leaves out the kind dropdown, holding the definition to the kind it was opened on. For a host
+     * that can only use one, such as a board grouping by a select.
+     */
+    hideType?: boolean;
+    /**
      * Places the popup beside this element instead of at `x`/`y`. For hosts whose attributes are shown
      * far from the note attributes pane the coordinates are otherwise resolved against, e.g. the
      * attributes panel in the right pane.
@@ -333,6 +338,7 @@ export function isSameShow(previous: AttributeDetailOpts | null, next: Attribute
         && previous.isOwned === next.isOwned
         && previous.hideMultiplicity === next.hideMultiplicity
         && previous.hideInheritance === next.hideInheritance
+        && previous.hideType === next.hideType
         && previous.attribute.noteId === next.attribute.noteId
         && previous.attribute.type === next.attribute.type
         && previous.attribute.name === next.attribute.name
@@ -598,7 +604,7 @@ export function AttributeForm({ opts, attrType: initialAttrType, currentNoteId, 
 
                 {/* No description: the values name themselves, and what they do to the field is plain
                     enough once one is picked. */}
-                {isDefinition(attrType) && (
+                {isDefinition(attrType) && !opts.hideType && (
                     <OptionsRow name="attr-label-type" label={t("attribute_detail.label_type")}>
                         <FormDropdownList
                             className="attr-input-label-type"

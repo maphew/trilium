@@ -1029,6 +1029,7 @@ export default function BoardView({
                 note={parentNote}
                 rightChildren={<>
                     <BoardGroupBy
+                        note={parentNote}
                         options={groupingChoices}
                         current={currentGrouping}
                         onSelect={setRequestedGroupBy}
