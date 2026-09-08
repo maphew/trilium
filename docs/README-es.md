@@ -25,6 +25,9 @@ Trilium Notes es una aplicación gratuita, de código abierto y multiplataforma
 para notas jerárquicas, orientada a crear amplias bases de conocimiento
 personal.
 
+Looking for "Trillium Notes"? The project's canonical spelling is "Trilium
+Notes", with one `l`.
+
 <img src="./app.png" alt="Trilium Screenshot" width="1000">
 
 ## ⏬ Descargar
@@ -119,7 +122,7 @@ La documentación está disponible en varios formatos:
 * [Tema oscuro](https://docs.triliumnotes.org/user-guide/concepts/themes)
   integrado, con soporte para temas personalizados
 * Importación y exportación de
-  [Evernote](https://docs.triliumnotes.org/user-guide/concepts/import-export/evernote)
+  [Evernote](https://docs.triliumnotes.org/user-guide/concepts/import-export/import-from-apps/evernote.html)
   y
   [Markdown](https://docs.triliumnotes.org/user-guide/concepts/import-export/markdown)
 * [Web Clipper](https://docs.triliumnotes.org/user-guide/setup/web-clipper) para
@@ -353,6 +356,12 @@ través de los enlaces de la sección "Únete a la conversación" más arriba.
   de sintaxis.
 * [Tabler Icons](https://tabler.io/icons) por los iconos de la bandeja del
   sistema.
+*   The application icons in the import dialog are from:
+    *   [Material Design Icons](https://pictogrammers.com/library/mdi/) for
+        OneNote, Google Keep, Evernote.
+    *   [Font Awesome](https://fontawesome.com/) for Notion, Obsidian.
+    *   [SVGicons.com](https://svgicons.com/icon/187676/anytype) for Anytype.
+*  The LLM provider icons are from [Lobe Icons](https://lobehub.com/icons).
 
 Trilium no sería posible sin las tecnologías que lo sustentan:
 

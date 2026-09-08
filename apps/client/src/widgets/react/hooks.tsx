@@ -1,5 +1,5 @@
 import type { CKTextEditor } from "@triliumnext/ckeditor5";
-import { FilterLabelsByType, KeyboardActionNames, NoteType, OptionNames, RelationNames } from "@triliumnext/commons";
+import { FilterLabelsByType, HighlightedTokenInfo, KeyboardActionNames, NoteType, OptionNames, RelationNames } from "@triliumnext/commons";
 import { Tooltip } from "bootstrap";
 import Mark from "mark.js";
 import { Ref, RefObject, VNode } from "preact";
@@ -12,25 +12,30 @@ import NoteContext, { NoteContextDataMap } from "../../components/note_context";
 import FBlob from "../../entities/fblob";
 import FNote from "../../entities/fnote";
 import attributes from "../../services/attributes";
+import { expandAncestorDetails } from "../../services/collapsible";
 import froca from "../../services/froca";
 import { t } from "../../services/i18n";
 import keyboard_actions from "../../services/keyboard_actions";
 import { parseNavigationStateFromUrl, ViewScope } from "../../services/link";
+import { getNoteTypeOptions, type NoteTypeOption } from "../../services/note_types";
 import options, { type OptionValue } from "../../services/options";
 import protected_session_holder from "../../services/protected_session_holder";
+import { consumeSearchTerms } from "../../services/search_jump";
 import server from "../../services/server";
+import type { ShortcutHintDefinition, ShortcutHintProvider } from "../../services/shortcut_hints";
 import shortcuts, { Handler, removeIndividualBinding } from "../../services/shortcuts";
 import SpacedUpdate, { type StateCallback } from "../../services/spaced_update";
 import { getEffectiveThemeStyle } from "../../services/theme";
 import toast, { ToastOptions } from "../../services/toast";
 import tree from "../../services/tree";
-import utils, { escapeRegExp, getErrorMessage, randomString, reloadFrontendApp } from "../../services/utils";
+import utils, { getErrorMessage, randomString, reloadFrontendApp } from "../../services/utils";
 import ws from "../../services/ws";
 import BasicWidget, { ReactWrappedWidget } from "../basic_widget";
 import NoteContextAwareWidget from "../note_context_aware_widget";
 import { DragData } from "../note_tree";
 import { noteSavedDataStore } from "./NoteStore";
 import { NoteContextContext, ParentComponent, refToJQuerySelector } from "./react_utils";
+import type FAttachment from "../../entities/fattachment";
 
 export function useTriliumEvent<T extends EventNames>(eventName: T, handler: (data: EventData<T>) => void) {
     const parentComponent = useContext(ParentComponent);
@@ -684,9 +689,18 @@ export function useNoteRelationTarget(note: FNote, relationName: RelationNames) 
  * - if the value is null then the label is removed.
  */
 export function useNoteLabel(note: FNote | undefined | null, labelName: FilterLabelsByType<string>): [string | null | undefined, (newValue: string | null | undefined) => void] {
+    return useNoteLabelByName(note, labelName);
+}
+
+/**
+ * The same as {@link useNoteLabel} for a label the app does not know by name — one the user named
+ * themselves, e.g. a label a `#calendar:startDate` renaming points at. Prefer {@link useNoteLabel}
+ * wherever the name is a builtin one, as it holds the name to the declared vocabulary.
+ */
+export function useNoteLabelByName(note: FNote | undefined | null, labelName: string): [string | null | undefined, (newValue: string | null | undefined) => void] {
     const [ , setLabelValue ] = useState<string | null | undefined>();
 
-    useEffect(() => setLabelValue(note?.getLabelValue(labelName) ?? null), [ note ]);
+    useEffect(() => setLabelValue(note?.getLabelValue(labelName) ?? null), [ note, labelName ]);
     useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
         for (const attr of loadResults.getAttributeRows()) {
             if (attr.type === "label" && attr.name === labelName && attributes.isAffecting(attr, note)) {
@@ -708,7 +722,7 @@ export function useNoteLabel(note: FNote | undefined | null, labelName: FilterLa
                 attributes.removeOwnedLabelByName(note, labelName);
             }
         }
-    }, [note]);
+    }, [note, labelName]);
 
     useDebugValue(labelName);
 
@@ -726,8 +740,15 @@ export function useNoteLabelWithDefault(note: FNote | undefined | null, labelNam
 export function useNoteLabelBoolean(note: FNote | undefined | null, labelName: FilterLabelsByType<boolean>): [ boolean, (newValue: boolean) => void] {
     const [, forceRender] = useState({});
 
+    // Not on the first run: the render that mounted the component has already read the label, so
+    // forcing another draws every consumer twice for a value that has not changed. 72 components
+    // use this hook, and a board draws it once a card.
+    const seenNote = useRef<FNote | undefined | null>(undefined);
     useEffect(() => {
-        forceRender({});
+        if (seenNote.current !== undefined) {
+            forceRender({});
+        }
+        seenNote.current = note;
     }, [ note ]);
 
     useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
@@ -782,11 +803,25 @@ export function useNoteBlob(note: FNote | null | undefined, componentId?: string
      * only be set by widgets whose main content display is gated on this blob. (Passed
      * explicitly because NoteContextContext is only provided in dialogs, not the main window.) */
     reportLoadStateTo?: NoteContext | null;
+    /** Whether the consuming widget is currently displayed. When explicitly `false`, load states
+     * are not published — a cached/hidden type widget must not drive the note detail's loading
+     * overlay over the widget the user is actually looking at (#10575). Leave undefined when the
+     * consumer has no cached-hidden state. */
+    isVisible?: boolean;
+    /** Refetch on becoming visible if a content change was skipped while hidden because it came
+     * from this widget's own component (`componentId`). For widgets that display saved content
+     * produced by a sibling under the same parent component (e.g. the read-only text view behind
+     * the editor), own-component changes are somebody else's edits that must eventually show. */
+    refreshOnShow?: boolean;
 }): FBlob | null | undefined {
     const [ blob, setBlob ] = useState<FBlob | null>();
     const requestIdRef = useRef(0);
+    const missedContentChangeRef = useRef(false);
 
     function reportLoadState(state: "loading" | "loaded" | "error") {
+        if (opts?.isVisible === false) {
+            return;
+        }
         opts?.reportLoadStateTo?.setContextData("contentLoad", { state, retry: () => refresh() });
     }
 
@@ -820,12 +855,37 @@ export function useNoteBlob(note: FNote | null | undefined, componentId?: string
 
         if (loadResults.isNoteContentReloaded(note.noteId, componentId)) {
             refresh();
+        } else if (opts?.refreshOnShow && loadResults.isNoteContentReloaded(note.noteId)) {
+            // The change came from our own component, so the refetch was skipped; remember it so
+            // the content is brought up to date when the widget is displayed again.
+            missedContentChangeRef.current = true;
         }
     });
+
+    useEffect(() => {
+        if (opts?.refreshOnShow && opts?.isVisible && missedContentChangeRef.current) {
+            missedContentChangeRef.current = false;
+            refresh();
+        }
+    }, [ opts?.isVisible ]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useDebugValue(note?.noteId);
 
     return blob;
+}
+
+/**
+ * Calls `consumeSearchTerms` when a search result is re-clicked while its note is already open.
+ * That switch does not change the blob, so the widget's own content-ready path does not re-run.
+ * The switch must target the note this widget shows: a switch to a different note belongs to the
+ * newly mounted widget, and consuming it here would clear the terms before its content is ready.
+ */
+export function useSearchTermsConsumer(note: FNote | null | undefined, noteContext: NoteContext | undefined, ntxId: string | null | undefined) {
+    useTriliumEvent("noteSwitched", ({ noteContext: switchedContext }) => {
+        if (switchedContext.ntxId !== ntxId) return;
+        if (switchedContext.note?.noteId !== note?.noteId) return;
+        consumeSearchTerms(noteContext, ntxId);
+    });
 }
 
 export function useLegacyWidget<T extends BasicWidget>(widgetFactory: () => T, { noteContext, containerClassName, containerStyle }: {
@@ -920,6 +980,54 @@ export function useElementSize(ref: RefObject<HTMLElement>) {
 }
 
 /**
+ * Whether an element has the screen to itself, and the way to give it or take it back.
+ *
+ * The state follows the browser rather than the button, so a screen left by pressing Escape — which
+ * nothing asks us for — is still noticed.
+ *
+ * @param element the element to put on a screen of its own, or `null` while there is none yet.
+ * @param onChange called once the screen has changed, either way, and after the state has been
+ *                 updated. Where something has to be measured across the change, take it in the
+ *                 handler passed to `toggle` and spend it here.
+ * @returns whether the element is currently fullscreen, and a toggle that resolves to whether the
+ *          screen actually changed — a request the browser refuses (no user gesture behind it, a
+ *          policy against it) leaves the view exactly as it was.
+ */
+export function useFullscreen(element: HTMLElement | null | undefined, onChange?: () => void): [ boolean, () => Promise<boolean> ] {
+    const [ isFullscreen, setFullscreen ] = useState(() => !!element && document.fullscreenElement === element);
+    // Read afresh on every change rather than closed over, so that a listener bound once follows a
+    // handler the caller hands over anew on each render.
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+
+    useEffect(() => {
+        if (!element) return;
+
+        const onFullscreenChange = () => {
+            setFullscreen(document.fullscreenElement === element);
+            onChangeRef.current?.();
+        };
+
+        document.addEventListener("fullscreenchange", onFullscreenChange);
+        return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    }, [ element ]);
+
+    const toggle = useCallback(async () => {
+        if (!element) return false;
+
+        try {
+            await (document.fullscreenElement ? document.exitFullscreen() : element.requestFullscreen());
+            return true;
+        } catch (e) {
+            console.warn("Could not change the fullscreen state:", e);
+            return false;
+        }
+    }, [ element ]);
+
+    return [ isFullscreen, toggle ];
+}
+
+/**
  * Obtains the inner width and height of the window, as well as reacts to changes in size.
  *
  * @returns the width and height of the window.
@@ -945,79 +1053,6 @@ export function useWindowSize() {
     return size;
 }
 
-/** Mobile viewports at least this wide (tablets) keep a side-by-side layout; narrower ones get the
- *  master-detail flow. */
-export const MASTER_DETAIL_TABLET_MIN_WIDTH = 768;
-
-export interface MobileMasterDetail {
-    /** True on narrow mobile viewports where the list and detail collapse into a master-detail flow. */
-    isMasterDetail: boolean;
-    /** Which half of the master-detail flow is currently visible. */
-    mobileView: "list" | "page";
-    /** Switch between the two views with a slide animation. */
-    switchMobileView: (view: "list" | "page") => void;
-    /** Set the view directly without animating (e.g. when (re)opening the dialog). */
-    resetMobileView: (view: "list" | "page") => void;
-}
-
-/**
- * Drives the mobile master-detail flow shared by dialogs that pair a list with a detail pane (e.g.
- * the settings and revisions dialogs): it tracks which pane is visible, animates the slide between
- * them, and toggles the corresponding classes on the modal element (`mobile-master-detail`,
- * `mobile-view-{list,page}`, `mobile-transition-to-{list,page}`). The dialog supplies the layout and
- * slide keyframes in CSS; the keyframe names must start with `slideAnimationPrefix` so the in-flight
- * transition can be cleared once the slide finishes.
- */
-export function useMobileMasterDetail(modalRef: RefObject<HTMLElement>, slideAnimationPrefix: string): MobileMasterDetail {
-    const [ mobileView, setMobileView ] = useState<"list" | "page">("list");
-    // Direction of the in-flight slide between the two views, or null when at rest. While set, both
-    // panes stay rendered so the outgoing one can slide away as the incoming one slides in.
-    const [ mobileTransition, setMobileTransition ] = useState<"to-list" | "to-page" | null>(null);
-    const isMobile = utils.isMobile();
-    const { windowWidth } = useWindowSize();
-    const isMasterDetail = isMobile && windowWidth < MASTER_DETAIL_TABLET_MIN_WIDTH;
-
-    const switchMobileView = useCallback((view: "list" | "page") => {
-        if (view === mobileView) return;
-        setMobileView(view);
-        // With animations globally disabled there is no animationend to clear the transition, so
-        // switch directly. Outside the master-detail flow there is nothing to animate.
-        if (isMasterDetail && !document.body.classList.contains("motion-disabled")) {
-            setMobileTransition(view === "page" ? "to-page" : "to-list");
-        }
-    }, [ mobileView, isMasterDetail ]);
-
-    const resetMobileView = useCallback((view: "list" | "page") => {
-        setMobileView(view);
-        setMobileTransition(null);
-    }, []);
-
-    // Bootstrap adds its own classes (e.g. `show`) to the modal element at runtime, so the className
-    // prop must stay static; toggle the mobile view classes directly on the element instead.
-    useEffect(() => {
-        modalRef.current?.classList.toggle("mobile-master-detail", isMasterDetail);
-        modalRef.current?.classList.toggle("mobile-view-list", mobileView === "list");
-        modalRef.current?.classList.toggle("mobile-view-page", mobileView === "page");
-        modalRef.current?.classList.toggle("mobile-transition-to-list", mobileTransition === "to-list");
-        modalRef.current?.classList.toggle("mobile-transition-to-page", mobileTransition === "to-page");
-    }, [ isMasterDetail, mobileView, mobileTransition ]);
-
-    // End the view transition once the slide finishes (animationend bubbles up from the panes).
-    useEffect(() => {
-        const modalElement = modalRef.current;
-        if (!modalElement) return;
-        function onAnimationEnd(e: AnimationEvent) {
-            if (e.animationName.startsWith(slideAnimationPrefix)) {
-                setMobileTransition(null);
-            }
-        }
-        modalElement.addEventListener("animationend", onAnimationEnd);
-        return () => modalElement.removeEventListener("animationend", onAnimationEnd);
-    }, [ slideAnimationPrefix ]);
-
-    return { isMasterDetail, mobileView, switchMobileView, resetMobileView };
-}
-
 // Workaround for https://github.com/twbs/bootstrap/issues/37474
 // Bootstrap's dispose() sets ALL properties to null. But pending animation callbacks
 // (scheduled via setTimeout) can still fire and crash when accessing null properties.
@@ -1036,44 +1071,89 @@ TooltipProto.dispose = function () {
     this._element = disposedTooltipPlaceholder.element;
 };
 
-export function useTooltip(elRef: RefObject<HTMLElement>, config: Partial<Tooltip.Options>) {
+/**
+ * A Bootstrap tooltip whose lifetime follows the element it hangs off.
+ *
+ * @param enabled while false the tooltip is put away and kept away, for a host with something of its own
+ *                to put in front of the user — see {@link Dropdown}, which silences its toggle's title
+ *                for as long as the menu that title opened is on screen.
+ */
+export function useTooltip(elRef: RefObject<HTMLElement>, config: Partial<Tooltip.Options>, enabled = true) {
+    const tooltipRef = useRef<Tooltip | null>(null);
+
     useEffect(() => {
         if (!elRef?.current) return;
 
         const element = elRef.current;
-        const $el = $(element);
 
-        // Dispose any existing tooltip before creating a new one
+        // Held on to rather than looked up again through `Tooltip.getInstance`: Bootstrap keeps one
+        // component instance per element and refuses to register a second (it logs and returns), so on
+        // an element another Bootstrap component has already claimed — a dropdown's toggle, say — the
+        // lookup comes back empty. The tooltip works all the same, being a live object with its own
+        // listeners, but nothing can reach it to dispose it, and whatever it has shown is left on
+        // screen for good.
         Tooltip.getInstance(element)?.dispose();
-        $el.tooltip(config);
-
-        // Capture the tooltip instance now, since elRef.current may be null during cleanup.
-        const tooltip = Tooltip.getInstance(element);
+        const tooltip = new Tooltip(element, config);
+        tooltipRef.current = tooltip;
 
         return () => {
-            if (element.isConnected) {
-                tooltip?.dispose();
-            }
+            tooltipRef.current = null;
+            // Dispose even when the trigger element is already detached (e.g. a keyed remount
+            // replaced it before this cleanup ran) — dispose() also removes a currently-shown
+            // popup from the DOM, and with the trigger gone nothing else ever would (#10567).
+            // The pending-callback crash of bootstrap#37474 is handled by the dispose() patch above.
+            tooltip.dispose();
         };
     }, [ elRef, config ]);
 
+    // Runs after the effect above, so a tooltip just recreated for a new config is caught by it too —
+    // hence the same dependencies alongside `enabled`.
+    useEffect(() => {
+        const tooltip = tooltipRef.current;
+        if (!tooltip) return;
+
+        if (enabled) {
+            tooltip.enable();
+        } else {
+            tooltip.hide();
+            tooltip.disable();
+        }
+    }, [ enabled, elRef, config ]);
+
     const showTooltip = useCallback(() => {
-        if (!elRef?.current) return;
+        const tooltip = tooltipRef.current;
+        if (!tooltip) return;
 
-        const $el = $(elRef.current);
-        $el.tooltip("show");
-    }, [ elRef, config ]);
+        clearStaleHoverState(tooltip);
+        tooltip.show();
+    }, []);
 
-    const hideTooltip = useCallback(() => {
-        if (!elRef?.current) return;
-
-        const $el = $(elRef.current);
-        $el.tooltip("hide");
-    }, [ elRef ]);
+    const hideTooltip = useCallback(() => tooltipRef.current?.hide(), []);
 
     useDebugValue(config.title);
 
     return { showTooltip, hideTooltip };
+}
+
+/**
+ * Clears the hover state Bootstrap keeps of its own accord, so that a manual `show()` isn't undone by
+ * the hover before it.
+ *
+ * Bootstrap tracks `_isHovered` even under `trigger: "manual"`, and leans on `hide()` resetting it to
+ * `null` — the value that tells a later `show()` there is no hover to act on ("a trick to support
+ * manual triggering", as it puts it). But `show()` writes `false` into the same flag from a callback
+ * deferred until the fade-in has finished, so a hover ended before then reverses the two writes:
+ * `hide()` sets `null`, and the deferred callback then sets `false` over it. The flag is left standing
+ * with nothing shown, and the next `show()` reads it, takes the tooltip to have been left already and
+ * calls `_leave()` — which hides it a moment after it appeared, with the pointer still on the trigger.
+ *
+ * A quick pass over a trigger is enough to leave it in that state, which is why the `?` of the sidebar
+ * card headers (a {@link Dropdown} title, shown from its own mouseenter) so often vanished under the
+ * pointer. Bootstrap offers no public way to reach the flag, and no public call that clears it without
+ * a tooltip already being shown.
+ */
+function clearStaleHoverState(tooltip: Tooltip) {
+    (tooltip as unknown as { _isHovered: boolean | null })._isHovered = null;
 }
 
 const tooltips = new Set<Tooltip>();
@@ -1105,11 +1185,85 @@ export function useStaticTooltip(elRef: RefObject<Element>, config?: Partial<Too
         });
         tooltips.add(tooltip);
 
+        // A tooltip triggered by hover *and focus* — Bootstrap's default — outstays the press that
+        // opened something: the press leaves the trigger focused, and while any trigger is still active
+        // Bootstrap declines to put the tooltip away, pointer gone or not. So it sits over whatever the
+        // press brought up rather than beside it, until focus moves on. The status bar's connection
+        // badges are where that shows worst: the tooltip is left standing over the sidebar the press
+        // peeked. Dismissed on press, as the legacy button widgets did (`onclick_button.ts`).
+        const dismissOnPress = (event: Event) => {
+            // A delegated (`selector:`) config spawns an instance per hovered child, so the one showing
+            // belongs to the child the press landed on rather than to the container the config sits on.
+            const delegate = config?.selector && event.target instanceof Element
+                ? event.target.closest(config.selector)
+                : null;
+            (delegate ? Tooltip.getInstance(delegate) : tooltip)?.hide();
+        };
+        element.addEventListener("click", dismissOnPress);
+
+        // For delegated (`selector:`) configs, a hovered child gets its own per-target Tooltip
+        // instance (see the sweep at the end of the cleanup below) that only ever hides on its
+        // own mouseleave. If that child leaves the DOM while its popup is still shown — the note
+        // icon picker's virtualized grid re-keys its cells on every keystroke in the search box,
+        // and does the same on scroll — no mouseleave ever fires, so the instance never hides and
+        // its popup is orphaned in `document.body` until reload (#10680). While a delegate has its
+        // popup up, watch the container for removals and put the popup away the moment its trigger
+        // is gone — the hook's own cleanup cannot be relied on, since a grid re-render driven by the
+        // grid's own state never re-runs this effect. The observer is connected only for as long
+        // as a popup is shown, so it costs nothing while the grid is merely typed into or scrolled.
+        let disposeDelegateTracking = () => {};
+        if (config?.selector) {
+            const shownDelegates = new Set<Element>();
+            const delegateObserver = new MutationObserver(() => {
+                for (const target of shownDelegates) {
+                    if (target.isConnected) continue;
+                    const instance = Tooltip.getInstance(target);
+                    if (instance) {
+                        // Reuses the bootstrap#37474 guard the patched dispose() above installs.
+                        instance.dispose();
+                    } else {
+                        // Belt-and-braces: the instance may already be gone on its own.
+                        const popupId = target.getAttribute("aria-describedby");
+                        if (popupId) {
+                            document.getElementById(popupId)?.remove();
+                        }
+                    }
+                    shownDelegates.delete(target);
+                }
+                if (!shownDelegates.size) delegateObserver.disconnect();
+            });
+            // Bootstrap's component events bubble from the delegate up to the container.
+            const onDelegateShown = (event: Event) => {
+                if (!(event.target instanceof Element) || event.target === element) return;
+                if (!shownDelegates.size) {
+                    delegateObserver.observe(element, { childList: true, subtree: true });
+                }
+                shownDelegates.add(event.target);
+            };
+            const onDelegateHidden = (event: Event) => {
+                if (!(event.target instanceof Element)) return;
+                shownDelegates.delete(event.target);
+                if (!shownDelegates.size) delegateObserver.disconnect();
+            };
+            element.addEventListener("inserted.bs.tooltip", onDelegateShown);
+            element.addEventListener("hidden.bs.tooltip", onDelegateHidden);
+
+            disposeDelegateTracking = () => {
+                delegateObserver.disconnect();
+                element.removeEventListener("inserted.bs.tooltip", onDelegateShown);
+                element.removeEventListener("hidden.bs.tooltip", onDelegateHidden);
+            };
+        }
+
         return () => {
+            disposeDelegateTracking();
+            element.removeEventListener("click", dismissOnPress);
             tooltips.delete(tooltip);
-            if (element.isConnected) {
-                tooltip.dispose();
-            }
+            // Dispose even when the trigger element is already detached (e.g. a keyed remount
+            // replaced it before this cleanup ran) — dispose() also removes a currently-shown
+            // popup from the DOM, and with the trigger gone nothing else ever would (#10567).
+            // The pending-callback crash of bootstrap#37474 is handled by the dispose() patch above.
+            tooltip.dispose();
 
             // For delegated (`selector:`) configs, hovered children spawn per-target
             // Tooltip instances whose popups the parent's dispose() does not remove;
@@ -1156,6 +1310,106 @@ export function useLegacyImperativeHandlers(handlers: Record<string, Function>) 
     }, [ handlers ]);
 }
 
+/**
+ * Marks an element as the one the parent component is found at, which is how anything outside the
+ * component tree asks for it: `appContext.getComponentByEl` climbs the DOM to the nearest element
+ * bearing a component and reads it off there.
+ *
+ * The counterpart of {@link useLegacyImperativeHandlers} — that hook writes methods onto the parent
+ * component, and this is what lets a caller holding only a DOM node arrive at the same object. The
+ * text editor is the caller that matters: every one of its calls back into the app resolves the host
+ * that way (`glob.getComponentByEl(editor.editing.view.getDomRoot())` — reference-link titles,
+ * included notes, link embeds), so an editor mounted in a subtree whose parent component the DOM
+ * cannot name reaches whichever widget happens to enclose it and dies on the first of those calls.
+ *
+ * Only needed where a subtree provides a `ParentComponent` of its own. A component built as a widget
+ * marks its own element (see `BasicWidget.render`), and a React tree mounted under one answers to
+ * that same widget, so the two already agree everywhere else.
+ */
+export function useLegacyComponentElement(elRef: RefObject<HTMLElement>) {
+    const parentComponent = useContext(ParentComponent);
+
+    useEffect(() => {
+        const el = elRef.current;
+        if (!el || !parentComponent) return;
+
+        // The attribute is what the lookup searches by; the component itself is handed over as a
+        // property of the element, which is where jQuery's `.prop("component")` reads it from. No
+        // `component` class as a widget adds: nothing looks for it, and it carries the theme's
+        // styling with it.
+        el.dataset.componentId = parentComponent.componentId;
+        (el as ComponentElement).component = parentComponent;
+
+        return () => {
+            delete el.dataset.componentId;
+            delete (el as ComponentElement).component;
+        };
+    }, [ elRef, parentComponent ]);
+}
+
+type ComponentElement = HTMLElement & { component?: Component };
+
+/**
+ * Registers this widget's contextual shortcut hints on its host component. When the user requests
+ * contextual shortcut help (Alt+F1 by default), the dispatcher walks up from the focused element
+ * and asks each component in the chain to contribute its hints — so these appear only while this
+ * widget (or one of its descendants) is focused. The registration is removed automatically on unmount.
+ *
+ * @param hints the sections to contribute, or a function returning them (use the function form when
+ *              the hints depend on component state). Read lazily on each request, so it need not be a
+ *              stable reference.
+ */
+export function useContextualShortcutHints(hints: ShortcutHintDefinition | (() => ShortcutHintDefinition)) {
+    const parentComponent = useContext(ParentComponent);
+    // Keep the latest hints in a ref so the provider registers once per host rather than
+    // re-registering on every render when the caller passes an inline array/function.
+    const hintsRef = useRef(hints);
+    hintsRef.current = hints;
+
+    useEffect(() => {
+        // A standalone Preact root mounted by the content renderer (a media player in a collection tile,
+        // an included note) is hosted by appContext itself. Every chain the dispatcher walks ends there,
+        // so registering would make these hints show up in *every* context — e.g. a played collection
+        // tile adding its Playback section to the image viewer's. Contextual hints need a host that
+        // sits inside the focused chain; the root never does.
+        if (!parentComponent || parentComponent === appContext) return;
+
+        const provider: ShortcutHintProvider = (collector) => {
+            const current = hintsRef.current;
+            collector.add(...(typeof current === "function" ? current() : current));
+        };
+        parentComponent.getContextualShortcutHints = provider;
+
+        return () => {
+            // Only clear our own registration, in case another provider replaced it in the meantime.
+            if (parentComponent.getContextualShortcutHints === provider) {
+                delete parentComponent.getContextualShortcutHints;
+            }
+        };
+    }, [ parentComponent ]);
+    useDebugValue("contextual-shortcut-hints");
+}
+
+/**
+ * The element a ref points at, as state, so an effect keyed on it runs once the element is there.
+ *
+ * Filling a ref triggers no render, so an effect that reads `ref.current` in its dependencies never
+ * hears the element arrive. Containers drawn only once their content has loaded are the ordinary
+ * case for that.
+ */
+export function useTrackedElement<T extends HTMLElement>(ref: RefObject<T>): T | null {
+    const [ element, setElement ] = useState<T | null>(null);
+
+    // Every render, and set only where it changed, so this settles in one further pass.
+    useLayoutEffect(() => {
+        if (ref.current !== element) {
+            setElement(ref.current);
+        }
+    });
+
+    return element;
+}
+
 export function useSyncedRef<T>(externalRef?: Ref<T>, initialValue: T | null = null): RefObject<T> {
     const ref = useRef<T>(initialValue);
 
@@ -1170,26 +1424,76 @@ export function useSyncedRef<T>(externalRef?: Ref<T>, initialValue: T | null = n
     return ref;
 }
 
-export function useImperativeSearchHighlighlighting(highlightedTokens: string[] | null | undefined) {
+/** Longer regex tokens are rejected outright rather than compiled, to avoid pathological patterns. */
+const MAX_REGEX_TOKEN_LENGTH = 1000;
+/** Caps the number of matches a single regex token can wrap, mirroring the cap mark.js's own term API implicitly applies via node-at-a-time processing. */
+const MAX_REGEX_MATCHES = 500;
+
+export function useImperativeSearchHighlighlighting(
+    highlightedTokens: (string | HighlightedTokenInfo)[] | null | undefined
+) {
     const mark = useRef<Mark>();
-    const highlightRegex = useMemo(() => {
+    const tokenInfos = useMemo<HighlightedTokenInfo[] | null>(() => {
         if (!highlightedTokens?.length) return null;
-        const regex = highlightedTokens.map((token) => escapeRegExp(token)).join("|");
-        return new RegExp(regex, "gi");
+        return highlightedTokens.map((token) => (typeof token === "string" ? { token, type: "plain" as const } : token));
     }, [ highlightedTokens ]);
 
     return (el: HTMLElement | null | undefined) => {
-        if (!el || !highlightRegex) return;
+        if (!el) return;
+
+        // Nothing has ever been highlighted here, so there is also nothing to clear.
+        if (!mark.current && !tokenInfos) return;
 
         if (!mark.current) {
             mark.current = new Mark(el);
         }
 
+        // Clearing comes first and happens even with no tokens left: callers that keep the same
+        // element and merely drop the tokens (e.g. emptying a filter box) rely on this to remove the
+        // previous highlights, which would otherwise stay in the DOM for good.
         mark.current.unmark();
-        mark.current.markRegExp(highlightRegex, {
-            element: "span",
-            className: "ck-find-result"
-        });
+
+        if (!tokenInfos) return;
+
+        const plainTokens = tokenInfos.filter((info) => info.type === "plain").map((info) => info.token);
+        if (plainTokens.length) {
+            // Term API (not markRegExp): its diacritics map lets an unaccented query like "ktory"
+            // (the server strips diacritics before indexing) still highlight "ktorý" (#10616).
+            // separateWordSearch: false keeps a multi-word token as one literal phrase; the default
+            // "partially" accuracy keeps plain substring matching, so CJK tokens without word
+            // boundaries (e.g. "笔记" inside "我的笔记本") keep working.
+            mark.current.mark(plainTokens, {
+                separateWordSearch: false,
+                diacritics: true,
+                caseSensitive: false,
+                element: "span",
+                className: "ck-find-result"
+            });
+        }
+
+        for (const info of tokenInfos) {
+            if (info.type !== "regex" || info.token.length > MAX_REGEX_TOKEN_LENGTH) continue;
+
+            let regex: RegExp;
+            try {
+                regex = new RegExp(info.token, "gi");
+            } catch {
+                // Invalid regex (e.g. from a malformed %= search) - skip rather than crash the render.
+                continue;
+            }
+
+            mark.current.markRegExp(regex, {
+                element: "span",
+                className: "ck-find-result",
+                // markRegExp's filter is called as (node, match, totalCounter so far); returning
+                // false once the cap is hit stops further matches from being wrapped.
+                filter: (_node, _match, totalCounter) => totalCounter < MAX_REGEX_MATCHES
+            });
+        }
+
+        // Reveal matches that landed inside collapsed <details> blocks, which are highlighted in
+        // the DOM but hidden until the block is expanded.
+        el.querySelectorAll<HTMLElement>(".ck-find-result").forEach(expandAncestorDetails);
     };
 }
 
@@ -1571,10 +1875,17 @@ export function useNote(noteId: string | null | undefined, silentNotFoundError =
         });
     }, [ note, noteId, silentNotFoundError ]);
 
+    if (!noteId) {
+        return undefined;
+    }
     if (note?.noteId === noteId) {
         return note;
     }
-    return undefined;
+    // The state only catches up in the effect above — after the mismatched render is already
+    // painted. A note the cache holds is answered in the same render instead: an id change must
+    // not paint a note-less frame in between, which read as a width wobble everywhere the host
+    // keeps something open for exactly as long as there is a note (the calendar's detail dock).
+    return froca.getNoteFromCache(noteId) ?? undefined;
 }
 
 export function useNoteTitle(noteId: string | undefined, parentNoteId: string | undefined) {
@@ -1625,6 +1936,62 @@ export function useNoteColorClass(note: FNote | null | undefined) {
         setColorClass(note?.getColorClass());
     }, [ color, note ]);
     return colorClass;
+}
+
+/**
+ * Everything a note can be created from: the note types, the templates the app ships and the
+ * reader's own.
+ *
+ * Read when the caller mounts and again whenever a template is made, deleted, renamed or given
+ * another icon, so what is offered is what exists now.
+ */
+export function useNoteTypeOptions() {
+    const [ options, setOptions ] = useState<NoteTypeOption[]>([]);
+    /** How many reads were asked for, and the newest one answered. */
+    const asked = useRef(0);
+    const answered = useRef(0);
+
+    const read = useCallback(() => {
+        const attempt = ++asked.current;
+        getNoteTypeOptions().then((types) => {
+            // Two reads can be in flight at once, the one made on arrival and one a template being
+            // made asks for. They need not answer in the order they were asked, and one of them can
+            // fail and leave no answer at all, so what is taken is what no newer answer has taken
+            // over.
+            if (attempt > answered.current) {
+                answered.current = attempt;
+                setOptions(types);
+            }
+        }).catch((e) => console.error("Failed to read what a note can be made from:", e));
+    }, []);
+
+    useEffect(() => {
+        read();
+        // A read still in flight when the caller goes has nothing left to answer.
+        return () => { answered.current = asked.current + 1; };
+    }, [ read ]);
+
+    useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
+        const offered = new Set(options
+            .map((option) => option.options.templateNoteId)
+            .filter((noteId) => !!noteId));
+        // A note taking `#template` or losing it changes what can be created. So does any attribute
+        // of a note already offered: the icon comes from `iconClass`, from `workspaceIconClass`
+        // where there is none, and from a `#geoLocation` on a text note, all of them labels rather
+        // than part of the note row a reload would report.
+        const templated = loadResults.getAttributeRows().some((attribute) =>
+            attribute.name === "template"
+                || (!!attribute.noteId && offered.has(attribute.noteId)));
+        const renamed = options.some((option) =>
+            option.options.templateNoteId
+                && loadResults.isNoteReloaded(option.options.templateNoteId));
+
+        if (templated || renamed) {
+            read();
+        }
+    });
+
+    return options;
 }
 
 export function useTextEditor(noteContext: NoteContext | null | undefined) {
@@ -1929,4 +2296,39 @@ export function useDelayedVisibility(active: boolean, { graceMs = 150, minVisibl
     }, [ active, phase, graceMs, minVisibleMs, stalledMs ]);
 
     return phase;
+}
+
+/**
+ * Trails `value` by `delay`, so a field being typed in does not fire a request per keystroke.
+ *
+ * For a reading that costs the server real work and is only worth taking once the user has stopped
+ * changing what it is a reading of.
+ */
+export function useDebouncedValue<T>(value: T, delay: number): T {
+    const [ settled, setSettled ] = useState(value);
+
+    useEffect(() => {
+        const timer = setTimeout(() => setSettled(value), delay);
+        return () => clearTimeout(timer);
+    }, [ value, delay ]);
+
+    return settled;
+}
+
+export function useAttachments(note: FNote) {
+    const [ attachments, setAttachments ] = useState<FAttachment[]>([]);
+
+    function refresh() {
+        note.getAttachments().then(attachments => setAttachments(Array.from(attachments)));
+    }
+
+    useEffect(refresh, [ note ]);
+
+    useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
+        if (loadResults.getAttachmentRows().some((att) => att.attachmentId && att.ownerId === note.noteId)) {
+            refresh();
+        }
+    });
+
+    return attachments;
 }

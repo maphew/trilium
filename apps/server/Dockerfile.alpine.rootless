@@ -1,16 +1,7 @@
-FROM node:24.18.0-alpine AS builder
-RUN corepack enable
-
-# Install build tools required to compile native addons (e.g. better-sqlite3) on ARM
-RUN apk add --no-cache python3 make g++
-
-# Install native dependencies since we might be building cross-platform.
-WORKDIR /usr/src/app
-COPY ./docker/package.json ./docker/pnpm-workspace.yaml /usr/src/app/
-# We have to use --no-frozen-lockfile due to CKEditor patches
-RUN pnpm install --no-frozen-lockfile --prod && pnpm rebuild
-
-FROM node:24.18.0-alpine
+# See the comment in Dockerfile: better-sqlite3 v13 ships N-API prebuilds — the
+# linuxmusl-* ones here — so there is no native compile step and no builder
+# stage. They link libstdc++, which node:*-alpine already provides at runtime.
+FROM node:24.20.0-alpine
 # Create a non-root user with configurable UID/GID
 ARG USER=trilium
 ARG UID=1001
@@ -20,7 +11,7 @@ ENV UID=${UID}
 ENV GID=${GID}
 
 # Install runtime dependencies and create user with specific UID/GID
-RUN apk add --no-cache dumb-init && \
+RUN apk add --no-cache dumb-init curl && \
     apk add --no-cache bash && \
     # Alpine uses addgroup/adduser (from busybox) instead of groupadd/useradd
     addgroup -g ${GID} ${USER} && \
@@ -30,8 +21,6 @@ WORKDIR /home/${USER}/app
 COPY ./dist /home/${USER}/app
 # Also copy the rootless entrypoint script
 COPY rootless-entrypoint.sh /home/${USER}/app/
-RUN rm -rf /home/${USER}/app/node_modules/better-sqlite3
-COPY --from=builder /usr/src/app/node_modules/better-sqlite3 /home/${USER}/app/node_modules/better-sqlite3
 RUN chown -R ${USER}:${USER} /home/${USER}
 
 # Configure container
@@ -50,4 +39,4 @@ ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 # Use the entrypoint script
 CMD [ "bash", "./rootless-entrypoint.sh" ]
 
-HEALTHCHECK --start-period=10s CMD node /home/${USER}/app/docker_healthcheck.js
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s CMD sh /home/${USER}/app/docker_healthcheck.sh

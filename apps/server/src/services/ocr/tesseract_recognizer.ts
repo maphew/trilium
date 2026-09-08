@@ -11,15 +11,6 @@ export interface RecognitionResult {
     confidence: number;
 }
 
-/** The subset of Tesseract's page result this recognizer relies on. */
-interface RecognizedData {
-    text: string;
-    /** Overall page confidence, 0–100. */
-    confidence: number;
-    /** Per-word data; absent in some Tesseract output configurations. */
-    words?: Array<{ text: string; confidence: number }>;
-}
-
 /**
  * Owns a single long-lived Tesseract.js worker and the confidence filtering
  * shared by every OCR path that recognizes raster images — standalone image
@@ -45,7 +36,10 @@ class TesseractRecognizer {
     recognize(image: Buffer, language: string): Promise<RecognitionResult> {
         const result = this.queue.then(async () => {
             const worker = await this.ensureWorker(language);
-            const { data } = await worker.recognize(image);
+            // The per-word breakdown the confidence filter runs on is an opt-in output format:
+            // by default `recognize` answers with the plain text and nothing else, leaving the
+            // filter with only the whole image's mean confidence to judge by.
+            const { data } = await worker.recognize(image, {}, { blocks: true });
             return this.filterTextByConfidence(data);
         });
         // Keep the chain going regardless of this job's outcome, without swallowing
@@ -92,9 +86,15 @@ class TesseractRecognizer {
     }
 
     /**
-     * Filter text based on minimum confidence threshold
+     * Filter text based on minimum confidence threshold.
+     *
+     * Word by word, because the words Tesseract is least sure of are usually not words at all —
+     * a border read as punctuation, a speck read as a comma — and it is those that drag the mean
+     * for the image down. Judging the image by that mean throws away every well-read word on it
+     * along with them, so what is kept is decided per word and reassembled line by line, leaving
+     * the text laid out as it is on the picture.
      */
-    private filterTextByConfidence(data: RecognizedData): RecognitionResult {
+    private filterTextByConfidence(data: Tesseract.Page): RecognitionResult {
         const minConfidence = this.getMinConfidenceThreshold();
 
         // If no minimum confidence set, return original text
@@ -105,21 +105,11 @@ class TesseractRecognizer {
             };
         }
 
-        const filteredWords: string[] = [];
-        const validConfidences: number[] = [];
+        const lines = getRecognizedLines(data);
 
-        // Tesseract provides word-level data
-        if (data.words && Array.isArray(data.words)) {
-            for (const word of data.words) {
-                const wordConfidence = word.confidence / 100; // Convert to decimal
-
-                if (wordConfidence >= minConfidence) {
-                    filteredWords.push(word.text);
-                    validConfidences.push(wordConfidence);
-                }
-            }
-        } else {
-            // Fallback: if word-level data not available, use overall confidence
+        // Nothing was broken down into words — an image nothing could be read from. There is only
+        // the one score to go by, so the text stands or falls as a whole.
+        if (lines.length === 0) {
             const overallConfidence = data.confidence / 100;
             if (overallConfidence >= minConfidence) {
                 return {
@@ -134,17 +124,39 @@ class TesseractRecognizer {
             };
         }
 
+        const keptLines: string[] = [];
+        const keptConfidences: number[] = [];
+        let totalWords = 0;
+
+        for (const line of lines) {
+            const keptWords: string[] = [];
+
+            for (const word of line.words ?? []) {
+                totalWords++;
+                const wordConfidence = word.confidence / 100; // Convert to decimal
+
+                if (wordConfidence >= minConfidence) {
+                    keptWords.push(word.text);
+                    keptConfidences.push(wordConfidence);
+                }
+            }
+
+            // A line every word of which was dropped leaves no blank behind: the gap would read as
+            // spacing on the picture that isn't there.
+            if (keptWords.length > 0) {
+                keptLines.push(keptWords.join(' '));
+            }
+        }
+
         // Calculate average confidence of accepted words
-        const averageConfidence = validConfidences.length > 0
-            ? validConfidences.reduce((sum, conf) => sum + conf, 0) / validConfidences.length
+        const averageConfidence = keptConfidences.length > 0
+            ? keptConfidences.reduce((sum, conf) => sum + conf, 0) / keptConfidences.length
             : 0;
 
-        const filteredText = filteredWords.join(' ').trim();
-
-        getLog().info(`Filtered OCR text: ${filteredWords.length} words kept out of ${data.words?.length || 0} total words (min confidence: ${minConfidence})`);
+        getLog().info(`Filtered OCR text: ${keptConfidences.length} words kept out of ${totalWords} total words (min confidence: ${minConfidence})`);
 
         return {
-            text: filteredText,
+            text: keptLines.join('\n').trim(),
             confidence: averageConfidence
         };
     }
@@ -159,3 +171,16 @@ class TesseractRecognizer {
 }
 
 export default new TesseractRecognizer();
+
+/**
+ * The words Tesseract read, in the lines it read them on.
+ *
+ * They sit three levels down the page it describes, and that description is only present when the
+ * `blocks` output format was asked for — see {@link TesseractRecognizer.recognize}. Without it, and
+ * for an image nothing was read from, this is empty.
+ */
+function getRecognizedLines(data: Tesseract.Page): Tesseract.Line[] {
+    return (data.blocks ?? []).flatMap(
+        block => (block.paragraphs ?? []).flatMap(paragraph => paragraph.lines ?? [])
+    );
+}

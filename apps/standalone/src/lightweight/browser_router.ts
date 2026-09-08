@@ -3,7 +3,7 @@
  * Supports path parameters (e.g., /api/notes/:noteId) and query strings.
  */
 
-import { getContext, routes } from "@triliumnext/core";
+import { routes } from "@triliumnext/core";
 
 export interface UploadedFile {
     originalname: string;
@@ -108,6 +108,21 @@ function textResponse(text: string, status = 200, extraHeaders: Record<string, s
         headers: { "content-type": "text/plain; charset=utf-8", ...extraHeaders },
         body
     };
+}
+
+/**
+ * Builds the response for a handler's return value, mirroring the server's `send`: a string
+ * body goes out as-is (the office preview answers with an HTML fragment, which an envelope
+ * would escape), anything else is JSON. An error keeps text/plain so the client reads the
+ * message rather than a JSON-quoted copy of it.
+ */
+function sendResult(response: unknown, status: number): BrowserResponse {
+    if (typeof response === "string") {
+        return status >= 400
+            ? textResponse(response, status)
+            : textResponse(response, status, { "content-type": "text/html; charset=utf-8" });
+    }
+    return jsonResponse(response, status);
 }
 
 /**
@@ -226,7 +241,10 @@ export class BrowserRouter {
             };
 
             try {
-                const result = await getContext().init(async () => await route.handler(request));
+                // No execution context is opened here: every route registered by
+                // `browser_routes.ts` opens its own inside `dbLock`, which is what keeps one
+                // asynchronous scope live at a time. One opened here would sit outside that lock.
+                const result = await route.handler(request);
                 return this.formatResult(result);
             } catch (error) {
                 return this.formatError(error, `Error handling ${method} ${path}`);
@@ -250,7 +268,13 @@ export class BrowserRouter {
             if (raw.body instanceof ArrayBuffer) {
                 body = raw.body;
             } else if (raw.body instanceof Uint8Array) {
-                body = raw.body.buffer as ArrayBuffer;
+                // A view can cover just part of its buffer — a byte range sliced out of a note's
+                // content is exactly that — so handing over the whole buffer would answer with the
+                // entire file. Only the view's own bytes may go out, copied when it isn't the whole
+                // buffer already (the common case, which must not copy a whole video to serve it).
+                body = raw.body.byteOffset === 0 && raw.body.byteLength === raw.body.buffer.byteLength
+                    ? raw.body.buffer as ArrayBuffer
+                    : new Uint8Array(raw.body).buffer;
             } else if (typeof raw.body === 'string') {
                 body = encoder.encode(raw.body).buffer as ArrayBuffer;
             }
@@ -265,7 +289,7 @@ export class BrowserRouter {
         // Handle [statusCode, response] format
         if (Array.isArray(result) && result.length > 0 && Number.isInteger(result[0])) {
             const [statusCode, response] = result;
-            return jsonResponse(response, statusCode);
+            return sendResult(response, statusCode);
         }
 
         // Handle undefined (no content) - 204 should have no body
@@ -277,8 +301,7 @@ export class BrowserRouter {
             };
         }
 
-        // Default: JSON response with 200
-        return jsonResponse(result, 200);
+        return sendResult(result, 200);
     }
 
     /**

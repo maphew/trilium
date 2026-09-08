@@ -14,6 +14,7 @@ import TaskContext from "./task_context";
 import BOption from "../becca/entities/boption";
 import migrationService from "./migration";
 import passwordService from "./encryption/password";
+import { isSetupRequested, leaveSetupMode } from "./setup_mode";
 
 export const dbReady = deferred<void>();
 
@@ -34,6 +35,12 @@ function schemaExists() {
 }
 
 function isDbInitialized() {
+    // An instance asked to boot into setup answers as one that has nothing to open, which is what
+    // keeps the database closed and every uninitialized-only guard in force. See setup_mode.
+    if (isSetupRequested()) {
+        return false;
+    }
+
     try {
         if (!schemaExists()) {
             return false;
@@ -75,6 +82,9 @@ async function initDbConnection() {
 }
 
 function setDbAsInitialized() {
+    // A database is being brought up, so whatever asked for setup has had its answer.
+    leaveSetupMode();
+
     if (!isDbInitialized()) {
         optionService.setOption("initialized", "true");
 
@@ -132,12 +142,14 @@ async function createInitialDatabase(skipDemoDb?: boolean, locale?: string) {
     let rootNote!: BNote;
 
     // We have to import async since options init requires keyboard actions which require translations.
-    const { initDocumentOptions, initNotSyncedOptions, initStartupOptions } = await import("./options_init.js");
+    const { initDocumentOptions, initNewDocumentOptions, initNotSyncedOptions, initStartupOptions } = await import("./options_init.js");
     const { load: loadBecca } = await import("../becca/becca_loader.js");
 
     const sql = getSql();
     const log = getLog();
     sql.transactional(() => {
+        wipePartialSchema();
+
         log.info("Creating database schema ...");
         sql.executeScript(schema);
 
@@ -164,6 +176,9 @@ async function createInitialDatabase(skipDemoDb?: boolean, locale?: string) {
         // Bring in option init.
         initDocumentOptions();
         initNotSyncedOptions(true, {});
+        // Only on this path, and never in `createDatabaseForSync`: these defaults are synced, so on a
+        // database created for sync they would overwrite the server's values (see #10626).
+        initNewDocumentOptions();
         initStartupOptions();
         // Persist the language chosen during setup, overriding the default ("en").
         if (isDisplayableLocale(locale)) {
@@ -219,6 +234,12 @@ async function createInitialDatabase(skipDemoDb?: boolean, locale?: string) {
 
     log.info("Schema and initial content generated.");
 
+    // A database has been brought up, so whatever asked for setup has had its answer. Done here
+    // rather than left to `setDbAsInitialized`, which this path deliberately does not go through
+    // (see below): without it the instance goes on reporting itself uninitialized for the rest of
+    // the process, and the window that opens next comes up as the wizard all over again.
+    leaveSetupMode();
+
     initDbConnection();
 
     // `initNotSyncedOptions(true, ...)` above already set the "initialized"
@@ -262,6 +283,8 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = "", 
     const { initNotSyncedOptions } = await import("./options_init.js");
 
     sql.transactional(() => {
+        wipePartialSchema();
+
         sql.executeScript(schema);
 
         initNotSyncedOptions(false, { syncServerHost, syncProxy, syncMaxBlobContentSize });
@@ -273,6 +296,30 @@ async function createDatabaseForSync(options: OptionRow[], syncServerHost = "", 
     });
 
     log.info("Schema and not synced options generated.");
+}
+
+/**
+ * Drops every table and view left behind by a FAILED sync-from-server attempt (schema
+ * created, sync never converged, `initialized` still false — see #10548). From that state
+ * the setup wizard lets the user take any path again: resubmit the sync form, sync from a
+ * desktop, or create a new document — all of which rebuild the schema and must start from
+ * a clean slate, since the partially pulled rows may even belong to a different server.
+ * No-op on a virgin database.
+ */
+function wipePartialSchema() {
+    if (!schemaExists()) {
+        return;
+    }
+
+    getLog().info("Schema exists from a previous unfinished setup — wiping it before re-creating.");
+
+    const sql = getSql();
+    const objects = sql.getRows<{ name: string; type: string }>(
+        /*sql*/`SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'`
+    );
+    for (const { name, type } of objects) {
+        sql.execute(`DROP ${type === "view" ? "VIEW" : "TABLE"} IF EXISTS "${name.replace(/"/g, '""')}"`);
+    }
 }
 
 export default { isDbInitialized, createDatabaseForSync, setDbAsInitialized, schemaExists, getDbSize, initDbConnection, dbReady, initializeDb, createInitialDatabase };

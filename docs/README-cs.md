@@ -24,6 +24,9 @@ status](https://hosted.weblate.org/widget/trilium/svg-badge.svg)](https://hosted
 Trilium Notes je open-source, cross-platform aplikace pro hierarchiální psaní
 poznámek.
 
+Looking for "Trillium Notes"? The project's canonical spelling is "Trilium
+Notes", with one `l`.
+
 <img src="./app.png" alt="Trilium Screenshot" width="1000">
 
 ## ⏬ Stáhnout
@@ -115,7 +118,7 @@ Naše dokumenatce je dostupná ve vícero formátech:
 * Vestavěný [tmavý
   motiv](https://docs.triliumnotes.org/user-guide/concepts/themes), podpora
   uživatelských motivů
-* [Evernote](https://docs.triliumnotes.org/user-guide/concepts/import-export/evernote)
+* [Evernote](https://docs.triliumnotes.org/user-guide/concepts/import-export/import-from-apps/evernote.html)
   a [import & export
   Markdown](https://docs.triliumnotes.org/user-guide/concepts/import-export/markdown)
 * [Webový výstřižek](https://docs.triliumnotes.org/user-guide/setup/web-clipper)
@@ -344,6 +347,12 @@ uvedených v sekci „Diskuse s námi“ výše.
 * [antoniotejada](https://github.com/nriver) za původní widget pro zvýrazňování
   syntaxe.
 * [Tabler Icons](https://tabler.io/icons) za ikony v systémové oblasti.
+*   The application icons in the import dialog are from:
+    *   [Material Design Icons](https://pictogrammers.com/library/mdi/) for
+        OneNote, Google Keep, Evernote.
+    *   [Font Awesome](https://fontawesome.com/) for Notion, Obsidian.
+    *   [SVGicons.com](https://svgicons.com/icon/187676/anytype) for Anytype.
+*  The LLM provider icons are from [Lobe Icons](https://lobehub.com/icons).
 
 Trilium by nebyl možný bez technologií, které za ním stojí:
 

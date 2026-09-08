@@ -1,36 +1,28 @@
-FROM node:24.18.0-bullseye-slim AS builder
-RUN corepack enable
+# Since better-sqlite3 v13 the addon is N-API based and ships prebuilt binaries
+# for every supported platform/arch inside the package itself, which the server
+# build copies into ./dist. There is therefore no native compile step and no
+# builder stage any more. The Linux prebuilds need glibc >= 2.34 (x64) and
+# >= 2.38 (arm64), so the base image is trixie rather than bullseye (glibc 2.31).
+# Platforms without a prebuild (32-bit ARM) are served by Dockerfile.legacy,
+# which still compiles from source.
+FROM node:24.20.0-trixie-slim
 
-# Install build tools required to compile native addons (e.g. better-sqlite3) on ARM
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    python3 \
-    make \
-    g++ && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install native dependencies since we might be building cross-platform.
-WORKDIR /usr/src/app/build
-COPY ./docker/package.json ./docker/pnpm-workspace.yaml /usr/src/app/
-# We have to use --no-frozen-lockfile due to CKEditor patches
-RUN pnpm install --no-frozen-lockfile --prod && pnpm rebuild
-
-FROM node:24.18.0-bullseye-slim
 # Install only runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    gosu && \
+    gosu curl && \
     rm -rf \
     /var/lib/apt/lists/* \
     /var/cache/apt/*
 
 WORKDIR /usr/src/app
 COPY ./dist /usr/src/app
-RUN rm -rf /usr/src/app/node_modules/better-sqlite3
-COPY --from=builder /usr/src/app/node_modules/better-sqlite3 /usr/src/app/node_modules/better-sqlite3
 COPY ./start-docker.sh /usr/src/app
+
+# The healthcheck reads the listening address the server records here.
+ENV TRILIUM_DATA_DIR=/home/node/trilium-data
 
 # Configure container
 EXPOSE 8080
 CMD [ "sh", "./start-docker.sh" ]
-HEALTHCHECK --start-period=10s CMD exec gosu node node /usr/src/app/docker_healthcheck.cjs
+HEALTHCHECK --interval=60s --timeout=5s --start-period=30s CMD exec gosu node sh /usr/src/app/docker_healthcheck.sh

@@ -5,7 +5,8 @@ import { useEffect, useState } from "preact/hooks";
 import FNote from "../entities/fnote";
 import attributes from "../services/attributes";
 import { t } from "../services/i18n";
-import { isElectron } from "../services/utils";
+import { buildShareLink } from "../services/share_link";
+import { escapeHtml, isElectron } from "../services/utils";
 import HelpButton from "./react/HelpButton";
 import { useNoteContext, useTriliumEvent, useTriliumOption } from "./react/hooks";
 import InfoBar from "./react/InfoBar";
@@ -40,23 +41,9 @@ export function useShareInfo(note: FNote | null | undefined) {
             return;
         }
 
-        let link;
-        const shareId = getShareId(note);
+        const link = buildShareLink(getShareId(note), syncServerHost);
 
-        if (syncServerHost) {
-            link = new URL(`/share/${shareId}`, syncServerHost).href;
-        } else {
-            let host = location.host;
-            if (host.endsWith("/")) {
-                // seems like IE has trailing slash
-                // https://github.com/zadam/trilium/issues/3782
-                host = host.substring(0, host.length - 1);
-            }
-
-            link = `${location.protocol}//${host}${location.pathname}share/${shareId}`;
-        }
-
-        setLink(`<a href="${link}" class="external tn-link">${link}</a>`);
+        setLink(buildShareLinkHtml(link));
         setLinkHref(link);
     }
 
@@ -74,6 +61,12 @@ export function useShareInfo(note: FNote | null | undefined) {
         linkHref,
         isSharedExternally: !isElectron() || !!syncServerHost    // on server we can't reliably detect if the note is shared locally or available publicly.
     };
+}
+
+export function buildShareLinkHtml(link: string) {
+    const escapedLink = escapeHtml(link);
+
+    return `<a href="${escapedLink}" class="external tn-link">${escapedLink}</a>`;
 }
 
 function getShareId(note: FNote) {

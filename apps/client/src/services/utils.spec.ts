@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import utils, {
+    areWindowControlsOnLeft,
     arrayEqual,
     clearBrowserCache,
     createImageSrcUrl,
@@ -18,6 +19,7 @@ import utils, {
     isLaunchBarConfig,
     isMac,
     isMobileApp,
+    isPreAuthScreen,
     isPWA,
     isUpdateAvailable,
     mapToKeyValueArray,
@@ -28,6 +30,7 @@ import utils, {
     reloadFrontendApp,
     replaceHtmlEscapedSlashes,
     restartDesktopApp,
+    rootCauseMessage,
     toggleBodyClass
 } from "./utils.js";
 
@@ -105,6 +108,24 @@ describe("formatSize", () => {
         expect(formatSize(2048)).toBe("2 KiB");
         expect(formatSize(5 * 1024 * 1024)).toBe("5 MiB");
         expect(formatSize(3 * 1024 * 1024 * 1024)).toBe("3 GiB");
+    });
+
+    it("stays in the largest unit it knows rather than running off the end of them", () => {
+        // Past the last unit this used to name it "undefined", since it indexed straight into the
+        // list with whatever power of 1024 the size came to.
+        expect(formatSize(3 * 1024 ** 4)).toBe("3 TiB");
+        expect(formatSize(5 * 1024 ** 5)).toBe("5120 TiB");
+    });
+
+    it("keeps the places it is given, trailing zeros and all", () => {
+        // For a counter that is still climbing: dropping the zero shortens the text on every other
+        // update, and the line shifts about while it is being read.
+        expect(formatSize(1.5 * 1024 ** 3, 2)).toBe("1.50 GiB");
+        expect(formatSize(1.55 * 1024 ** 3, 2)).toBe("1.55 GiB");
+        expect(formatSize(2 * 1024 ** 3, 2)).toBe("2.00 GiB");
+        expect(formatSize(10 * 1024 ** 2, 1)).toBe("10.0 MiB");
+        // Nothing below a byte to show, however many places were asked for.
+        expect(formatSize(512, 2)).toBe("512 B");
     });
 });
 
@@ -238,6 +259,32 @@ describe("platform / device detection", () => {
         expect(isMac()).toBe(true);
         spy.mockReturnValue("Win32");
         expect(isMac()).toBe(false);
+    });
+
+    it("areWindowControlsOnLeft follows the platform and the overlay geometry", () => {
+        const platformSpy = vi.spyOn(navigator, "platform", "get");
+        const overlay = (visible: boolean, x: number) => {
+            navigator.windowControlsOverlay = {
+                visible,
+                getTitlebarAreaRect: () => ({ x }) as DOMRect
+            } as WindowControlsOverlay;
+        };
+
+        // macOS keeps the traffic lights on the left regardless of the overlay.
+        platformSpy.mockReturnValue("MacIntel");
+        expect(areWindowControlsOnLeft()).toBe(true);
+
+        platformSpy.mockReturnValue("Linux x86_64");
+        expect(areWindowControlsOnLeft()).toBe(false); // no overlay at all
+
+        overlay(false, 92); // native title bar: geometry is stale, ignore it
+        expect(areWindowControlsOnLeft()).toBe(false);
+
+        overlay(true, 0); // controls on the right (Windows, and Linux by default)
+        expect(areWindowControlsOnLeft()).toBe(false);
+
+        overlay(true, 92); // controls on the left
+        expect(areWindowControlsOnLeft()).toBe(true);
     });
 
     it("isCtrlKey uses ctrlKey on non-Mac and metaKey on Mac", () => {
@@ -801,6 +848,38 @@ describe("getErrorMessage", () => {
     });
 });
 
+describe("rootCauseMessage", () => {
+    it("walks the cause chain to the bottom and returns the root message", () => {
+        const root = new Error("boom");
+        const middle = new Error(`Load of script note "B" (id2) failed with: boom`, { cause: root });
+        const outer = new Error(`Load of script note "A" (id1) failed with: ...`, { cause: middle });
+        expect(rootCauseMessage(outer)).toBe("boom");
+    });
+
+    it("returns the message of an unwrapped error or error-like object as-is", () => {
+        expect(rootCauseMessage(new Error("plain"))).toBe("plain");
+        expect(rootCauseMessage({ message: "server-side" })).toBe("server-side");
+    });
+
+    it("passes strings through and stringifies other primitives", () => {
+        expect(rootCauseMessage("raw string")).toBe("raw string");
+        expect(rootCauseMessage(42)).toBe("42");
+        expect(rootCauseMessage(new Error("outer", { cause: "string cause" }))).toBe("string cause");
+    });
+
+    it("does not loop forever on a cyclic cause chain", () => {
+        const self = new Error("self-cycle");
+        self.cause = self;
+        expect(rootCauseMessage(self)).toBe("self-cycle");
+
+        // A longer cycle: a -> b -> a. Walking stops once a repeat is seen.
+        const a = new Error("a");
+        const b = new Error("b", { cause: a });
+        a.cause = b;
+        expect(rootCauseMessage(b)).toBe("a");
+    });
+});
+
 describe("handleRightToLeftPlacement", () => {
     it("returns the placement unchanged in LTR mode", () => {
         const original = window.glob.isRtl;
@@ -877,5 +956,44 @@ describe("openInReusableSplit / openInAppHelpFromUrl", () => {
         };
         await openInAppHelpFromUrl("MyPage");
         expect(setNote).toHaveBeenCalledWith("_help_MyPage", { viewScope: { viewMode: "contextual-help" } });
+    });
+});
+
+describe("isPreAuthScreen", () => {
+    const originalGlob = window.glob;
+
+    afterEach(() => {
+        window.glob = originalGlob;
+    });
+
+    function setGlob(patch: Record<string, unknown>) {
+        // The eager module-load side effects (froca tree load, ws connect, options /
+        // keyboard-actions / fonts fetches) read `glob` directly; we only need the auth flags here.
+        window.glob = { isMainWindow: true, ...patch } as typeof window.glob;
+    }
+
+    it("flags the login screen (loggedIn:false) so eager loads skip their unauthenticated calls", () => {
+        setGlob({ dbInitialized: true, loggedIn: false });
+        expect(isPreAuthScreen()).toBe(true);
+    });
+
+    it("flags the set-password screen (passwordSet:false)", () => {
+        setGlob({ dbInitialized: true, passwordSet: false });
+        expect(isPreAuthScreen()).toBe(true);
+    });
+
+    it("does NOT flag the setup screen — froca/ws already gate on !dbInitialized and the server permits pre-init requests", () => {
+        setGlob({ dbInitialized: false });
+        expect(isPreAuthScreen()).toBe(false);
+    });
+
+    it("does NOT flag the fully authenticated app", () => {
+        setGlob({ dbInitialized: true, loggedIn: true, passwordSet: true });
+        expect(isPreAuthScreen()).toBe(false);
+    });
+
+    it("does NOT flag an unset glob (unit-test / unknown state) — strict === false keeps eager loads working", () => {
+        setGlob({});
+        expect(isPreAuthScreen()).toBe(false);
     });
 });

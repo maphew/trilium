@@ -2,8 +2,8 @@ import type { EventData } from "../components/app_context.js";
 import type NoteContext from "../components/note_context.js";
 import type FNote from "../entities/fnote.js";
 import attributeService from "../services/attributes.js";
-import { getLocaleById } from "../services/i18n.js";
 import utils from "../services/utils.js";
+import { isContentRightToLeft } from "../utils/formatters.js";
 import type BasicWidget from "./basic_widget.js";
 import FlexContainer from "./containers/flex_container.js";
 
@@ -64,37 +64,12 @@ export default class NoteWrapperWidget extends FlexContainer<BasicWidget> {
         this.$widget.addClass(`view-mode-${this.noteContext?.viewScope?.viewMode ?? "default"}`);
         this.$widget.addClass(note.getColorClass());
         this.$widget.toggleClass("options", note.isOptions());
-        this.$widget.toggleClass("bgfx", this.#hasBackgroundEffects(note));
+        this.$widget.toggleClass("bgfx", hasBackgroundEffects(note));
         this.$widget.toggleClass("protected", note.isProtected);
 
-        const noteLanguage = note?.getLabelValue("language");
-        const locale = getLocaleById(noteLanguage);
-        this.$widget.toggleClass("rtl", !!locale?.rtl);
-    }
-
-    #hasBackgroundEffects(note: FNote): boolean {
-        const MIME_TYPES_WITH_BACKGROUND_EFFECTS = [
-            "application/pdf"
-        ];
-
-        const COLLECTIONS_WITH_BACKGROUND_EFFECTS = [
-            "grid",
-            "list"
-        ];
-
-        if (note.isOptions()) {
-            return true;
-        }
-
-        if (note.type === "file" && (MIME_TYPES_WITH_BACKGROUND_EFFECTS.includes(note.mime) || note.mime.startsWith("audio/"))) {
-            return true;
-        }
-
-        if (note.type === "book" && COLLECTIONS_WITH_BACKGROUND_EFFECTS.includes(note.getLabelValue("viewType") ?? "none")) {
-            return true;
-        }
-
-        return false;
+        // Resolved rather than read straight off the label: a note with no language of its own
+        // still follows the default content language.
+        this.$widget.toggleClass("rtl", isContentRightToLeft(note?.getLabelValue("language")));
     }
 
     async entitiesReloadedEvent({ loadResults }: EventData<"entitiesReloaded">) {
@@ -103,6 +78,9 @@ export default class NoteWrapperWidget extends FlexContainer<BasicWidget> {
         const noteId = this.noteContext?.noteId;
         if (
             loadResults.isNoteReloaded(noteId) ||
+            // The direction of a note carrying no `#language` comes from this option, so a change to it
+            // has to repaint the `rtl` class the same way a change to the label would.
+            loadResults.isOptionReloaded("defaultContentLanguage") ||
             loadResults.getAttributeRows().find((attr) => attr.type === "label" && LABELS_CAUSING_REFRESH.includes(attr.name ?? "") && attributeService.isAffecting(attr, this.noteContext?.note))
         ) {
             this.refresh();
@@ -112,6 +90,43 @@ export default class NoteWrapperWidget extends FlexContainer<BasicWidget> {
 
 /** Classes set on the split by `SplitNoteContainer`, based on the split's position among its siblings. */
 const CONTAINER_OWNED_CLASSES = [ "active", "last-visible" ];
+
+/**
+ * Whether the split should be translucent (`bgfx`), letting the window background effect show through.
+ * This suits notes that render their content on a bare background (media, option pages, and the
+ * collections whose own surface is only what they lay out on it); notes that paint their own
+ * background stay opaque. Exported as a pure function for
+ * unit testing.
+ */
+export function hasBackgroundEffects(note: FNote): boolean {
+    const MIME_TYPES_WITH_BACKGROUND_EFFECTS = [
+        "application/pdf"
+    ];
+
+    const COLLECTIONS_WITH_BACKGROUND_EFFECTS = [
+        "grid",
+        "list",
+        "board"
+    ];
+
+    if (note.isOptions()) {
+        return true;
+    }
+
+    if (note.type === "image") {
+        return true;
+    }
+
+    if (note.type === "file" && (MIME_TYPES_WITH_BACKGROUND_EFFECTS.includes(note.mime) || note.mime.startsWith("audio/"))) {
+        return true;
+    }
+
+    if (note.type === "book" && COLLECTIONS_WITH_BACKGROUND_EFFECTS.includes(note.getLabelValue("viewType") ?? "none")) {
+        return true;
+    }
+
+    return false;
+}
 
 /**
  * Whether a note is full width purely because of its type (e.g. canvas, collections, media),

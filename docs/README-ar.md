@@ -25,6 +25,9 @@ status](https://hosted.weblate.org/widget/trilium/svg-badge.svg)](https://hosted
 مبني على كتابة الملاحظات بالتفرعات الشجرية مع التركيز على بناء قاعدة بيانات
 معرفية ضخمة.
 
+Looking for "Trillium Notes"? The project's canonical spelling is "Trilium
+Notes", with one `l`.
+
 <img src="./app.png" alt="Trilium Screenshot" width="1000">
 
 ## ⬇️ التنزيل
@@ -118,7 +121,7 @@ status](https://hosted.weblate.org/widget/trilium/svg-badge.svg)](https://hosted
 * [الوضع الداكن](https://docs.triliumnotes.org/user-guide/concepts/themes)
   المدمج، ودعم سمات المستخدم
 * [إيفيرنوت
-  (Evernote)](https://docs.triliumnotes.org/user-guide/concepts/import-export/evernote)
+  (Evernote)](https://docs.triliumnotes.org/user-guide/concepts/import-export/import-from-apps/evernote.html)
   و[استيراد وتصدير ملفات
   Markdown](https://docs.triliumnotes.org/user-guide/concepts/import-export/markdown)
 * [أداة قص الويب](https://docs.triliumnotes.org/user-guide/setup/web-clipper)
@@ -344,6 +347,12 @@ pnpm run --filter desktop electron-forge:make --arch=x64 --platform=win32
 * لـ [antoniotejada](https://github.com/nriver): لأداة تمييز الصيغة البرمجية
   (Syntax highlight) الأصلية.
 * لـ [Tabler Icons](https://tabler.io/icons): لأيقونات شريط النظام.
+*   The application icons in the import dialog are from:
+    *   [Material Design Icons](https://pictogrammers.com/library/mdi/) for
+        OneNote, Google Keep, Evernote.
+    *   [Font Awesome](https://fontawesome.com/) for Notion, Obsidian.
+    *   [SVGicons.com](https://svgicons.com/icon/187676/anytype) for Anytype.
+*  The LLM provider icons are from [Lobe Icons](https://lobehub.com/icons).
 
 لم يكن لـ Trilium أن يرى النور لولا التقنيات التي تقف خلفه:
 

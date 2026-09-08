@@ -1,6 +1,8 @@
-import { app_info, cls, events, getLog, keyboard_actions as keyboardActionsService, options as optionService, sql_init, utils as coreUtils } from "@triliumnext/core";
+import { app_info, cls, events, getLog, isSetupRequested, keyboard_actions as keyboardActionsService, options as optionService, sql_init, utils as coreUtils } from "@triliumnext/core";
 import { RESOURCE_DIR } from "@triliumnext/server/src/services/resource_dir.js";
+import { supportsBackgroundMaterial } from "@triliumnext/server/src/services/utils.js";
 import { type BrowserWindow, type BrowserWindowConstructorOptions, default as electron, type Session, type WebContents } from "electron";
+import { t } from "i18next";
 import path from "path";
 
 import { markStartupMetric } from "./startup_metrics.js";
@@ -11,7 +13,7 @@ import { setupWebContentsSecurity } from "./web_contents_security.js";
 //   - Dev: this file lives at apps/desktop/src/services/window.ts, and the
 //     preload bundle is one level up at apps/desktop/src/preload.compiled.cjs
 //     (built in place by scripts/electron-start.mts).
-//   - Prod: this file is bundled into apps/desktop/dist/main.cjs, with
+//   - Prod: this file is bundled into apps/desktop/dist/main.mjs, with
 //     preload.cjs sitting next to it in dist/ (NOT one level up — getting
 //     this wrong leaves the renderer without `window.electronApi`).
 //
@@ -61,12 +63,24 @@ function trackWindowFocus(win: BrowserWindow) {
     });
 }
 
+/**
+ * Opens an extra window from the main process, for callers with no renderer to
+ * open it from (the `--new-window` command line). The client opens its own
+ * extra windows through `window.open`, which `installWindowOpenPolicy` turns
+ * into a window in the opener's renderer process; both paths end in
+ * `adoptExtraWindow()`.
+ */
 async function createExtraWindow(extraWindowHash: string) {
-    const spellcheckEnabled = optionService.getOptionBool("spellCheckEnabled");
-
     const { BrowserWindow } = await import("electron");
 
-    const win = new BrowserWindow({
+    const win = new BrowserWindow(getExtraWindowOptions());
+    win.loadURL(`${TRILIUM_APP_BASE_URL}?extraWindow=1${extraWindowHash}`);
+    adoptExtraWindow(win);
+}
+
+/** Constructor options shared by both ways an extra window is created. */
+function getExtraWindowOptions(): BrowserWindowConstructorOptions {
+    return {
         width: 1000,
         height: 800,
         title: "Trilium Notes",
@@ -83,13 +97,13 @@ async function createExtraWindow(extraWindowHash: string) {
         },
         ...getWindowExtraOpts(),
         icon: getIcon()
-    });
+    };
+}
 
+/** Per-window wiring for an extra window, whichever way it was created. */
+function adoptExtraWindow(win: BrowserWindow) {
     win.setMenuBarVisibility(false);
-    win.loadURL(`${TRILIUM_APP_BASE_URL}?extraWindow=1${extraWindowHash}`);
-
-    configureWebContents(win.webContents, spellcheckEnabled);
-
+    configureWebContents(win.webContents, optionService.getOptionBool("spellCheckEnabled"));
     trackWindowFocus(win);
 }
 
@@ -178,11 +192,13 @@ function getWindowExtraOpts() {
         if (coreUtils.isMac()) {
             extraOpts.titleBarStyle = "hiddenInset";
             extraOpts.titleBarOverlay = true;
-        } else if (coreUtils.isWindows()) {
+        } else if (coreUtils.isWindows() || coreUtils.isLinux()) {
+            // Window Controls Overlay: Chromium draws the caption buttons itself, following the
+            // platform's own conventions (button glyphs, order and which side they sit on).
+            // Supported on Windows and, since Electron 27, on Linux too.
             extraOpts.titleBarStyle = "hidden";
             extraOpts.titleBarOverlay = true;
         } else {
-            // Linux or other platforms.
             extraOpts.frame = false;
         }
 
@@ -192,7 +208,7 @@ function getWindowExtraOpts() {
             if (coreUtils.isMac()) {
                 extraOpts.transparent = true;
                 extraOpts.visualEffectState = "active";
-            } else if (coreUtils.isWindows()) {
+            } else if (coreUtils.isWindows() && supportsBackgroundMaterial) {
                 extraOpts.backgroundMaterial = "auto";
             }
         }
@@ -208,6 +224,11 @@ async function configureWebContents(webContents: WebContents, spellcheckEnabled:
 
     setupSpellcheckForSession(webContents.session, spellcheckEnabled);
     setupExportRevealForSession(webContents.session);
+
+    // `window.open` from this renderer creates an extra window in the same
+    // process (see installWindowOpenPolicy); it needs the same wiring as one
+    // the main process created.
+    webContents.on("did-create-window", (child) => adoptExtraWindow(child));
 
     // Forward full-screen events to the renderer via IPC.
     const win = electron.BrowserWindow.fromWebContents(webContents);
@@ -289,13 +310,16 @@ function setupExportRevealForSession(session: Session) {
 }
 
 function setupSpellcheckForSession(session: Session, enabled: boolean) {
-    session.setSpellCheckerEnabled(enabled);
     // Preload the configured languages once per session (idempotent thereafter via the
     // WeakSet guard) so a later live enable already has them. Harmless while disabled.
+    // This MUST run before setSpellCheckerEnabled(): Electron's setSpellCheckerLanguages()
+    // implicitly forces kSpellCheckEnable = !languages.empty(), so calling it after a
+    // disable would silently re-enable spell check on every launch (issue #10569).
     if (!loadedSpellcheckSessions.has(session)) {
         loadedSpellcheckSessions.add(session);
         session.setSpellCheckerLanguages(getConfiguredSpellcheckLanguages());
     }
+    session.setSpellCheckerEnabled(enabled);
 }
 
 function getConfiguredSpellcheckLanguages(): string[] {
@@ -312,12 +336,17 @@ function getConfiguredSpellcheckLanguages(): string[] {
  * Sessions are deduplicated because all windows share the default session.
  */
 function applySpellcheckLanguages(languageCodes: string[]) {
+    // setSpellCheckerLanguages() forces the enabled state to !languageCodes.empty(), so a
+    // language change while spell check is disabled would re-enable it. Re-assert the option
+    // afterwards to keep the toggle authoritative (see setupSpellcheckForSession, issue #10569).
+    const enabled = optionService.getOptionBool("spellCheckEnabled");
     const sessions = new Set<Session>();
     for (const win of electron.BrowserWindow.getAllWindows()) {
         sessions.add(win.webContents.session);
     }
     for (const session of sessions) {
         session.setSpellCheckerLanguages(languageCodes);
+        session.setSpellCheckerEnabled(enabled);
     }
 }
 
@@ -356,10 +385,14 @@ async function createSetupWindow() {
         useContentSize: true,
         resizable: false,
         autoHideMenuBar: true,
-        title: "Trilium Notes Setup",
+        // What the window is for, which differs by how it was reached: a first run is getting the
+        // user started, while an instance sent here by a marker is starting over on a knowledge base
+        // it already has. Translated in the language the marker carried, which `initializeCore` has
+        // already loaded by this point.
+        title: isSetupRequested() ? t("setup-window.start-over") : t("setup-window.getting-started"),
         icon: getIcon(),
-        // Background effects (Mica on Windows, vibrancy on macOS)
-        ...(coreUtils.isWindows() && { backgroundMaterial: "mica" as const }),
+        // Background effects (Mica on Windows 11 22H2+, vibrancy on macOS)
+        ...(coreUtils.isWindows() && supportsBackgroundMaterial && { backgroundMaterial: "mica" as const }),
         ...(coreUtils.isMac() && { transparent: true, visualEffectState: "active" as const, vibrancy: "under-window" as const, titleBarStyle: "hiddenInset" as const }),
         webPreferences: {
             nodeIntegration: false,
@@ -368,6 +401,9 @@ async function createSetupWindow() {
         }
     });
     setupWindow.removeMenu();
+    // The wizard is served by the application's own page, whose `<title>` Electron would otherwise
+    // apply to the window the moment it loads, replacing the one set above with the plain app name.
+    setupWindow.on("page-title-updated", (e) => e.preventDefault());
     setupWindow.loadURL(TRILIUM_APP_BASE_URL);
     setupWindow.on("closed", () => (setupWindow = null));
 }
@@ -458,16 +494,12 @@ export function setupWindowing() {
     // to every WebContents the app creates. Installed here rather than left to
     // each entry point so a new Electron launcher cannot silently ship without
     // the renderer/main security boundary.
-    setupWebContentsSecurity();
+    setupWebContentsSecurity({ extraWindowOptions: getExtraWindowOptions });
 
     // Mark a genuine quit so the close-to-tray interceptor lets windows close for
     // real. Fires for every quit path (Cmd+Q, tray "Quit", app menu, OS shutdown).
     electron.app.on("before-quit", () => {
         isQuitting = true;
-    });
-
-    electron.ipcMain.on("create-extra-window", (_event, arg) => {
-        createExtraWindow(arg.extraWindowHash);
     });
 
     electron.ipcMain.on("reload-all-windows", () => {
@@ -481,14 +513,17 @@ export function setupWindowing() {
         electron.app.exit();
     });
 
-    electron.ipcMain.on("copy-image-to-clipboard", (_event, buffer: Uint8Array) => {
+    electron.ipcMain.on("copy-image-to-clipboard", async (_event, buffer: Uint8Array) => {
         try {
             const image = electron.nativeImage.createFromBuffer(Buffer.from(buffer));
             if (image.isEmpty()) {
                 getLog().error("copy-image-to-clipboard: nativeImage is empty, unsupported format?");
                 return;
             }
-            electron.clipboard.writeImage(image);
+            // `clipboard.write()` takes MIME-typed payloads, and PNG is the format every
+            // platform clipboard accepts, so the decoded image is re-encoded to PNG.
+            const png = new Uint8Array(image.toPNG());
+            await electron.clipboard.write([new electron.ClipboardItem({ "image/png": new Blob([png], { type: "image/png" }) })]);
         } catch (e) {
             getLog().error(`copy-image-to-clipboard failed: ${coreUtils.safeExtractMessageAndStackFromError(e)}`);
         }
@@ -526,7 +561,7 @@ export function setupWindowing() {
     });
 
     // Window management IPC handlers (replacing @electron/remote for renderer access)
-    electron.ipcMain.on("set-title-bar-overlay", (event, options: { color: string; symbolColor: string }) => {
+    electron.ipcMain.on("set-title-bar-overlay", (event, options: { color: string; symbolColor: string; height?: number }) => {
         electron.BrowserWindow.fromWebContents(event.sender)?.setTitleBarOverlay(options);
     });
 

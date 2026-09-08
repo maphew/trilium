@@ -1,3 +1,5 @@
+import type { HighlightedTokenInfo } from "@triliumnext/commons";
+
 import appContext from "../components/app_context.js";
 import FAttachment, { type FAttachmentRow } from "../entities/fattachment.js";
 import FAttribute, { type FAttributeRow } from "../entities/fattribute.js";
@@ -6,6 +8,7 @@ import FBranch, { type FBranchRow } from "../entities/fbranch.js";
 import FNote, { type FNoteRow } from "../entities/fnote.js";
 import type { Froca } from "./froca-interface.js";
 import server from "./server.js";
+import { isPreAuthScreen } from "./utils.js";
 
 interface SubtreeResponse {
     notes: FNoteRow[];
@@ -16,6 +19,9 @@ interface SubtreeResponse {
 interface SearchNoteResponse {
     searchResultNoteIds: string[];
     highlightedTokens: string[];
+    /** Additive; absent from older cached responses (e.g. during a rolling upgrade), so fall
+     *  back to {@link highlightedTokens}. */
+    highlightedTokenInfos?: HighlightedTokenInfo[];
     error: string | null;
 }
 
@@ -44,7 +50,9 @@ class FrocaImpl implements Froca {
     }
 
     async loadInitialTree() {
-        if (!glob.dbInitialized) return;
+        // Skip on the setup screen (!dbInitialized) and on the login / set-password pre-auth
+        // screens (isPreAuthScreen) — otherwise this fires an unauthenticated GET /api/tree (#10589).
+        if (!glob.dbInitialized || isPreAuthScreen()) return;
 
         const resp = await server.get<SubtreeResponse>("tree");
         // clear the cache only directly before adding new content which is important for e.g., switching to protected session
@@ -196,7 +204,8 @@ class FrocaImpl implements Froca {
             return;
         }
 
-        const { searchResultNoteIds, highlightedTokens, error } = await server.get<SearchNoteResponse>(`search-note/${note.noteId}`);
+        const { searchResultNoteIds, highlightedTokens, highlightedTokenInfos, error } =
+            await server.get<SearchNoteResponse>(`search-note/${note.noteId}`);
 
         if (!Array.isArray(searchResultNoteIds)) {
             throw new Error(`Search note '${note.noteId}' failed: ${searchResultNoteIds}`);
@@ -230,6 +239,8 @@ class FrocaImpl implements Froca {
 
         froca.notes[note.noteId].searchResultsLoaded = true;
         froca.notes[note.noteId].highlightedTokens = highlightedTokens;
+        froca.notes[note.noteId].highlightedTokenInfos = highlightedTokenInfos
+            ?? highlightedTokens.map((token) => ({ token, type: "plain" as const }));
 
         return { error };
     }

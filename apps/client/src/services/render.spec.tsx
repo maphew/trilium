@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import $ from "jquery";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Control the bundle execution machinery (avoids eval / ScriptContext).
 const executeMock = vi.fn();
@@ -20,6 +20,7 @@ import utils from "../services/utils.js";
 import { buildNote } from "../test/easy-froca";
 import froca from "./froca.js";
 import renderDefault, { render, renderIfJsx } from "./render.js";
+import { RENDER_SCOPE_CLASS } from "./render_css_scope.js";
 import server from "./server.js";
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -112,6 +113,29 @@ describe("render", () => {
         expect((containerArg as JQuery<HTMLElement>)[0]).toBe($container[0]);
     });
 
+    it("scopes the note's own stylesheet to its container so it cannot restyle the app", async () => {
+        server.postWithSilentInternalServerError = vi.fn(async () => ({
+            script: "",
+            html: "<style>body { max-width: 980px } @keyframes spin { from { opacity: 0 } }</style><p>hi</p>",
+            noteId: "scriptNote",
+            allNoteIds: []
+        })) as typeof server.postWithSilentInternalServerError;
+        const target = buildNote({ title: "Target" });
+        const note = buildNote({ title: "Host", "~renderNote": target.noteId });
+        const $el = $("<div>");
+
+        await render(note, $el);
+
+        const $container = $el.children();
+        expect($container.hasClass(RENDER_SCOPE_CLASS)).toBe(true);
+        const css = $container.find("style").text();
+        expect(css).toContain(`@scope (.${RENDER_SCOPE_CLASS})`);
+        expect(css).toContain(":scope { max-width: 980px }");
+        expect(css).not.toMatch(/(^|\s)body\s*\{/);
+        // Named at-rules are document-global either way, so they stay outside the wrapper.
+        expect(css.indexOf("@keyframes")).toBeLessThan(css.indexOf("@scope"));
+    });
+
     it("loops over every renderNote relation: one container + bundle fetch + execution per target", async () => {
         const target1 = buildNote({ title: "Target A" });
         const target2 = buildNote({ title: "Target B" });
@@ -164,7 +188,7 @@ describe("render", () => {
         await render(note, $("<div>"), onError);
         await flush();
 
-        expect(onError).toHaveBeenCalledWith(boom);
+        expect(onError).toHaveBeenCalledWith(boom, target.noteId);
     });
 
     it("parses a JSON-shaped string error and passes the parsed object to onError", async () => {
@@ -177,7 +201,7 @@ describe("render", () => {
 
         await render(note, $("<div>"), onError);
 
-        expect(onError).toHaveBeenCalledWith({ message: "nope" });
+        expect(onError).toHaveBeenCalledWith({ message: "nope" }, target.noteId);
     });
 
     it("falls back to passing the raw error when a JSON-shaped string fails to parse", async () => {
@@ -207,7 +231,7 @@ describe("render", () => {
 
         await render(note, $("<div>"), onError);
 
-        expect(onError).toHaveBeenCalledWith(err);
+        expect(onError).toHaveBeenCalledWith(err, target.noteId);
     });
 
     it("triggers JSX rendering when the bundle html is empty", async () => {
@@ -331,7 +355,7 @@ describe("renderIfJsx", () => {
         // After catching an error: forwards to onError and renders null.
         const caught = new Error("inner");
         instance.componentDidCatch(caught);
-        expect(onError).toHaveBeenCalledWith(caught);
+        expect(onError).toHaveBeenCalledWith(caught, note.noteId);
         expect(instance.state.error).toBe(caught);
         expect(instance.render()).toBeNull();
     });

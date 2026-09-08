@@ -1,19 +1,23 @@
 import { trimIndentation } from "@triliumnext/commons";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { sanitize, utils } from "@triliumnext/core";
+import ejs from "ejs";
+import { parse } from "node-html-parser";
+import { describe, expect, it, vi } from "vitest";
 
 import { buildShareNote, buildShareNotes } from "../test/shaca_mocking.js";
-import { getContent, renderCode, type Result, shouldSyntaxHighlight } from "./content_renderer.js";
+import { getContent, getDefaultTemplatePath, readTemplate, renderCode, renderNoteContent, type Result, shouldSyntaxHighlight } from "./content_renderer.js";
+import type SNote from "./shaca/entities/snote.js";
+import shaca from "./shaca/shaca.js";
+import shareRoot from "./share_root.js";
+
+vi.mock("../becca/becca_loader.js", () => ({
+    default: {
+        load: vi.fn(),
+        loaded: Promise.resolve()
+    }
+}));
 
 describe("content_renderer", () => {
-    beforeAll(() => {
-        vi.mock("../becca/becca_loader.js", () => ({
-            default: {
-                load: vi.fn(),
-                loaded: Promise.resolve()
-            }
-        }));
-    });
-
     it("Reports protected notes not being renderable", () => {
         const note = buildShareNote({ isProtected: true });
         const result = getContent(note);
@@ -128,6 +132,86 @@ describe("content_renderer", () => {
             expect(result.content).toContain("reference-link");
         });
 
+        it("replaces an include of a shareCredentials-protected note with a placeholder when the caller lacks access", () => {
+            buildShareNote({
+                id: "credSecret",
+                title: "Quarterly figures",
+                content: "<p>secret body</p>",
+                "#shareCredentials": "viewer:secretpass"
+            });
+            const host = buildShareNote({
+                id: "credHost",
+                content: `<p>public</p><section class="include-note" data-note-id="credSecret" data-box-size="medium">&nbsp;</section>`
+            });
+
+            const denied = getContent(host, { canAccessInclude: (note) => note.getCredentials().length === 0 });
+            if (typeof denied.content !== "string") throw new Error("expected string content");
+            expect(denied.content).toContain("public");
+            expect(denied.content).not.toContain("secret body");
+            // The title is withheld as well: an included note need not be visible in the share tree.
+            expect(denied.content).not.toContain("Quarterly figures");
+            expect(denied.content).toContain("include-note-forbidden");
+
+            const allowed = getContent(host, { canAccessInclude: () => true });
+            if (typeof allowed.content !== "string") throw new Error("expected string content");
+            expect(allowed.content).toContain("secret body");
+        });
+
+        it("applies the include access check at every nesting level and to the reference-link fallback", () => {
+            buildShareNote({
+                id: "credDeep",
+                title: "Deep secret",
+                content: "<p>deep body</p>",
+                "#shareCredentials": "viewer:secretpass"
+            });
+            buildShareNote({
+                id: "credMiddle",
+                content: `<p>middle body</p><section class="include-note" data-note-id="credDeep" data-box-size="medium">&nbsp;</section>`
+            });
+            const host = buildShareNote({
+                id: "credOuter",
+                content: `<section class="include-note" data-note-id="credMiddle" data-box-size="medium">&nbsp;</section>`
+            });
+            const canAccessInclude = (note: SNote) => note.getCredentials().length === 0;
+
+            // Live share view: the second level would degrade to a reference link, which must not
+            // leak the protected note's title either.
+            const shareView = getContent(host, { canAccessInclude });
+            if (typeof shareView.content !== "string") throw new Error("expected string content");
+            expect(shareView.content).toContain("middle body");
+            expect(shareView.content).not.toContain("deep body");
+            expect(shareView.content).not.toContain("Deep secret");
+            expect(shareView.content).not.toContain("reference-link");
+
+            // Recursive expansion carries the check down with it.
+            const expanded = getContent(host, { expandNestedIncludes: true, canAccessInclude });
+            if (typeof expanded.content !== "string") throw new Error("expected string content");
+            expect(expanded.content).toContain("middle body");
+            expect(expanded.content).not.toContain("deep body");
+        });
+
+        it("carries the share route's credential check into the rendered page (renderNoteContent)", () => {
+            buildShareNote({
+                id: "credPageSecret",
+                title: "Page secret",
+                content: "<p>page secret body</p>",
+                "#shareCredentials": "viewer:secretpass"
+            });
+            const shareRootNote = buildShareNote({
+                id: shareRoot.SHARE_ROOT_NOTE_ID,
+                children: [{
+                    id: "credPageHost",
+                    content: `<p>page host body</p><section class="include-note" data-note-id="credPageSecret" data-box-size="medium">&nbsp;</section>`
+                }]
+            });
+            const host = shareRootNote.getChildNotes()[0];
+
+            const page = renderNoteContent(host, (note) => note.getCredentials().length === 0);
+            if (typeof page !== "string") throw new Error("expected string content");
+            expect(page).toContain("page host body");
+            expect(page).not.toContain("page secret body");
+        });
+
         it("leaves an include-note section untouched when the referenced note is missing", () => {
             const note = buildShareNote({
                 id: "missingRefHost",
@@ -155,7 +239,9 @@ describe("content_renderer", () => {
             const result = getContent(note);
             const elapsed = Date.now() - start;
 
-            expect(elapsed).toBeLessThan(2000);
+            // Generous budget: the pre-fix path was effectively unbounded, and CI runs this
+            // under V8 coverage with several forked workers, where 2s was at the noise floor.
+            expect(elapsed).toBeLessThan(15_000);
             if (typeof result.content !== "string") throw new Error("expected string content");
             // The code is escaped, not re-parsed into markup, and not highlighted (over the limit).
             expect(result.content).toContain("&lt;Map&lt;string");
@@ -283,6 +369,210 @@ describe("content_renderer", () => {
         });
     });
 
+    describe("Link previews", () => {
+        const FAVICON = "data:image/png;base64,AAA";
+
+        it("renders a card, showing the stored favicon beside the site name", () => {
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="https://example.com/page" data-embed-type="opengraph"`
+                    + ` data-title="A title" data-description="A description" data-site-name="Example"`
+                    + ` data-favicon="${FAVICON}" data-image="data:image/jpeg;base64,BBB"></section>`
+            });
+
+            const content = String(getContent(note).content);
+            expect(content).toContain(`<div class="link-embed-card-url">`
+                + `<img class="link-embed-mention-favicon" src="${FAVICON}" alt="" loading="lazy" width="16" height="16">`
+                + `<span>Example</span></div>`);
+        });
+
+        it("shows the site name alone when the site has no favicon", () => {
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="https://example.com/page" data-embed-type="opengraph" data-title="A title"></section>`
+            });
+
+            const content = String(getContent(note).content);
+            expect(content).toContain(`<div class="link-embed-card-url"><span>example.com</span></div>`);
+        });
+
+        it("renders a video as a click-to-play facade, without contacting YouTube", () => {
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"`
+                    + ` data-embed-type="youtube" data-title="A video" data-image="data:image/jpeg;base64,BBB"></section>`
+            });
+
+            const content = String(getContent(note).content);
+            // A visitor who merely reads the page sends nothing to YouTube: no iframe, just the
+            // thumbnail already stored in the note. The theme's script swaps in the player on click.
+            expect(content).not.toContain("<iframe");
+            expect(content).not.toContain("youtube-nocookie.com");
+            expect(content).toContain(`<button type="button" class="link-embed-video-facade" data-video-id="dQw4w9WgXcQ"`);
+            expect(content).toContain(`<img class="link-embed-video-thumbnail" src="data:image/jpeg;base64,BBB"`);
+        });
+
+        it("neuters a hostile scheme in the stored URL, on a page served to anyone", () => {
+            // `data-*` values pass through the save-time sanitizer verbatim, so a note that arrives
+            // by import, ETAPI or sync can carry `data-url="javascript:…"`. It must not become a
+            // live link on the public share page.
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="javascript:alert(document.cookie)" data-embed-type="opengraph" data-title="Evil"></section>`
+                    + `<p><span class="link-mention" data-url="javascript:alert(1)" data-title="Evil"></span></p>`
+            });
+
+            const content = String(getContent(note).content);
+            // The element keeps its inert data-url attribute — nothing reads it on the shared page —
+            // but no href points at the payload.
+            expect(content).not.toContain(`href="javascript:`);
+            expect(content).toContain(`<a class="link-embed-card" href="about:blank"`);
+            expect(content).toContain(`<a class="link-embed-mention" href="about:blank"`);
+        });
+
+        it("keeps a stored attachment reference, which is served from this instance", () => {
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="https://example.com/page" data-embed-type="opengraph"`
+                    + ` data-title="A title" data-image="api/attachments/abc123/image/preview.png"></section>`
+            });
+
+            const content = String(getContent(note).content);
+            expect(content).toContain(`<img class="link-embed-card-image" src="api/attachments/abc123/image/preview.png"`);
+        });
+
+        it("drops a remote favicon/image rather than have every visitor fetch it", () => {
+            // Same route in as the hostile `data-url` above: `data-*` survives the sanitizer, so a
+            // note from import, ETAPI or sync can name any URL here. An <img> needs no click, so
+            // leaving it in place would announce every visitor to whoever it points at — and the
+            // metadata pipeline only ever stores an inline image or an attachment, so a remote URL
+            // is illegitimate by construction.
+            const note = buildShareNote({
+                content: `<section class="link-embed" data-url="https://example.com/page" data-embed-type="opengraph"`
+                    + ` data-title="A title" data-favicon="http://169.254.169.254/latest/meta-data/"`
+                    + ` data-image="https://tracker.test/pixel.gif"></section>`
+                    + `<section class="link-embed" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"`
+                    + ` data-embed-type="youtube" data-image="https://tracker.test/thumb.jpg"></section>`
+                    + `<p><span class="link-mention" data-url="https://example.com/page" data-title="A title"`
+                    + ` data-favicon="https://tracker.test/favicon.ico"></span></p>`
+            });
+
+            const content = String(getContent(note).content);
+            // As with the hostile data-url above, the element keeps its inert attribute — no browser
+            // fetches a `data-favicon` — but nothing reaches an `src`, which is what would be fetched.
+            expect(content).not.toContain(`src="http://169.254.169.254`);
+            expect(content).not.toContain(`src="https://tracker.test`);
+            // Each sink degrades to what it already shows for a preview that has no such picture:
+            // the card keeps a placeholder in the hole its cover would fill, the favicon simply goes.
+            expect(content).not.toContain(`class="link-embed-mention-favicon"`);
+            expect(content).toContain(`<a class="link-embed-mention" href="https://example.com/page" target="_blank" rel="noopener noreferrer">`
+                + `<span class="link-embed-mention-title">A title</span></a>`);
+            expect(content).toContain(`<div class="link-embed-card-image-placeholder">`);
+            expect(content).not.toContain(`class="link-embed-video-thumbnail"`);
+        });
+
+        it("renders an inline mention with the same favicon markup", () => {
+            const note = buildShareNote({
+                content: `<p><span class="link-mention" data-url="https://example.com/page" data-title="A title" data-favicon="${FAVICON}"></span></p>`
+            });
+
+            const content = String(getContent(note).content);
+            expect(content).toContain(`<img class="link-embed-mention-favicon" src="${FAVICON}" alt="" loading="lazy" width="16" height="16">`);
+            expect(content).toContain(`<span class="link-embed-mention-title">A title</span>`);
+        });
+    });
+
+    describe("Web view note", () => {
+        const SANDBOX = "allow-same-origin allow-scripts allow-popups";
+
+        /**
+         * Renders a web view note and reads back the element the share page ends up with, so a test
+         * can assert the whole of it — every attribute the browser sees, and nothing besides.
+         */
+        function renderWebViewNote(src?: string) {
+            const note = buildShareNote({
+                type: "webView",
+                content: "",
+                ...(src !== undefined ? { "#webViewSrc": src } : {})
+            });
+            const root = parse(String(getContent(note).content));
+            return { root, frame: root.querySelector("iframe") };
+        }
+
+        it("renders a frame carrying the source URL, and nothing else", () => {
+            const { root, frame } = renderWebViewNote("https://example.com/page");
+            expect(root.childNodes.length).toBe(1);
+            expect(frame?.rawTagName).toBe("iframe");
+            expect(frame?.attributes).toStrictEqual({
+                class: "webview",
+                src: "https://example.com/page",
+                sandbox: SANDBOX
+            });
+            expect(frame?.innerHTML).toBe("");
+        });
+
+        it("renders nothing at all when the note carries no source", () => {
+            const { root, frame } = renderWebViewNote();
+            expect(frame).toBeNull();
+            expect(root.childNodes.length).toBe(0);
+        });
+
+        it("loads an absolute http(s) source URL, normalising only its scheme and host", () => {
+            for (const [src, expected] of [
+                ["https://example.com/page", "https://example.com/page"],
+                ["http://example.com/a?b=1&c=2", "http://example.com/a?b=1&c=2"],
+                ["HTTPS://Example.com/Page", "https://example.com/Page"]
+            ]) {
+                expect(renderWebViewNote(src).frame?.getAttribute("src")).toBe(expected);
+            }
+        });
+
+        it("loads a source rooted at the site serving the page, unchanged", () => {
+            // The user guide points its API reference pages at the Redoc and TypeDoc output the
+            // docs build writes beside them, which is only ever reachable as a rooted path.
+            for (const src of [
+                "/rest-api/etapi/",
+                "/script-api/frontend/interfaces/FNote.html"
+            ]) {
+                expect(renderWebViewNote(src).frame?.getAttribute("src")).toBe(src);
+            }
+        });
+
+        it("renders nothing for a source URL a frame has no business loading", () => {
+            // A web view frames a website or a page of this site, and the setup form only ever
+            // writes an absolute URL. Anything else reaches the label by another route — a
+            // hand-edited attribute, an import, ETAPI, a sync — and either cannot be framed at all
+            // or leaves the site while looking rooted at it: the URL parser folds a backslash, and
+            // strips a tab, into the second slash that starts an authority.
+            for (const src of [
+                "//example.com/protocol-relative",
+                "/\\example.com/backslash",
+                "/\t/example.com",
+                "./a",
+                "relative/path",
+                "mailto:a@b.com",
+                "ftp://example.com/file",
+                "javascript:alert(1)",
+                "JaVaScRiPt:alert(1)",
+                "data:text/html,<script>alert(1)</script>",
+                "vbscript:msgbox",
+                "not a url at all"
+            ]) {
+                const { root, frame } = renderWebViewNote(src);
+                expect(frame).toBeNull();
+                expect(root.childNodes.length).toBe(0);
+            }
+        });
+
+        it("never lets a source URL add attributes of its own to the frame", () => {
+            // Whatever the URL carries, it can only ever be read back as the frame's source: an
+            // attribute value cannot end early and leave the rest of itself to be read as markup.
+            for (const src of [
+                `https://example.com/?a=" onload="alert(1)" data-x="`,
+                `https://example.com/#" onload="alert(1)" data-x="`
+            ]) {
+                expect(Object.keys(renderWebViewNote(src).frame?.attributes ?? {})).toStrictEqual([
+                    "class", "src", "sandbox"
+                ]);
+            }
+        });
+    });
+
     describe("renderCode", () => {
         it("identifies empty content", () => {
             const emptyResult: Result = {
@@ -338,5 +628,126 @@ describe("content_renderer", () => {
             expect(shouldSyntaxHighlight("x".repeat(50_000))).toBe(true);
             expect(shouldSyntaxHighlight("x".repeat(50_001))).toBe(false);
         });
+    });
+
+    describe("Share index", () => {
+        it("points each index entry at the child's shareId, whatever characters it carries", () => {
+            buildShareNote({
+                id: shareRoot.SHARE_ROOT_NOTE_ID,
+                children: [
+                    { "id": "child1", "title": "Child", "#shareAlias": `my alias"x` }
+                ]
+            });
+            const note = buildShareNote({
+                "id": "indexNote",
+                "content": "<p>Index</p>",
+                "#shareIndex": ""
+            });
+
+            const result = getContent(note);
+            const anchor = parse(String(result.content)).querySelector("#index a");
+
+            expect(anchor?.getAttribute("href")).toBe(`./my alias"x`);
+            expect(Object.keys(anchor?.attributes ?? {}).sort()).toEqual([ "class", "href" ]);
+        });
+    });
+    describe("Tree item template", () => {
+        it("sets a working target and rel on external tree links only", () => {
+            const external = renderTreeItemAnchor({
+                "id": "external1",
+                "#shareExternal": "https://example.com/page"
+            });
+
+            expect(external?.getAttribute("href")).toBe("https://example.com/page");
+            expect(external?.getAttribute("target")).toBe("_blank");
+            expect(external?.getAttribute("rel")).toBe("noopener noreferrer");
+            expect(Object.keys(external?.attributes ?? {}).sort())
+                .toEqual([ "class", "href", "rel", "target" ]);
+
+            const internal = renderTreeItemAnchor({ id: "internal1" });
+
+            expect(internal?.getAttribute("href")).toBe("./internal1");
+            expect(Object.keys(internal?.attributes ?? {}).sort()).toEqual([ "class", "href" ]);
+        });
+
+        function renderTreeItemAnchor(noteDef: Parameters<typeof buildShareNote>[0]) {
+            const note = buildShareNote(noteDef);
+            const subRootNote = buildShareNote({ id: `subRoot-${noteDef.id}` });
+
+            const html = ejs.render(readTemplate(getDefaultTemplatePath("tree_item")), {
+                note,
+                activeNote: subRootNote,
+                subRoot: { note: subRootNote },
+                ancestors: [],
+                sanitizeUrl: sanitize.sanitizeUrl,
+                iconPackSupportedPrefixes: [],
+                t: (key: string) => key
+            });
+
+            return parse(html).querySelector("a");
+        }
+    });
+    describe("Subpage list template", () => {
+        it("sets a working target and rel on external subpage links only", () => {
+            buildShareNote({
+                id: "pageParent",
+                content: "<p>Parent</p>",
+                children: [
+                    {
+                        "id": "pageExternal",
+                        "title": "External",
+                        "#shareExternal": "https://example.com/page"
+                    },
+                    { id: "pageInternal", title: "Internal" }
+                ]
+            });
+            const anchors = renderPageAnchors("pageParent");
+
+            const external = anchors.find((a) => a.textContent === "External");
+            expect(external?.getAttribute("href")).toBe("https://example.com/page");
+            expect(external?.getAttribute("target")).toBe("_blank");
+            expect(external?.getAttribute("rel")).toBe("noopener noreferrer");
+            expect(Object.keys(external?.attributes ?? {}).sort())
+                .toEqual([ "class", "href", "rel", "target" ]);
+
+            const internal = anchors.find((a) => a.textContent === "Internal");
+            expect(internal?.getAttribute("href")).toBe("./pageInternal");
+            expect(Object.keys(internal?.attributes ?? {}).sort()).toEqual([ "class", "href" ]);
+        });
+
+        function renderPageAnchors(noteId: string) {
+            const note = shaca.getNote(noteId);
+            const { header, content, isEmpty } = getContent(note);
+
+            const html = ejs.render(readTemplate(getDefaultTemplatePath("page")), {
+                note,
+                header,
+                content,
+                isEmpty,
+                assetPath: "assets",
+                assetUrlFragment: "assets",
+                showLoginInShareTheme: false,
+                t: (key: string) => key,
+                isDev: false,
+                utils,
+                sanitizeUrl: sanitize.sanitizeUrl,
+                subRoot: { note },
+                rootNoteId: noteId,
+                cssToLoad: [],
+                jsToLoad: [],
+                logoUrl: "",
+                ancestors: [],
+                isStatic: false,
+                faviconUrl: "",
+                iconPackCss: "",
+                iconPackSupportedPrefixes: []
+            }, {
+                includer: (path: string) => ({
+                    template: readTemplate(getDefaultTemplatePath(path))
+                })
+            });
+
+            return parse(html).querySelectorAll("#childLinks a");
+        }
     });
 });

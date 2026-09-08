@@ -414,6 +414,58 @@ function getDefaultKeyboardActions() {
         },
 
         {
+            separator: t("keyboard_actions.split-view")
+        },
+        {
+            actionName: "openNewNoteSplit",
+            friendlyName: t("keyboard_action_names.create-new-split"),
+            iconClass: "bx bx-dock-right",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.create-new-split"),
+            scope: "window"
+        },
+        {
+            actionName: "closeActiveNoteSplit",
+            friendlyName: t("keyboard_action_names.close-active-split"),
+            iconClass: "bx bx-x",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.close-active-split"),
+            scope: "window"
+        },
+        {
+            actionName: "moveActiveNoteSplitLeft",
+            friendlyName: t("keyboard_action_names.move-split-left"),
+            iconClass: "bx bx-chevron-left",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.move-split-left"),
+            scope: "window"
+        },
+        {
+            actionName: "moveActiveNoteSplitRight",
+            friendlyName: t("keyboard_action_names.move-split-right"),
+            iconClass: "bx bx-chevron-right",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.move-split-right"),
+            scope: "window"
+        },
+        {
+            actionName: "focusNoteSplitLeft",
+            friendlyName: t("keyboard_action_names.focus-split-left"),
+            iconClass: "bx bx-left-arrow-alt",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.focus-split-left"),
+            scope: "window"
+        },
+        {
+            actionName: "focusNoteSplitRight",
+            friendlyName: t("keyboard_action_names.focus-split-right"),
+            iconClass: "bx bx-right-arrow-alt",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.focus-split-right"),
+            scope: "window"
+        },
+
+        {
             separator: t("keyboard_actions.dialogs")
         },
         {
@@ -473,6 +525,14 @@ function getDefaultKeyboardActions() {
             scope: "window"
         },
         {
+            friendlyName: t("keyboard_action_names.show-space-usage"),
+            actionName: "showSpaceUsage",
+            iconClass: "bx bx-pie-chart-alt-2",
+            defaultShortcuts: [],
+            description: t("keyboard_actions.show-space-usage"),
+            scope: "window"
+        },
+        {
             friendlyName: t("keyboard_action_names.show-help"),
             actionName: "showHelp",
             iconClass: "bx bx-help-circle",
@@ -486,6 +546,14 @@ function getDefaultKeyboardActions() {
             iconClass: "bx bxs-keyboard",
             defaultShortcuts: ["Shift+F1"],
             description: t("keyboard_actions.show-cheatsheet"),
+            scope: "window"
+        },
+        {
+            friendlyName: t("keyboard_action_names.show-shortcut-hints"),
+            actionName: "showShortcutHints",
+            iconClass: "bx bx-help-circle",
+            defaultShortcuts: ["Alt+F1"],
+            description: t("keyboard_actions.show-shortcut-hints"),
             scope: "window"
         },
 

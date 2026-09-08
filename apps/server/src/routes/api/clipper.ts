@@ -1,4 +1,4 @@
-import { app_info as appInfo, attribute_formatter as attributeFormatter, attributes as attributeService, type BNote, cloning as cloneService, date_notes as dateNoteService, date_utils as dateUtils, note_service as noteService, sanitize, ValidationError, ws } from "@triliumnext/core";
+import { app_info as appInfo, attribute_formatter as attributeFormatter, attributes as attributeService, becca, type BNote, cloning as cloneService, date_notes as dateNoteService, date_utils as dateUtils, note_service as noteService, sanitize, ValidationError, ws } from "@triliumnext/core";
 import type { Request } from "express";
 import { parse } from "node-html-parser";
 import path from "path";
@@ -38,7 +38,7 @@ async function addClipping(req: Request) {
         clippingNote.setLabel("iconClass", "bx bx-globe");
     }
 
-    const rewrittenContent = processContent(images, clippingNote, content);
+    const rewrittenContent = await processContent(images, clippingNote, content);
 
     const existingContent = clippingNote.getContent();
     if (typeof existingContent !== "string") {
@@ -77,13 +77,18 @@ function findClippingNote(clipperInboxNote: BNote, pageUrl: string, clipType: st
 }
 
 async function getClipperInboxNote() {
-    let clipperInbox = attributeService.getNoteWithLabel("clipperInbox");
-
-    if (!clipperInbox) {
-        clipperInbox = await dateNoteService.getDayNote(dateUtils.localNowDate());
+    const clipperInbox = attributeService.getNoteWithLabel("clipperInbox");
+    if (clipperInbox) {
+        return clipperInbox;
     }
 
-    return clipperInbox;
+    // Clipping a page is not a request for a journal, so a database without one keeps the
+    // clipping at the top level rather than having a calendar built around it (#11034).
+    if (!dateNoteService.hasCalendarRoot()) {
+        return becca.getNoteOrThrow("root");
+    }
+
+    return await dateNoteService.getDayNote(dateUtils.localNowDate());
 }
 
 async function createNote(req: Request) {
@@ -125,7 +130,7 @@ async function createNote(req: Request) {
     if (typeof existingContent !== "string") {
         throw new ValidationError("Invalid note content type.");
     }
-    const rewrittenContent = processContent(images, note, content);
+    const rewrittenContent = await processContent(images, note, content);
     const newContent = `${existingContent}${existingContent.trim() ? "<br/>" : ""}${rewrittenContent}`;
     note.setContent(newContent);
 
@@ -136,7 +141,7 @@ async function createNote(req: Request) {
     };
 }
 
-export function processContent(images: Image[], note: BNote, content: string) {
+export async function processContent(images: Image[], note: BNote, content: string) {
     let rewrittenContent = sanitize.sanitizeHtml(content);
 
     if (images) {
@@ -153,6 +158,11 @@ export function processContent(images: Image[], note: BNote, content: string) {
             const buffer = Buffer.from(dataUrl.split(",")[1], "base64");
 
             const attachment = imageService.saveImageToAttachment(note.noteId, buffer, filename, true);
+
+            // The URL below goes into the note as an image source, and the note is opened as soon
+            // as this answers. Waiting for the bytes is what stops the clipping from being read
+            // with a hole where its picture should be.
+            await imageService.awaitImageWrite(attachment.attachmentId);
 
             const encodedTitle = encodeURIComponent(attachment.title);
             const url = `api/attachments/${attachment.attachmentId}/image/${encodedTitle}`;

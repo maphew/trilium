@@ -1,6 +1,6 @@
 import "./content_renderer.css";
 
-import { normalizeMimeTypeForCKEditor, type TextRepresentationResponse } from "@triliumnext/commons";
+import { isImageAttachmentRole, isOfficeMimeType, normalizeMimeTypeForCKEditor, type TextRepresentationResponse } from "@triliumnext/commons";
 import DOMPurify from "dompurify";
 import { h, type JSX, render } from "preact";
 
@@ -13,6 +13,7 @@ import type { LlmChatContent, StoredMessage } from "../widgets/type_widgets/llm_
 import renderText, { postProcessRichContent, renderChildrenList } from "./content_renderer_text.js";
 import renderDoc from "./doc_renderer.js";
 import { loadElkIfNeeded, postprocessMermaidSvg } from "./mermaid.js";
+import { renderOfficeToHtml } from "./office_renderer.js";
 import openService from "./open.js";
 import { waitForPendingRenders } from "./pending_renders.js";
 import protectedSessionService from "./protected_session.js";
@@ -58,9 +59,12 @@ export interface RenderOptions {
     /**
      * How audio/video renders. `preview` (the default) shows a click-to-load placeholder, so that a screen
      * full of media notes doesn't have every one of them streaming from the server at once; `embedded`
-     * mounts the full player straight away. `native` emits a plain `<audio>`/`<video>` element instead of
+     * mounts the compact player straight away. `native` emits a plain `<audio>`/`<video>` element instead of
      * the player, for the callers that serialize the rendered content into an HTML string or into a separate
      * document (presentation, printing) — a mounted player would be dead markup there.
+     *
+     * A full-size player has no entry here: it needs the tab it lives in (for sibling navigation and the OS
+     * media session), which the renderer has no access to, so its hosts mount {@link MediaPreview} themselves.
      */
     mediaEnvironment?: "preview" | "embedded" | "native";
     /**
@@ -103,6 +107,8 @@ export async function getRenderedContent(this: {} | { ctx: string }, entity: FNo
         await renderIconPack(entity, $renderedContent, options);
     } else if (["image", "canvas", "mindMap", "spreadsheet"].includes(type)) {
         await renderImage(entity, $renderedContent, options);
+    } else if (!options.tooltip && type === "office") {
+        await renderOffice(entity, $renderedContent, options);
     } else if (!options.tooltip && ["file", "pdf", "audio", "video"].includes(type)) {
         await renderFile(entity, type, $renderedContent, options);
     } else if (type === "mermaid") {
@@ -110,9 +116,8 @@ export async function getRenderedContent(this: {} | { ctx: string }, entity: FNo
     } else if (type === "render" && entity instanceof FNote) {
         const $content = $("<div>");
 
-        await renderService.render(entity, $content, (e) => {
-            const $error = $("<div>").addClass("admonition caution").text(typeof e === "string" ? e : getErrorMessage(e));
-            $content.empty().append($error);
+        await renderService.render(entity, $content, (e, noteId) => {
+            showRenderError($content, e, noteId).catch((cardError) => console.error("Failed to render the script error card:", cardError));
         });
 
         $renderedContent.append($content);
@@ -296,17 +301,7 @@ async function addOCRTextIfAvailable(note: FNote, $content: JQuery<HTMLElement>)
 }
 
 async function renderFile(entity: FNote | FAttachment, type: string, $renderedContent: JQuery<HTMLElement>, options: RenderOptions = {}) {
-    let entityType, entityId;
-
-    if (entity instanceof FNote) {
-        entityType = "notes";
-        entityId = entity.noteId;
-    } else if (entity instanceof FAttachment) {
-        entityType = "attachments";
-        entityId = entity.attachmentId;
-    } else {
-        throw new Error(`Can't recognize entity type of '${entity}'`);
-    }
+    const { entityType, entityId } = getEntityTypeAndId(entity);
 
     const $content = $('<div style="display: flex; flex-direction: column; height: 100%; justify-content: end;">');
     // An embedded player has no room for a footer below it, so it carries Download / Open in its own controls
@@ -314,9 +309,9 @@ async function renderFile(entity: FNote | FAttachment, type: string, $renderedCo
     let mediaOwnsFileActions = false;
 
     if (type === "pdf") {
-        const url = `../../api/${entityType}/${entityId}/open`;
         const $viewer = $(`<div style="height: 100%">`);
-        const PdfViewer = (await import("../widgets/type_widgets/file/PdfViewer")).default;
+        const { default: PdfViewer, getPdfUrl } = await import("../widgets/type_widgets/file/PdfViewer");
+        const url = getPdfUrl(`${entityType}/${entityId}/open`);
         render(h(PdfViewer, {pdfUrl: url, editable: false, toolbar: options.pdfToolbar ?? false}), $viewer.get(0)!);
 
         $content.append($viewer);
@@ -342,43 +337,103 @@ async function renderFile(entity: FNote | FAttachment, type: string, $renderedCo
         await addOCRTextIfAvailable(entity, $content);
     }
 
-    if (entityType === "notes" && "noteId" in entity && !mediaOwnsFileActions) {
-        // TODO: we should make this available also for attachments, but there's a problem with "Open externally" support
-        //       in attachment list
-        const $downloadButton = $(`
-            <button class="file-download btn btn-primary" type="button">
-                <span class="tn-icon bx bx-download"></span>
-                ${t("file_properties.download")}
-            </button>
-        `);
-
-        const $openButton = $(`
-            <button class="file-open btn btn-primary" type="button">
-                <span class="tn-icon bx bx-link-external"></span>
-                ${t("file_properties.open")}
-            </button>
-        `);
-
-        $downloadButton.on("click", (e) => {
-            e.stopPropagation();
-            openService.downloadFileNote(entity, null, null);
-        });
-        $openButton.on("click", async (e) => {
-            const iconEl = $openButton.find("> .bx");
-            iconEl.removeClass("bx bx-link-external");
-            iconEl.addClass("bx bx-loader spin");
-            e.stopPropagation();
-            await openService.openNoteExternally(entity.noteId, entity.mime);
-            iconEl.removeClass("bx bx-loader spin");
-            iconEl.addClass("bx bx-link-external");
-        });
-        // open doesn't work for protected notes since it works through a browser which isn't in protected session
-        $openButton.toggle(!entity.isProtected);
-
-        $content.append($('<footer class="file-footer">').append($downloadButton).append($openButton));
+    if (!mediaOwnsFileActions) {
+        appendNoteFileActions($content, entity);
     }
 
     $renderedContent.append($content);
+}
+
+/**
+ * Renders an inline preview of an office document (DOCX/XLSX/PPTX, ODT/ODS/ODP, RTF and
+ * EPUB) by fetching the server-rendered HTML preview and sanitizing it. On failure it
+ * falls back to a notice plus the usual download/open actions, so the file is never left
+ * unreachable. `options.trim` asks for the corner of a workbook rather than all of it.
+ */
+async function renderOffice(entity: FNote | FAttachment, $renderedContent: JQuery<HTMLElement>, options: RenderOptions) {
+    const { entityType, entityId } = getEntityTypeAndId(entity);
+
+    // The scroll host is a separate, unpadded element (like the note view's .scrolling-container)
+    // so the body's padding scrolls with the document instead of sitting on the scroller itself.
+    const $content = $('<div class="office-preview">');
+    const $scroll = $('<div class="office-preview-scroll">');
+    const $body = $('<div class="ck-content office-preview-body">');
+    $body.append($('<div class="office-preview-loading">').append($('<span class="bx bx-loader bx-spin">')).append(document.createTextNode(t("content_renderer.office_rendering"))));
+    $scroll.append($body);
+    $content.append($scroll);
+    $renderedContent.append($content);
+
+    try {
+        // A note list asks for a trimmed render: a card shows a few rows, and a workbook that
+        // fills one runs to megabytes the browser would parse and lay out to display none of.
+        const { css, html } = await renderOfficeToHtml(entityType, entityId, { trim: options.trim });
+        $body.html(html);
+        if (css) {
+            // Built as an element with its text set, never parsed as markup, so a cell's styling
+            // cannot escape the rule it belongs to. It sits inside the preview body, so the
+            // browser drops it along with the rest when this note is closed.
+            $body.prepend($("<style>").text(css));
+        }
+    } catch (e) {
+        console.warn("Failed to render office document preview:", getErrorMessage(e));
+        $scroll.remove();
+        $content.prepend($("<div>").addClass("admonition caution").text(t("content_renderer.office_render_error")));
+    }
+
+    appendNoteFileActions($content, entity);
+}
+
+/**
+ * Appends the download / open-externally action buttons for a file note. These are
+ * note-only for now — attachment "open externally" support isn't wired up (see the TODO
+ * that used to live inline in renderFile).
+ */
+function appendNoteFileActions($content: JQuery<HTMLElement>, entity: FNote | FAttachment) {
+    if (!(entity instanceof FNote)) {
+        return;
+    }
+
+    const $downloadButton = $(`
+        <button class="file-download btn btn-primary" type="button">
+            <span class="tn-icon bx bx-download"></span>
+            ${t("file_properties.download")}
+        </button>
+    `);
+
+    const $openButton = $(`
+        <button class="file-open btn btn-primary" type="button">
+            <span class="tn-icon bx bx-link-external"></span>
+            ${t("file_properties.open")}
+        </button>
+    `);
+
+    $downloadButton.on("click", (e) => {
+        e.stopPropagation();
+        openService.downloadFileNote(entity, null, null);
+    });
+    $openButton.on("click", async (e) => {
+        const iconEl = $openButton.find("> .bx");
+        iconEl.removeClass("bx bx-link-external");
+        iconEl.addClass("bx bx-loader spin");
+        e.stopPropagation();
+        await openService.openNoteExternally(entity.noteId, entity.mime);
+        iconEl.removeClass("bx bx-loader spin");
+        iconEl.addClass("bx bx-link-external");
+    });
+    // open doesn't work for protected notes since it works through a browser which isn't in protected session
+    $openButton.toggle(!entity.isProtected);
+
+    $content.append($('<footer class="file-footer">').append($downloadButton).append($openButton));
+}
+
+function getEntityTypeAndId(entity: FNote | FAttachment): { entityType: "notes" | "attachments"; entityId: string } {
+    if (entity instanceof FNote) {
+        return { entityType: "notes", entityId: entity.noteId };
+    } else if (entity instanceof FAttachment) {
+        return { entityType: "attachments", entityId: entity.attachmentId };
+    } else {
+        throw new Error(`Can't recognize entity type of '${entity}'`);
+    }
 }
 
 /**
@@ -578,12 +633,26 @@ async function renderCollection(note: FNote, $renderedContent: JQuery<HTMLElemen
             notePath: note.getBestNotePathString(),
             ntxId: undefined,
             media: "screen",
-            highlightedTokens: note.highlightedTokens,
+            highlightedTokens: note.highlightedTokenInfos ?? note.highlightedTokens,
             // Search results get text-representation (highlighted snippets); books don't.
             showTextRepresentation: note.type === "search"
         }), container);
     }
     $renderedContent.append($container);
+}
+
+/**
+ * Replaces the failed render note's content with the shared error card. The card is imported
+ * lazily: this module is loaded early (via the app-context graph), and an eager import of
+ * `RenderErrorCard` drags in the react widget tree (`Admonition` → `Collapsible` → `hooks`),
+ * which circles back into `basic_widget` before it finishes initializing.
+ */
+async function showRenderError($content: JQuery<HTMLElement>, error: unknown, noteId?: string) {
+    const { default: RenderErrorCard } = await import("../widgets/react/RenderErrorCard.js");
+    const container = $content.empty().get(0);
+    if (container) {
+        render(h(RenderErrorCard, { error, noteId }), container);
+    }
 }
 
 function getRenderingType(entity: FNote | FAttachment) {
@@ -596,6 +665,11 @@ function getRenderingType(entity: FNote | FAttachment) {
         // for reference; render them exactly like a "file" role.
         if (type === "importSource") {
             type = "file";
+        } else if (isImageAttachmentRole(type)) {
+            // A link preview's "favicon" is a picture like any other as far as showing it goes; the
+            // role only says where it came from. Without this it would fall through to the unknown
+            // type and list as a file with no preview.
+            type = "image";
         }
     }
 
@@ -615,6 +689,8 @@ function getRenderingType(entity: FNote | FAttachment) {
         type = "audio";
     } else if (type === "file" && mime && mime.startsWith("video/")) {
         type = "video";
+    } else if (type === "file" && mime && isOfficeMimeType(mime)) {
+        type = "office";
     }
 
     if (entity.isProtected) {

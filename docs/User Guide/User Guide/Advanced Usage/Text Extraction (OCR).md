@@ -36,7 +36,7 @@ The PDF extraction supports:
 Note that OCR extraction is limited to 50 pages per PDF, pages containing text information (not as an image) are not subject to this limitation.
 
 > [!NOTE]
-> Text extraction for scanned PDFs using OCR was introduced in v0.104.0. If a scanned PDF was already processed by an earlier version, reprocess it individually via _Process OCR_; batch processing only handles files that haven't been OCR'd yet.
+> Text extraction for scanned PDFs using OCR was introduced in v0.106.0. If a scanned PDF was already processed by an earlier version, reprocess it individually via _Process OCR_; batch processing only handles files that haven't been OCR'd yet.
 
 ### Office documents
 
@@ -48,7 +48,8 @@ The text will be extracted from the following file formats:
     *   Values are extracted raw, so searching for dates will not work. The OpenDocument alternative will actually extract the properly formatted value.
 *   Microsoft PowerPoint documents
 *   The OpenDocument alternatives to the previous formats (Text, Spreadsheet, Presentation), created by editors such as LibreOffice and OpenOffice.
-*   Rich Text Format (RTF), since v0.104.0.
+*   [Rich Text Format (RTF)](https://en.wikipedia.org/wiki/Rich_Text_Format), since v0.104.0.
+*   [EPUB](https://en.wikipedia.org/wiki/EPUB), since v0.104.1.
 
 ## Configuring and triggering OCR
 

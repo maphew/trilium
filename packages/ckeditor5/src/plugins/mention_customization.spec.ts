@@ -3,13 +3,14 @@ import {
     _setModelData as setModelData,
     ClassicEditor,
     Essentials,
-    Mention,
+    MentionEditing,
     Paragraph
 } from "ckeditor5";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTestEditor } from "../../test/editor-kit.js";
 import { installGlobMock } from "../../test/globals-test-kit.js";
+import TriliumMentionUI from "./mention/trilium_mention_ui.js";
 import MentionCustomization from "./mention_customization.js";
 import ReferenceLink from "./referencelink.js";
 
@@ -31,16 +32,18 @@ describe("MentionCustomization", () => {
         editor = await createTestEditor([
             Essentials,
             Paragraph,
-            Mention,
+            MentionEditing,
+            TriliumMentionUI,
             ReferenceLink,
             MentionCustomization
         ]);
     });
 
-    it("loads the plugin, requires Mention and overrides the mention command", () => {
+    it("loads the plugin, requires the mention editing/UI pair and overrides the mention command", () => {
         expect(editor.plugins.get(MentionCustomization)).toBeInstanceOf(MentionCustomization);
         expect(MentionCustomization.pluginName).toBe("MentionCustomization");
-        expect(MentionCustomization.requires).toContain(Mention);
+        expect(MentionCustomization.requires).toContain(MentionEditing);
+        expect(MentionCustomization.requires).toContain(TriliumMentionUI);
         expect(editor.commands.get("mention")).toBeDefined();
     });
 
@@ -77,15 +80,18 @@ describe("MentionCustomization", () => {
         expect(getModelData(editor.model)).toContain("noteAbc");
     });
 
-    it("creates a note then inserts the reference link for a create-note mention", async () => {
+    it.each([
+        { action: "create-note", intoInbox: true },
+        { action: "create-child-note", intoInbox: false }
+    ])("creates a note then inserts the reference link for a $action mention", async ({ action, intoInbox }) => {
         setModelData(editor.model, "<paragraph>foo[]bar</paragraph>");
 
         editor.execute("mention", {
-            mention: { id: "@Brand new note", action: "create-note", noteTitle: "Brand new note" },
+            mention: { id: "@Brand new note", action, noteTitle: "Brand new note" },
             marker: "@"
         });
 
-        expect(createNoteForReferenceLink).toHaveBeenCalledWith("Brand new note");
+        expect(createNoteForReferenceLink).toHaveBeenCalledWith("Brand new note", intoInbox);
 
         // Wait for the createNoteForReferenceLink promise (and the chained
         // getReferenceLinkTitle promise from the referenceLink command) to resolve.

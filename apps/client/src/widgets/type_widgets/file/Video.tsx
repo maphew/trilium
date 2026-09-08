@@ -4,15 +4,18 @@ import { RefObject } from "preact";
 import { MutableRef, useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import { t } from "../../../services/i18n";
+import { isMobile } from "../../../services/utils";
 import ActionButton from "../../react/ActionButton";
+import { useFullscreen } from "../../react/hooks";
 import NoItems from "../../react/NoItems";
+import ShortcutHintButton from "../../shortcut_hints/shortcut_hint_button";
 import MediaFileActions from "./MediaFileActions";
 import { playerRootClasses, preloadFor, showsFileActions, showsViewportControls, usesCompactControls } from "./media_environment";
-import { MediaPlayerProps, MediaSiblingButton, PlaybackSpeed, PlayModeButton, PlayPauseButton, SeekBar, SkipButton, useMediaPlayMode, useMediaSessionController, VolumeControl } from "./MediaPlayer";
+import { claimsKeystroke, MediaPlayerProps, MediaSiblingButton, PlaybackSpeed, PlayModeButton, PlayPauseButton, SeekBar, SkipButton, useMediaPlayerShortcutHints, useMediaPlayMode, useMediaSessionController, VolumeControl } from "./MediaPlayer";
 
 const AUTO_HIDE_DELAY = 3000;
 
-export default function VideoPreview({ source, entity, environment, noteContext, isVisible = true, autoPlay }: MediaPlayerProps) {
+export default function VideoPreview({ source, entity, environment, noteContext, ownerNote, viewScope, isVisible = true, autoPlay }: MediaPlayerProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [playing, setPlaying] = useState(false);
@@ -63,8 +66,9 @@ export default function VideoPreview({ source, entity, environment, noteContext,
     }, [togglePlayback, toggleControls]);
 
     const onKeyDown = useKeyboardShortcuts(videoRef, wrapperRef, togglePlayback, flashControls);
-    const { mode: playMode, setMode: setPlayMode } = useMediaPlayMode(noteContext, videoRef);
-    const siblingNavigation = useMediaSessionController({ source, entity, environment, noteContext, isVisible, autoPlay, mimePrefix: "video/", mediaRef: videoRef, playMode });
+    const { mode: playMode, setMode: setPlayMode } = useMediaPlayMode(noteContext, videoRef, ownerNote?.noteId);
+    const siblingNavigation = useMediaSessionController({ source, entity, environment, noteContext, ownerNote, viewScope, isVisible, autoPlay, mimePrefix: "video/", mediaRef: videoRef, playMode });
+    useMediaPlayerShortcutHints({ fullscreen: true });
     const compact = usesCompactControls(environment);
 
     if (error) {
@@ -106,7 +110,7 @@ export default function VideoPreview({ source, entity, environment, noteContext,
                         <div class="media-buttons-row">
                             <div className="left">
                                 <PlaybackSpeed mediaRef={videoRef} />
-                                {/* The play mode lives on the parent folder, which only the note detail knows. */}
+                                {/* The play mode lives on the parent folder (or, for an attachment, its owner note), which only a detail view knows. */}
                                 {noteContext && <PlayModeButton mode={playMode} onSelectMode={setPlayMode} />}
                                 <RotateButton videoRef={videoRef} />
                             </div>
@@ -128,6 +132,8 @@ export default function VideoPreview({ source, entity, environment, noteContext,
                     </>
                 )}
             </div>
+
+            {!compact && !isMobile() && <ShortcutHintButton className="media-hint-button" />}
         </div>
     );
 }
@@ -135,7 +141,7 @@ export default function VideoPreview({ source, entity, environment, noteContext,
 function useKeyboardShortcuts(videoRef: MutableRef<HTMLVideoElement | null>, wrapperRef: MutableRef<HTMLDivElement | null>, togglePlayback: () => void, flashControls: () => void) {
     return useCallback((e: KeyboardEvent) => {
         const video = videoRef.current;
-        if (!video) return;
+        if (!video || !claimsKeystroke(e)) return;
 
         switch (e.key) {
             case " ":
@@ -331,30 +337,20 @@ function PictureInPictureButton({ videoRef }: { videoRef: RefObject<HTMLVideoEle
 }
 
 function FullscreenButton({ targetRef }: { targetRef: RefObject<HTMLElement> }) {
-    const [isFullscreen, setIsFullscreen] = useState(false);
-
+    // `useFullscreen` follows an element rather than a ref, a ref being filled after the render that
+    // asked for it and causing none of its own — so the wrapper is put into state once it is there.
+    const [ target, setTarget ] = useState<HTMLElement | null>(null);
     useEffect(() => {
-        const onFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-        document.addEventListener("fullscreenchange", onFullscreenChange);
-        return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-    }, []);
+        setTarget(targetRef.current);
+    }, [ targetRef ]);
 
-    const toggleFullscreen = () => {
-        const target = targetRef.current;
-        if (!target) return;
-
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        } else {
-            target.requestFullscreen();
-        }
-    };
+    const [ isFullscreen, toggleFullscreen ] = useFullscreen(target);
 
     return (
         <ActionButton
             icon={isFullscreen ? "bx bx-exit-fullscreen" : "bx bx-fullscreen"}
-            text={isFullscreen ? t("media.exit-fullscreen") : t("media.fullscreen")}
-            onClick={toggleFullscreen}
+            text={isFullscreen ? t("common.exit_fullscreen") : t("common.fullscreen")}
+            onClick={() => void toggleFullscreen()}
         />
     );
 }

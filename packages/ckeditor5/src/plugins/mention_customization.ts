@@ -1,4 +1,6 @@
-import { Command, Mention, Plugin, ModelRange, type ModelSelectable } from "ckeditor5";
+import { Command, MentionEditing, Plugin, ModelRange, type ModelSelectable } from "ckeditor5";
+
+import TriliumMentionUI from "./mention/trilium_mention_ui.js";
 
 /**
  * Overrides the actions taken by the Mentions plugin (triggered by `@` in the text editor, or `~` & `#` in the attribute editor):
@@ -10,7 +12,7 @@ import { Command, Mention, Plugin, ModelRange, type ModelSelectable } from "cked
 export default class MentionCustomization extends Plugin {
 
     static get requires() {
-		return [ Mention ];
+		return [ MentionEditing, TriliumMentionUI ];
 	}
 
     public static get pluginName() {
@@ -36,7 +38,7 @@ interface MentionOpts {
 
 interface MentionAttribute {
     id: string;
-    action?: "create-note";
+    action?: "create-note" | "create-child-note";
     noteTitle: string;
     notePath: string;
 }
@@ -56,12 +58,15 @@ class CustomMentionCommand extends Command {
 				model.insertContent( writer.createText( mention.id, {} ), range );
 			});
 		}
-		else if (mention.action === 'create-note') {
+		else if (mention.action === 'create-note' || mention.action === 'create-child-note') {
 			const editorEl = this.editor.editing.view.getDomRoot();
 			const component = glob.getComponentByEl<EditorComponent>(editorEl);
+			const intoInbox = mention.action === 'create-note';
 
-			component.createNoteForReferenceLink(mention.noteTitle).then(notePath => {
-				this.insertReference(range, notePath);
+			component.createNoteForReferenceLink(mention.noteTitle, intoInbox).then(notePath => {
+				if (notePath) {
+					this.insertReference(range, notePath);
+				}
 			});
 		}
 		else {

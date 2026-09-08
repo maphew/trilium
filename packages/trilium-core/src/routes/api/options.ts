@@ -1,6 +1,6 @@
 
 
-import type { OptionNames } from "@triliumnext/commons";
+import type { OptionNames, UserFont } from "@triliumnext/commons";
 import type { Request } from "express";
 
 import attributeService from "../../services/attributes.js";
@@ -29,6 +29,7 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     "revisionSnapshotTimeInterval",
     "revisionSnapshotTimeIntervalTimeScale",
     "revisionSnapshotNumberLimit",
+    "revisionIgnoreNamedSnapshots",
     "zoomFactor",
     "theme",
     "codeBlockTheme",
@@ -43,6 +44,7 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     "codeNoteThemeDark",
     "codeNoteTabWidth",
     "codeNoteIndentWithTabs",
+    "pdfSignatures",
     "syncServerHost",
     "syncServerTimeout",
     "syncServerTimeoutTimeScale",
@@ -56,18 +58,27 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     "detailFontFamily",
     "monospaceFontSize",
     "monospaceFontFamily",
+    "monospaceLigaturesEnabled",
     "openNoteContexts",
     "vimKeymapEnabled",
     "codeLineWrapEnabled",
     "codeNotesMimeTypes",
+    "contentManagerSortOrder",
+    "contentManagerViewMode",
     "spellCheckEnabled",
     "spellCheckLanguageCode",
     "imageMaxWidthHeight",
     "imageJpegQuality",
+    "imageResize",
+    "imageJpegHandling",
+    "imagePngHandling",
+    "imageConversionQuality",
     "leftPaneWidth",
     "leftPaneVisible",
     "rightPaneWidth",
     "rightPaneCollapsedItems",
+    "rightPaneSelectedTab",
+    "rightPaneNoteMapType",
     "rightPaneVisible",
     "nativeTitleBarVisible",
     "headingStyle",
@@ -80,9 +91,13 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     "dailyBackupEnabled",
     "weeklyBackupEnabled",
     "monthlyBackupEnabled",
+    "customDbBackupDir",
+    "backupEnableCompression",
+    "backupEnableEncryption",
     "motionEnabled",
     "shadowsEnabled",
     "smoothScrollEnabled",
+    "hardwareAccelerationEnabled",
     "backdropEffectsEnabled",
     "maxContentWidth",
     "centerContent",
@@ -102,22 +117,35 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     "editedNotesOpenInRibbon",
     "locale",
     "formattingLocale",
+    "defaultContentLanguage",
     "firstDayOfWeek",
     "firstWeekOfYear",
     "minDaysInFirstWeek",
     "languages",
     "textNoteEditorType",
     "textNoteEditorMultilineToolbar",
+    "textNoteDoubleQuoteStyle",
+    "textNoteSingleQuoteStyle",
+    "textNotePunctuationReplacementsEnabled",
+    "textNoteMathReplacementsEnabled",
+    "textNoteSymbolReplacementsEnabled",
+    "textNoteCustomReplacements",
     "textNoteEmojiCompletionEnabled",
     "textNoteCompletionEnabled",
     "textNoteSlashCommandsEnabled",
     "textNoteContentHintsEnabled",
+    "textNoteAutoLinkPreviewsEnabled",
+    "textNoteHtmlSupportEnabled",
+    "clipboardImageEmbedEnabled",
     "includeNoteDefaultBoxSize",
     "layoutOrientation",
     "backgroundEffects",
     "allowedHtmlTags",
+    "cleanupToolOptions",
+    "imageCompressionToolOptions",
     "searchEnableFuzzyMatching",
     "searchAutocompleteFuzzy",
+    "searchResultsPageSize",
     "redirectBareDomain",
     "showLoginInShareTheme",
     "splitEditorOrientation",
@@ -128,6 +156,7 @@ const ALLOWED_OPTIONS = new Set<OptionNames>([
     // LLM options
     "aiEnabled",
     "llmProviders",
+    "aiAssistantModel",
     "mcpEnabled",
     // OCR options
     "ocrAutoProcessImages",
@@ -254,6 +283,27 @@ function getUserThemes() {
     return ret;
 }
 
+function getUserFonts() {
+    const notes = searchService.searchNotes("#customFont", { ignoreHoistedNote: true });
+    const ret: UserFont[] = [];
+
+    for (const note of notes) {
+        // A font whose bytes cannot be read — a protected note outside a protected session — has
+        // nothing to offer the picker.
+        if (!note.isContentAvailable()) {
+            continue;
+        }
+
+        ret.push({
+            noteId: note.noteId,
+            title: note.getTitleOrProtected(),
+            blobId: note.blobId ?? ""
+        });
+    }
+
+    return ret;
+}
+
 /** Check if an option can be read by the client (GET responses). */
 function isReadable(name: string) {
     return (ALLOWED_OPTIONS as Set<string>).has(name)
@@ -272,5 +322,6 @@ export default {
     getOptions,
     updateOption,
     updateOptions,
-    getUserThemes
+    getUserThemes,
+    getUserFonts
 };

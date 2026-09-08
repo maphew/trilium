@@ -47,6 +47,12 @@ export interface MenuCommandItem<T> {
      * If not set, no icon is displayed and the item will appear shifted slightly to the left if there are other items with icons. To avoid this, use `bx bx-empty`.
      */
     uiIcon?: string;
+    /**
+     * Classes tinting {@link uiIcon} with the colour of whatever the item stands for, as
+     * `cssClassManager.createClassForColor()` and `FNote#getColorClass()` return them. Only the
+     * icon is tinted, the label staying readable against the highlight.
+     */
+    iconColorClass?: string;
     badges?: MenuItemBadge[];
     templateNoteId?: string;
     enabled?: boolean;
@@ -56,6 +62,15 @@ export interface MenuCommandItem<T> {
     keyboardShortcut?: KeyboardActionNames;
     spellingSuggestion?: string;
     checked?: boolean;
+    /** Classes put on the item itself, for a menu styling one of its entries differently. */
+    className?: string;
+    /**
+     * An icon shown at the trailing edge of the item, where a shortcut would go.
+     *
+     * Unlike {@link checked}, which takes the place of {@link uiIcon}, this leaves the item's own
+     * icon standing — for a list where that icon is what tells one entry from another.
+     */
+    trailingIcon?: string;
     columns?: number;
 }
 
@@ -68,10 +83,13 @@ class ContextMenu {
     private $cover?: JQuery<HTMLElement>;
     private options?: ContextMenuOptions<any>;
     private isMobile: boolean;
+    /** Where the menu stands while nothing has the screen to itself. See {@link hostInWhateverHasTheScreen}. */
+    private home: HTMLElement | null;
 
     constructor() {
         this.$widget = $("#context-menu-container");
         this.$widget.addClass("dropend");
+        this.home = this.$widget[0]?.parentElement ?? null;
         this.isMobile = utils.isMobile();
 
         if (this.isMobile) {
@@ -93,6 +111,8 @@ class ContextMenu {
             await this.hide();
         }
 
+        this.hostInWhateverHasTheScreen();
+
         this.$widget.toggleClass("mobile-bottom-menu", !this.options.forcePositionOnMobile);
         this.$cover?.addClass("show");
         $("body").addClass("context-menu-shown");
@@ -104,6 +124,24 @@ class ContextMenu {
         keyboardActionService.updateDisplayedShortcuts(this.$widget);
 
         this.positionMenu();
+    }
+
+    /**
+     * Puts the menu inside the element that currently has the screen to itself, and back where it
+     * belongs once nothing does.
+     *
+     * A browser showing an element fullscreen draws that element and nothing else: this menu lives at
+     * the end of the page, so over a map or a diagram given the screen (see `useFullscreen`) it was
+     * laid out, positioned and left unpainted — a right-click that appeared to do nothing at all.
+     * Moved into whatever is being shown, it is drawn as usual; it is positioned against the viewport
+     * either way, so nothing about where it lands changes.
+     */
+    private hostInWhateverHasTheScreen() {
+        const menu = this.$widget[0];
+        const host = document.fullscreenElement ?? this.home;
+        if (menu && host && menu.parentElement !== host) {
+            host.appendChild(menu);
+        }
     }
 
     positionMenu() {
@@ -165,11 +203,13 @@ class ContextMenu {
     private repositionSubmenu(submenuEl: HTMLElement) {
         const CONTEXT_MENU_PADDING = 5;
 
-        // Reset so the natural (downward) placement is measured on every hover.
+        // Reset so the natural (downward, trailing) placement is measured on every hover.
         submenuEl.classList.remove("submenu-flip-up");
+        submenuEl.classList.remove("submenu-flip-start");
 
         const rect = submenuEl.getBoundingClientRect();
         const clientHeight = document.documentElement.clientHeight;
+        const clientWidth = document.documentElement.clientWidth;
         const overflowsBottom = rect.bottom > clientHeight - CONTEXT_MENU_PADDING;
         // Only flip up if there is actually more room above the parent than below, otherwise flipping
         // would just clip the other end.
@@ -177,6 +217,17 @@ class ContextMenu {
 
         if (overflowsBottom && fitsWhenFlippedUp) {
             submenuEl.classList.add("submenu-flip-up");
+        }
+
+        // The same for the side it opens on, which is the trailing one by default and the leading
+        // one in a right-to-left page. Whichever edge it runs past, the flip puts it on the other
+        // side of its parent, and only where the whole submenu fits there.
+        const fitsWhenFlippedToStart = rect.left - rect.width >= CONTEXT_MENU_PADDING;
+        const fitsWhenFlippedToEnd = rect.right + rect.width <= clientWidth - CONTEXT_MENU_PADDING;
+
+        if ((rect.right > clientWidth - CONTEXT_MENU_PADDING && fitsWhenFlippedToStart)
+                || (rect.left < CONTEXT_MENU_PADDING && fitsWhenFlippedToEnd)) {
+            submenuEl.classList.add("submenu-flip-start");
         }
     }
 
@@ -269,6 +320,9 @@ class ContextMenu {
             const icon = (item.checked ? "bx bx-check" : item.uiIcon);
             if (icon) {
                 $icon.addClass([icon, "tn-icon"]);
+                if (item.iconColorClass) {
+                    $icon.addClass(item.iconColorClass);
+                }
             } else {
                 $icon.append("&nbsp;");
             }
@@ -313,8 +367,14 @@ class ContextMenu {
             $link.append($("<kbd>").text(item.shortcut));
         }
 
+        if ("trailingIcon" in item && item.trailingIcon) {
+            $link.append($("<span>")
+                .addClass([ item.trailingIcon, "tn-icon", "menu-trailing-icon" ]));
+        }
+
         const $item = $("<li>")
             .addClass("dropdown-item")
+            .addClass("className" in item ? item.className ?? "" : "")
             .append($link)
             .on("contextmenu", (e) => false)
             // important to use mousedown instead of click since the former does not change focus
@@ -374,6 +434,15 @@ class ContextMenu {
             }
         }
         return $item;
+    }
+
+    /**
+     * Whether a menu is up. For a host that answers a press itself and so keeps it from the
+     * document, whose click is what would otherwise put the menu away (see the listener bound in
+     * the constructor): such a host has to know a standing menu is what its press is really for.
+     */
+    isShown() {
+        return this.$widget.hasClass("show");
     }
 
     async hide() {

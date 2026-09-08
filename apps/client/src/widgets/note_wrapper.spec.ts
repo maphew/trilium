@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildNote } from "../test/easy-froca";
-import NoteWrapperWidget, { isAlwaysFullWidthByType, isFullWidthNote } from "./note_wrapper";
+import NoteWrapperWidget, { hasBackgroundEffects, isAlwaysFullWidthByType, isFullWidthNote } from "./note_wrapper";
 
 describe("NoteWrapperWidget", () => {
     it("preserves the classes owned by SplitNoteContainer through the class reset in refresh()", () => {
@@ -18,6 +18,31 @@ describe("NoteWrapperWidget", () => {
         // Without a note context, the split renders as empty — the note-derived classes still apply.
         expect(widget.$widget.hasClass("note-split")).toBe(true);
         expect(widget.$widget.hasClass("empty-note")).toBe(true);
+    });
+
+    it("marks the split as translucent (bgfx) for the note types that render on a bare background", () => {
+        expect(hasBackgroundEffects(buildNote({ title: "Photo", type: "image" }))).toBe(true);
+
+        const pdf = buildNote({ title: "PDF", type: "file" });
+        pdf.mime = "application/pdf";
+        expect(hasBackgroundEffects(pdf)).toBe(true);
+
+        const audio = buildNote({ title: "Audio", type: "file" });
+        audio.mime = "audio/mpeg";
+        expect(hasBackgroundEffects(audio)).toBe(true);
+
+        expect(hasBackgroundEffects(buildNote({ title: "Grid", type: "book", "#viewType": "grid" }))).toBe(true);
+        // The board lays its columns on a bare surface, the way the grid lays its cards.
+        expect(hasBackgroundEffects(
+            buildNote({ title: "Board", type: "book", "#viewType": "board" }))).toBe(true);
+
+        // Notes whose content paints its own background stay opaque.
+        expect(hasBackgroundEffects(buildNote({ title: "Plain", type: "text" }))).toBe(false);
+        expect(hasBackgroundEffects(buildNote({ title: "Calendar", type: "book", "#viewType": "calendar" }))).toBe(false);
+
+        const doc = buildNote({ title: "Doc", type: "file" });
+        doc.mime = "application/msword";
+        expect(hasBackgroundEffects(doc)).toBe(false);
     });
 });
 

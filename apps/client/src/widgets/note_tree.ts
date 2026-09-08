@@ -5,6 +5,8 @@ import "jquery.fancytree/dist/modules/jquery.fancytree.filter.js";
 import "../stylesheets/tree.css";
 import "./note_tree.css";
 
+import { GEO_LOCATION_ATTRIBUTE } from "@triliumnext/commons";
+
 import appContext, { type CommandListenerData, type EventData } from "../components/app_context.js";
 import type { SetNoteOpts } from "../components/note_context.js";
 import type FBranch from "../entities/fbranch.js";
@@ -22,6 +24,7 @@ import type { AttributeRow, BranchRow } from "../services/load_results.js";
 import noteCreateService from "../services/note_create.js";
 import options from "../services/options.js";
 import server from "../services/server.js";
+import { buildShareLink } from "../services/share_link.js";
 import shortcutService from "../services/shortcuts.js";
 import toastService from "../services/toast.js";
 import treeService from "../services/tree.js";
@@ -234,7 +237,12 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
             } else if (target.classList.contains("add-note-button")) {
                 const node = $.ui.fancytree.getNode(e as unknown as Event);
                 const parentNotePath = treeService.getNotePath(node);
-                noteCreateService.createNote(parentNotePath, { isProtected: node.data.isProtected });
+                noteCreateService.createNote(parentNotePath, {
+                    isProtected: node.data.isProtected,
+                    // Activate in this tree's own context — in popup dialogs (e.g. the task states
+                    // tree popup) it is not the tab manager's active context.
+                    noteContext: this.noteContext
+                });
             } else if (target.classList.contains("enter-workspace-button")) {
                 const node = $.ui.fancytree.getNode(e as unknown as Event);
                 this.triggerCommand("hoistNote", { noteId: node.data.noteId });
@@ -541,6 +549,8 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
                     return true; // allow dragging to start
                 },
                 dragEnter: (node, data) => {
+                    publishDropMarkerShift(node);
+
                     if (node.data.noteType === "search") {
                         return false;
                     } else if (node.data.noteId === "_lbRoot") {
@@ -1153,7 +1163,9 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
 
         const newActiveNode =
             this.noteContext?.notePath &&
-            (!treeService.isNotePathInHiddenSubtree(this.noteContext.notePath) || (await hoistedNoteService.isHoistedInHiddenSubtree())) &&
+            // Pass this tree's own hoisted note (e.g. a popup hoisted into the hidden subtree) rather
+            // than the active tab's — otherwise a hidden-subtree note never gets an active node here.
+            (!treeService.isNotePathInHiddenSubtree(this.noteContext.notePath) || (await hoistedNoteService.isHoistedInHiddenSubtree(this.hoistedNoteId))) &&
             (await this.getNodeFromPath(this.noteContext.notePath));
 
         if (this.spotlightedNode && newActiveNode !== this.spotlightedNode) {
@@ -1307,7 +1319,9 @@ export default class NoteTreeWidget extends NoteContextAwareWidget {
 
     #processAttributeRows(attributeRows: AttributeRow[], refreshCtx: RefreshContext) {
         for (const attrRow of attributeRows) {
-            const dirtyingLabels = ["iconClass", "cssClass", "workspace", "workspaceIconClass", "color"];
+            // `geolocation` decides the icon of a note that has none of its own (see getNoteIcon).
+            const dirtyingLabels = ["iconClass", "cssClass", "workspace", "workspaceIconClass",
+                "color", GEO_LOCATION_ATTRIBUTE];
 
             if (attrRow.type === "label" && dirtyingLabels.includes(attrRow.name ?? "") && attrRow.noteId) {
                 if (attrRow.isInheritable) {
@@ -1949,7 +1963,9 @@ function buildEnhanceTitle() {
         // Add shared indicator with tooltip if note is shared
         if (note.isShared()) {
             const shareId = note.getOwnedLabelValue("shareAlias") || note.noteId;
-            const shareUrl = `${location.origin}${location.pathname}share/${shareId}`;
+            // Pass no sync host to preserve this tooltip's prior local-origin behavior; the helper
+            // still substitutes the loopback origin for the trilium-app:// desktop renderer (#10589).
+            const shareUrl = buildShareLink(shareId, undefined);
             const tooltipText = t("note_tree.shared-indicator-tooltip-with-url", { url: shareUrl });
 
             const $sharedIndicator = $(`<span class="note-indicator-icon shared-indicator"></span>`);
@@ -1965,6 +1981,30 @@ function buildEnhanceTitle() {
             $span.append($badge);
         }
     };
+}
+
+/**
+ * Tells the drop marker how far it sits from the boundary between two rows, in pixels.
+ *
+ * dnd5 anchors the marker on the target *title* — its bottom edge for "after", its top edge for
+ * "before" — and those are half the row's spare height either side of the boundary the note
+ * actually lands on. Left alone, dropping between two notes draws the line in one of two places
+ * depending on which of them the pointer is over.
+ *
+ * Measured rather than written down: the distance is the row height less the title's line box, and
+ * both follow whichever family and size the tree font names.
+ */
+export function publishDropMarkerShift(node: Fancytree.FancytreeNode) {
+    const row = node.span;
+    const title = row?.querySelector(".fancytree-title");
+    if (!row || !title) {
+        return;
+    }
+
+    const shift = (row.getBoundingClientRect().height - title.getBoundingClientRect().height) / 2;
+    // On the body, since the marker is parented there and custom properties inherit; it is also
+    // created lazily, so it cannot be relied on to exist when the first note is dragged over.
+    document.body.style.setProperty("--tree-drop-marker-shift", `${shift}px`);
 }
 
 type ScrollIntoViewFn = (this: Fancytree.FancytreeNode, effects?: boolean | object, options?: object) => JQueryPromise<unknown>;

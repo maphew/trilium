@@ -7,6 +7,7 @@ import options from "../services/options.js";
 import server from "../services/server.js";
 import utils from "../services/utils.js";
 import contextMenu, { type MenuItem } from "./context_menu.js";
+import { buildAiActionsMenuItem, getTextEditorAtSelection } from "./text_editor_context_menu.js";
 
 function setupContextMenu() {
     const eApi = window.electronApi;
@@ -15,11 +16,16 @@ function setupContextMenu() {
     const isMac = window.glob.platform === "darwin";
     const platformModifier = isMac ? "Meta" : "Ctrl";
 
-    api.onContextMenu((params) => {
+    api.onContextMenu(async (params) => {
         const { editFlags } = params;
         const hasText = params.selectionText.trim().length > 0;
 
         const items: MenuItem<CommandNames>[] = [];
+
+        // Resolved before the menu is built rather than lazily in a handler: the rows it produces
+        // depend on how the editor answers, and `isEditable` keeps the lookup off every click that
+        // lands somewhere a completion could not be committed anyway (a read-only note, the tree).
+        const aiActions = params.isEditable ? await buildAiActionsMenuItem() : null;
 
         if (params.misspelledWord) {
             for (const suggestion of params.dictionarySuggestions) {
@@ -38,6 +44,10 @@ function setupContextMenu() {
             });
 
             items.push({ kind: "separator" });
+        }
+
+        if (aiActions) {
+            items.push(aiActions, { kind: "separator" });
         }
 
         if (params.isEditable) {
@@ -64,24 +74,17 @@ function setupContextMenu() {
                 title: t("electron_context_menu.copy-as-markdown"),
                 uiIcon: "bx bx-copy-alt",
                 handler: async () => {
-                    const selection = window.getSelection();
-                    if (!selection || !selection.rangeCount) return '';
+                    const htmlContent = await getSelectedHtmlForMarkdown();
+                    if (!htmlContent) return;
 
-                    const range = selection.getRangeAt(0);
-                    const div = document.createElement('div');
-                    div.appendChild(range.cloneContents());
-
-                    const htmlContent = div.innerHTML;
-                    if (htmlContent) {
-                        try {
-                            const { markdownContent } = await server.post<{ markdownContent: string }>(
-                                "other/to-markdown",
-                                { htmlContent }
-                            );
-                            await clipboardExt.copyTextWithToast(markdownContent);
-                        } catch (error) {
-                            console.error("Failed to copy as markdown:", error);
-                        }
+                    try {
+                        const { markdownContent } = await server.post<{ markdownContent: string }>(
+                            "other/to-markdown",
+                            { htmlContent }
+                        );
+                        await clipboardExt.copyTextWithToast(markdownContent);
+                    } catch (error) {
+                        console.error("Failed to copy as markdown:", error);
                     }
                 }
             });
@@ -177,6 +180,29 @@ function setupContextMenu() {
             }
         });
     });
+}
+
+/**
+ * Returns the HTML to feed to the Markdown converter for the "Copy as Markdown" action.
+ *
+ * When the selection lives inside the active text note's CKEditor, we take the editor's
+ * data-pipeline HTML (`getSelectedHtml()`) — clean stored markup without the editing-view
+ * artifacts (`data-list-item-id`, collapsible handle/arrow spans, bogus-paragraph wrappers)
+ * that cloning the live DOM range drags along. For any other selection (read-only notes,
+ * dialogs, plain inputs) we fall back to cloning the DOM range.
+ */
+export async function getSelectedHtmlForMarkdown(): Promise<string> {
+    const editor = await getTextEditorAtSelection();
+    const selectedHtml = editor?.getSelectedHtml();
+    if (selectedHtml) return selectedHtml;
+
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) return "";
+
+    const range = selection.getRangeAt(0);
+    const div = document.createElement("div");
+    div.appendChild(range.cloneContents());
+    return div.innerHTML;
 }
 
 export default {

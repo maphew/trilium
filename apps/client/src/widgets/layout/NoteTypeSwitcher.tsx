@@ -1,6 +1,6 @@
 import "./NoteTypeSwitcher.css";
 
-import { NoteType } from "@triliumnext/commons";
+import { NoteType, type TemplatesResponse } from "@triliumnext/commons";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import FNote from "../../entities/fnote";
@@ -100,11 +100,11 @@ function CollectionNoteTypes({ noteId, collectionTemplates }: { noteId: string, 
     );
 }
 
-function TemplateNoteTypes({ noteId, builtinTemplates }: { noteId: string, builtinTemplates: FNote[] }) {
+export function TemplateNoteTypes({ noteId, builtinTemplates }: { noteId: string, builtinTemplates: FNote[] }) {
     const [ userTemplates, setUserTemplates ] = useState<FNote[]>([]);
 
     async function refreshTemplates() {
-        const templateNoteIds = await server.get<string[]>("search-templates");
+        const { templateNoteIds } = await server.get<TemplatesResponse>("search-templates");
         const templateNotes = await froca.getNotes(templateNoteIds);
         setUserTemplates(templateNotes);
     }
@@ -119,6 +119,13 @@ function TemplateNoteTypes({ noteId, builtinTemplates }: { noteId: string, built
         if (loadResults.getAttributeRows().some(attr => attr.type === "label" && attr.name === "template")) {
             refreshTemplates();
         }
+    });
+
+    // Swap to fresh FNote refs after a full froca reload (e.g. entering a protected session
+    // clears the cache and creates new instances — old refs are orphaned with stale titles,
+    // leaving protected templates stuck at "[protected]" after unlock).
+    useTriliumEvent("frocaReloaded", () => {
+        refreshTemplates();
     });
 
     return (
@@ -150,7 +157,7 @@ function setTemplate(noteId: string, templateId: string) {
     return attributes.setRelation(noteId, "template", templateId);
 }
 
-function useBuiltinTemplates() {
+export function useBuiltinTemplates() {
     const [ templates, setTemplates ] = useState<{
         builtinTemplates: FNote[];
         collectionTemplates: FNote[];
@@ -179,6 +186,13 @@ function useBuiltinTemplates() {
     useEffect(() => {
         loadBuiltinTemplates();
     }, []);
+
+    // Swap to fresh FNote refs after a full froca reload (e.g. entering a protected session
+    // clears the cache and creates new instances — old refs are orphaned with stale titles,
+    // leaving protected templates stuck at "[protected]" after unlock).
+    useTriliumEvent("frocaReloaded", () => {
+        loadBuiltinTemplates();
+    });
 
     return templates;
 }

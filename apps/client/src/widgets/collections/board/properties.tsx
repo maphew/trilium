@@ -1,0 +1,126 @@
+import "./properties.css";
+
+import { useCallback } from "preact/hooks";
+
+import type FNote from "../../../entities/fnote";
+import { t } from "../../../services/i18n";
+import ActionButton from "../../react/ActionButton";
+import { Card, OptionCardSection } from "../../react/Card";
+import FormToggle from "../../react/FormToggle";
+import { useNoteLabelBoolean } from "../../react/hooks";
+import Modal from "../../react/Modal";
+import PromotedAttributesCard from "../../react/PromotedAttributesCard";
+import TemplateSelectionCard from "../../react/TemplateSelectionCard";
+import type { PromotedAttribute } from "../promoted_attributes";
+import SortDropdown from "../SortDropdown";
+import { parseSortKey } from "../sorting";
+import BoardApi from "./api";
+import { openSortActionsMenu } from "./context_menu";
+import { useBoardSort } from "./sort";
+
+/** The board's settings, other than its columns and cards. */
+export default function BoardProperties({ api, note, shown, onClose }: {
+    api: BoardApi,
+    /** The board note, which is the parent of any template created here. */
+    note: FNote,
+    shown: boolean,
+    onClose: () => void
+}) {
+    const store = useCallback(
+        (templates: string[]) => api.setCardTemplateIds(templates), [ api ]);
+    const storeAttributes = useCallback(
+        (attributes: PromotedAttribute[]) => api.setPromotedAttributes(attributes), [ api ]);
+
+    return (
+        <Modal
+            className="board-properties-dialog"
+            title={t("board_view.properties-title")}
+            size="lg"
+            scrollable
+            show={shown}
+            onHidden={onClose}
+        >
+            <General api={api} note={note} />
+
+            <PromotedAttributesCard
+                heading={t("board_view.promoted-attributes")}
+                instruction={t("board_view.promoted-attributes-hint")}
+                note={note}
+                settings={api.getStoredPromotedAttributes()}
+                ignored={[ api.statusAttribute ]}
+                onChange={storeAttributes}
+            />
+
+            <TemplateSelectionCard
+                heading={t("board_view.card-templates")}
+                instruction={t("board_view.card-templates-hint")}
+                note={note}
+                newTemplateName={t("board_view.new-template-name")}
+                templates={api.getCardTemplateIds()}
+                onChange={store}
+            />
+        </Modal>
+    );
+}
+
+/** What the board draws besides its own cards: the inbox column and what is filed as archived. */
+function General({ api, note }: { api: BoardApi, note: FNote }) {
+    const [ inboxShown ] = useNoteLabelBoolean(note, "enableInboxColumn");
+    const [ archivedShown ] = useNoteLabelBoolean(note, "includeArchived");
+    const defaultSort = useBoardSort(note);
+
+    return (
+        <Card className="board-properties-general" heading={t("board_view.general")}>
+            <OptionCardSection
+                name="board-show-inbox"
+                label={t("board_view.show-inbox-column")}
+                description={t("book_properties_config.board-inbox-column-help")}
+            >
+                <FormToggle
+                    currentValue={inboxShown}
+                    onChange={(shown) => api.setInboxEnabled(shown)}
+                />
+            </OptionCardSection>
+
+            <OptionCardSection
+                name="board-show-archived"
+                label={t("board_view.show-archived")}
+            >
+                <FormToggle
+                    currentValue={archivedShown}
+                    onChange={(shown) => api.setArchivedShown(shown)}
+                />
+            </OptionCardSection>
+
+            <OptionCardSection
+                name="board-sort-cards"
+                label={t("board_view.sort-cards")}
+            >
+                <SortDropdown
+                    className="board-sort-picker"
+                    orderBy={defaultSort?.orderBy}
+                    isDescending={!!defaultSort?.isDescending}
+                    attributes={api.getPromotedAttributes()}
+                    noneTitle={t("board_view.sort-manually")}
+                    hideDefault
+                    // `hideDefault` leaves the menu no DEFAULT_SORT entry, and `parseSortKey`
+                    // rejects that key as well: `setDefaultSort` takes a plain sort key.
+                    onSelect={(orderBy) => api.setDefaultSort(parseSortKey(orderBy))}
+                    onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
+                />
+
+                <ActionButton
+                    className="board-sort-actions"
+                    icon="bx bx-dots-vertical-rounded"
+                    text={t("board_view.sort-actions")}
+                    onClick={(event) => {
+                        // The press would otherwise reach the document, where the menu closes
+                        // itself on any click outside it.
+                        event.stopPropagation();
+                        openSortActionsMenu(api, event);
+                    }}
+                />
+            </OptionCardSection>
+        </Card>
+    );
+}

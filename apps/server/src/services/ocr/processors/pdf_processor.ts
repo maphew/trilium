@@ -1,12 +1,10 @@
 import { getLog } from "@triliumnext/core";
-import { Jimp } from "jimp";
-import { extractImages, extractText, getDocumentProxy } from 'unpdf';
 
 import { OCRProcessingOptions, OCRResult } from '../ocr_service.js';
 import recognizer from '../tesseract_recognizer.js';
 import { FileProcessor } from './file_processor.js';
 
-type PdfDocument = Awaited<ReturnType<typeof getDocumentProxy>>;
+type PdfDocument = Awaited<ReturnType<typeof import('unpdf').getDocumentProxy>>;
 
 /** A page whose embedded text is shorter than this (after trimming) is treated as scanned and sent to OCR. */
 const MIN_EMBEDDED_PAGE_CHARS = 16;
@@ -51,6 +49,8 @@ export class PDFProcessor extends FileProcessor {
         getLog().info('Starting PDF text extraction...');
 
         const language = options.language || "eng";
+        // Dynamically imported so unpdf only loads when a PDF is actually processed.
+        const { extractText, getDocumentProxy } = await import('unpdf');
         const pdf = await getDocumentProxy(new Uint8Array(buffer));
         const { totalPages, text: pageTexts } = await extractText(pdf, { mergePages: false });
 
@@ -118,6 +118,7 @@ export class PDFProcessor extends FileProcessor {
      */
     private async ocrPage(pdf: PdfDocument, pageNum: number, language: string): Promise<{ text: string; confidence: number }> {
         try {
+            const { extractImages } = await import('unpdf');
             const images = await extractImages(pdf, pageNum);
             if (images.length === 0) {
                 return { text: "", confidence: 0 };
@@ -195,6 +196,8 @@ async function toPngBuffer(image: ExtractedImage): Promise<Buffer> {
         throw new Error(`Unsupported image channel count: ${channels}`);
     }
 
+    // Dynamically imported so jimp only loads when a scanned page is actually rasterized.
+    const { Jimp } = await import("jimp");
     const jimpImage = Jimp.fromBitmap({ data: rgba, width, height });
     return jimpImage.getBuffer("image/png");
 }
