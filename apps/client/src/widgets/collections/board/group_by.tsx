@@ -7,6 +7,7 @@ import type FNote from "../../../entities/fnote";
 import type { Attribute } from "../../../services/attribute_parser";
 import attributes from "../../../services/attributes";
 import { t } from "../../../services/i18n";
+import toast from "../../../services/toast";
 import {
     AttributeDetail, type AttributeDetailOpts
 } from "../../attribute_widgets/attribute_detail";
@@ -74,13 +75,22 @@ export default function BoardGroupBy({ note, options, current, onSelect }: {
     /** Writes the definition the editor was left holding, and groups by it. */
     const save = useCallback(async () => {
         const definition = edited.current;
-        setDetail(null);
-
         const [ , name ] = definition?.name.split(":", 2) ?? [];
         if (!definition || !name) {
+            setDetail(null);
             return;
         }
 
+        // `set-attribute` replaces the value of a definition the board already owns, which would
+        // take the alias and the columns of a grouping the list above already offers. The editor
+        // stays open for the reader to rename it. Owned only: a definition the board inherits is
+        // not matched, so a definition of its own shadowing that one is safe.
+        if (note.getOwnedLabels(definition.name).length) {
+            toast.showError(t("board_view.grouping-already-defined", { name }));
+            return;
+        }
+
+        setDetail(null);
         await attributes.setLabel(
             note.noteId, definition.name, definition.value, definition.isInheritable);
         onSelect(name);

@@ -21,6 +21,7 @@ vi.mock("../../../services/i18n", () => ({
 
 const mocks = vi.hoisted(() => ({
     setLabel: vi.fn(async () => {}),
+    showError: vi.fn(),
     /** The editor the dropdown opens, which the test drives through the callbacks it was given. */
     detail: { opts: null as AttributeDetailOpts | null, callbacks: {} as Record<string, Function> }
 }));
@@ -28,6 +29,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../../services/attributes", () => ({
     default: { setLabel: mocks.setLabel, isAffecting: () => true }
 }));
+
+vi.mock("../../../services/toast", () => ({ default: { showError: mocks.showError } }));
 
 // The editor is tested where it lives; what the dropdown answers for is what it hands over and what
 // it writes once the editor reports a definition.
@@ -64,7 +67,9 @@ const DEFINED = [
 function board(defined = DEFINED) {
     return {
         noteId: "board1",
-        getAttributeDefinitions: () => defined
+        getAttributeDefinitions: () => defined,
+        // Every definition here is the board's own, which is the case the write has to refuse.
+        getOwnedLabels: (name: string) => defined.filter(attribute => attribute.name === name)
     } as unknown as FNote;
 }
 
@@ -133,6 +138,7 @@ describe("BoardGroupBy", () => {
 
     afterEach(() => {
         mocks.setLabel.mockClear();
+        mocks.showError.mockClear();
         mocks.detail.opts = null;
         if (container) {
             render(null, container);
@@ -233,6 +239,35 @@ describe("BoardGroupBy", () => {
         // Made to be grouped by, so the board moves to it rather than leaving a second step.
         expect(onSelect).toHaveBeenCalledWith("severity");
         expect(mocks.detail.opts).toBeNull();
+    });
+
+    /**
+     * `set-attribute` replaces the value of a definition the board already owns, so a name already
+     * taken would cost that grouping its alias and every column it offers.
+     */
+    it("refuses a name the board already defines, keeping the editor open", async () => {
+        const { mountPoint, onSelect } = await setup();
+
+        await act(async () => {
+            mountPoint.querySelector<HTMLElement>(".board-group-by-create")?.click();
+        });
+
+        await act(async () => {
+            mocks.detail.callbacks.onAttributesChanged([ {
+                type: "label",
+                name: "label:status",
+                value: "promoted,single,select,options=Something else",
+                isInheritable: true
+            } ]);
+            await mocks.detail.callbacks.onSaveAndClose();
+        });
+
+        expect(mocks.setLabel).not.toHaveBeenCalled();
+        expect(onSelect).not.toHaveBeenCalled();
+        expect(mocks.showError).toHaveBeenCalledWith(
+            'board_view.grouping-already-defined:{"name":"status"}');
+        // Left standing on the name, so what was typed is not lost to a rename.
+        expect(mocks.detail.opts).not.toBeNull();
     });
 
     it("writes nothing for an editor closed without a name", async () => {
