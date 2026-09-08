@@ -734,12 +734,14 @@ describe("Board item context menu", () => {
             pageY: 0
         } as ContextMenuEvent;
 
-        // Every item menu asks what the board calls its grouping field and whether the column
-        // sorts itself; a test answers only where that is what it is about.
+        // Every item menu asks what the board calls its grouping field, which attributes the cards
+        // show and whether the column sorts itself; a test answers only where that is what it is
+        // about.
         const withDefaults = Object.assign(
             {
                 getStatusLabel: () => "Status",
                 getColumnTitle: (name: string) => name,
+                getPromotedAttributes: () => [],
                 isFirstInColumn: () => false,
                 isColumnSorted: () => false
             },
@@ -750,6 +752,38 @@ describe("Board item context menu", () => {
 
         return show.mock.calls.at(-1)?.[0].items ?? [];
     }
+
+    /**
+     * The values a card shows are set from its own menu, under the columns rather than among them:
+     * one heading says which column the card is in, the next what it holds.
+     */
+    it("offers the attributes the cards show, in a section of their own after the columns", () => {
+        const api = {
+            columns: [ "To Do" ],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            getPromotedAttributes: () => [ {
+                name: "done",
+                definitionName: "label:done",
+                type: "label",
+                title: "Done",
+                labelType: "boolean",
+                hidden: false,
+                definitionValue: "",
+                isOwned: true,
+                isInheritable: true
+            } ]
+        } as unknown as BoardApi;
+
+        const items = openItemMenu(api);
+        const at = items.findIndex(item => item && "kind" in item && item.kind === "header"
+            && item.title === "attribute_menu.attributes");
+
+        expect(items[at + 1]).toMatchObject({ uiIcon: "bx bx-toggle-left" });
+        expect(items.slice(0, at).some(item => item && "className" in item
+            && item.className?.includes("board-column-item"))).toBe(true);
+    });
 
     /** Reads the run of column entries the menu puts under its Status header. */
     function statusItems(api: BoardApi, column = "To Do") {

@@ -11,6 +11,7 @@ import { getArchiveMenuItem } from "../../../menus/context_menu_utils";
 import { t } from "../../../services/i18n";
 import { escapeHtml } from "../../../services/utils";
 import ColorPicker from "../../react/ColorPicker";
+import { buildAttributeMenuItems } from "../attribute_menu";
 import { buildSortMenuItems, type SortMenuOptions } from "../sort_menu";
 import Api from "./api";
 import { INBOX_COLUMN } from "./columns";
@@ -511,6 +512,10 @@ export function openNoteContextMenu(
             ...placement,
             { kind: "header", title: api.getStatusLabel() },
             ...buildColumnItems(api, note, column, onFocusCard),
+            ...buildAttributeMenuItems<CommandNames>({
+                note,
+                attributes: api.getPromotedAttributes()
+            }),
             { kind: "separator" },
             getArchiveMenuItem(note),
             {
