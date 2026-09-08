@@ -3,7 +3,7 @@ import FNote from "../../../entities/fnote";
 import type LoadResults from "../../../services/load_results";
 import type { PromotedAttribute } from "../promoted_attributes";
 import {
-    parseSortKey, sortedAttributeName, sortItems, type SortContext, type SortKey
+    DEFAULT_SORT, parseSortKey, sortedAttributeName, sortItems, type SortContext, type SortKey
 } from "../sorting";
 import { INBOX_COLUMN, resolveBoardColumns } from "./columns";
 import { BoardColumnData, BoardViewData } from "./index";
@@ -81,11 +81,25 @@ export interface SortWatch {
     attributeNames: Set<string>;
 }
 
-/** What each column sorts by, leaving out every column that keeps the manual order. */
-export function resolveColumnSorts(columns: BoardColumnData[] | undefined) {
+/**
+ * What each column sorts by, leaving out every column that keeps the manual order.
+ *
+ * @param defaultSort the order the board holds, which a column stored as `default` takes. Such a
+ *                    column keeps the manual order while the board holds none.
+ */
+export function resolveColumnSorts(
+    columns: BoardColumnData[] | undefined, defaultSort?: ColumnSort
+) {
     const sorts = new Map<string, ColumnSort>();
 
     for (const { value, orderBy, descendingOrder } of columns ?? []) {
+        if (orderBy === DEFAULT_SORT) {
+            if (defaultSort) {
+                sorts.set(value, defaultSort);
+            }
+            continue;
+        }
+
         const key = parseSortKey(orderBy);
         if (key) {
             sorts.set(value, { orderBy: key, isDescending: !!descendingOrder });

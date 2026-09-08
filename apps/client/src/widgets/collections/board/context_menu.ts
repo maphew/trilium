@@ -257,10 +257,14 @@ export function openColumnSortMenu(api: Api, x: number, y: number, column: strin
 /** What the board asks the shared sort menu for, wherever it is opened. */
 function sortMenuOptions(api: Api, column: string): SortMenuOptions {
     return {
-        ...api.getColumnSort(column),
+        orderBy: api.getColumnSort(column).orderBy,
+        // The direction the column is drawn in, which the board decides for a column taking its
+        // order.
+        isDescending: api.getEffectiveColumnSort(column).isDescending,
         attributes: api.getPromotedAttributes(),
         // A board arranges its cards by hand rather than leaving them unsorted.
         noneTitle: t("board_view.sort-manually"),
+        defaultTitle: t("board_view.sort-board-default"),
         onSelect: (orderBy) => api.setColumnSort(column, orderBy),
         onDirectionChange: (isDescending) => api.setColumnSortDirection(column, isDescending)
     };

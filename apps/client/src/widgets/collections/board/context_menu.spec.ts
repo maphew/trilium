@@ -71,6 +71,7 @@ describe("Board column context menu", () => {
         const withDefaults = Object.assign({
             getColumnTitle: (name: string) => name,
             getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+            getEffectiveColumnSort: () => ({ orderBy: undefined, isDescending: false }),
             getPromotedAttributes: () => []
         }, api);
         openColumnContextMenu(withDefaults, event, {
@@ -425,6 +426,7 @@ describe("Board column context menu", () => {
         function sortApi() {
             return {
                 getColumnSort: () => ({ orderBy: undefined, isDescending: false }),
+                getEffectiveColumnSort: () => ({ orderBy: undefined, isDescending: false }),
                 getPromotedAttributes: () => [],
                 setColumnSort: vi.fn(),
                 setColumnSortDirection: vi.fn()
@@ -438,19 +440,22 @@ describe("Board column context menu", () => {
             return entry.items ?? [];
         }
 
-        it("calls the unsorted order Manually rather than None", () => {
-            const first = sortItems(sortApi())[0];
+        it("leads with the board's own order, and calls the unsorted one Manually", () => {
+            const items = sortItems(sortApi());
 
-            expect(first && "title" in first ? first.title : "")
-                .toBe("board_view.sort-manually");
+            expect(items.slice(0, 2).map(item => item && "title" in item ? item.title : ""))
+                .toEqual([ "board_view.sort-board-default", "board_view.sort-manually" ]);
         });
 
         it("writes what is picked against the column the menu was opened on", () => {
             const api = sortApi();
             const items = sortItems(api, "Done");
 
-            pick(items[1]);
-            expect(api.setColumnSort).toHaveBeenCalledWith("Done", "title");
+            pick(items[0]);
+            expect(api.setColumnSort).toHaveBeenCalledWith("Done", "default");
+
+            pick(items[2]);
+            expect(api.setColumnSort).toHaveBeenLastCalledWith("Done", "title");
 
             pick(items.at(-1));
             expect(api.setColumnSortDirection).toHaveBeenCalledWith("Done", true);

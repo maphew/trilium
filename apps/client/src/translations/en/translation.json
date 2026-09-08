@@ -3520,6 +3520,7 @@
     "sort": "Sort",
     "sort-manually": "Manually",
     "sort-cards": "Sort cards",
+    "sort-board-default": "Board's default",
     "apply-sort-to-columns": "Apply to all columns",
     "sorted-no-reorder": "Cards cannot be reordered, since this is a sorted column."
   },
@@ -4228,6 +4229,7 @@
     "submit": "Apply the filter"
   },
   "sorting": {
+    "default": "Default",
     "none": "None",
     "title": "Title",
     "creation-date": "Creation date & time",

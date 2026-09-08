@@ -479,6 +479,22 @@ describe("sorting the cards of a column", () => {
         it("reads a board with no stored columns as one that sorts nothing", () => {
             expect(resolveColumnSorts(undefined).size).toBe(0);
         });
+
+        it("gives a column stored as default the order the board holds", () => {
+            const columns = [
+                { value: "To Do", orderBy: "default" },
+                { value: "Doing", orderBy: "title", descendingOrder: true }
+            ];
+            const sorts = resolveColumnSorts(
+                columns, { orderBy: "attr:dueDate", isDescending: true });
+
+            expect(sorts.get("To Do")).toEqual({ orderBy: "attr:dueDate", isDescending: true });
+            // A column with an order of its own keeps it.
+            expect(sorts.get("Doing")).toEqual({ orderBy: "title", isDescending: true });
+
+            // The board holding none leaves such a column in the manual order.
+            expect([ ...resolveColumnSorts(columns).keys() ]).toEqual([ "Doing" ]);
+        });
     });
 
     describe("sortColumnMap", () => {

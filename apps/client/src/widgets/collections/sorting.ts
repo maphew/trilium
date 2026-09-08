@@ -6,6 +6,12 @@ import type { PromotedAttribute } from "./promoted_attributes";
 /** What a collection orders its items by. `attr:` names one of its promoted attributes. */
 export type SortKey = "title" | "creationDate" | `attr:${string}`;
 
+/** What an item stores to take the collection's own order rather than one of its own. */
+export const DEFAULT_SORT = "default";
+
+/** What one column of a collection stores: an order of its own, or the collection's. */
+export type StoredSortKey = SortKey | typeof DEFAULT_SORT;
+
 /** What the sort needs besides the notes themselves. */
 export interface SortContext {
     /** The promoted attributes by name, used to decide how each value compares. */
@@ -36,6 +42,13 @@ export function parseSortKey(orderBy: string | null | undefined): SortKey | unde
     }
 
     return undefined;
+}
+
+/** Reads a stored `orderBy` setting, the collection's own order included. */
+export function parseStoredSortKey(
+    orderBy: string | null | undefined
+): StoredSortKey | undefined {
+    return orderBy === DEFAULT_SORT ? DEFAULT_SORT : parseSortKey(orderBy);
 }
 
 /** The attribute a key sorts by, or undefined when the key names something else. */

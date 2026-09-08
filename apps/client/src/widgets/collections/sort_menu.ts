@@ -5,19 +5,31 @@ import { t } from "../../services/i18n";
 import { escapeHtml } from "../../services/utils";
 import { promotedAttributeIcon } from "../attribute_widgets/attribute_types";
 import type { PromotedAttribute } from "./promoted_attributes";
-import { type SortKey, sortedAttributeName } from "./sorting";
+import {
+    DEFAULT_SORT, type SortKey, sortedAttributeName, type StoredSortKey
+} from "./sorting";
 
 export interface SortMenuOptions {
     /** What the collection sorts by now, absent while it keeps the order the user arranged. */
-    orderBy: SortKey | undefined;
+    orderBy: StoredSortKey | undefined;
     /** Whether that order runs backwards. */
     isDescending: boolean;
     /** The fields offered besides the title and the creation date, in the order they are shown. */
     attributes: PromotedAttribute[];
     /** What the entry for no sorting is called. "None" unless the caller names it. */
     noneTitle?: string;
+    /**
+     * What the entry taking the collection's own order is called. "Default" unless the caller names
+     * it.
+     */
+    defaultTitle?: string;
+    /**
+     * Leaves that entry out, for the menu that sets the collection's own order: there is nothing
+     * above it for it to take one from.
+     */
+    hideDefault?: boolean;
     /** Called with the key picked, or `undefined` for the order the user arranges by hand. */
-    onSelect: (orderBy: SortKey | undefined) => void;
+    onSelect: (orderBy: StoredSortKey | undefined) => void;
     onDirectionChange: (isDescending: boolean) => void;
 }
 
@@ -41,10 +53,11 @@ export interface SortEntry {
  * to draw. Both surfaces read the same entries, so an order offered in one is offered in the other.
  */
 export function sortEntries({
-    orderBy, isDescending, attributes, noneTitle, onSelect, onDirectionChange
+    orderBy, isDescending, attributes, noneTitle, defaultTitle, hideDefault, onSelect,
+    onDirectionChange
 }: SortMenuOptions): { orders: SortEntry[], directions: SortEntry[] } {
     const order = (
-        key: SortKey | undefined, title: string, icon: string, isUserNamed = false
+        key: StoredSortKey | undefined, title: string, icon: string, isUserNamed = false
     ): SortEntry => ({
         key: key ?? "none",
         title,
@@ -55,18 +68,23 @@ export function sortEntries({
         pick: () => onSelect(key)
     });
 
+    // Off while the collection keeps the manual order, and while it takes the order above it,
+    // which brings a direction of its own.
+    const canPickDirection = !!orderBy && orderBy !== DEFAULT_SORT;
     const direction = (descending: boolean, title: string, icon: string): SortEntry => ({
         key: descending ? "descending" : "ascending",
         title,
         icon,
         isSelected: !!orderBy && isDescending === descending,
-        isEnabled: !!orderBy,
+        isEnabled: canPickDirection,
         isUserNamed: false,
         pick: () => onDirectionChange(descending)
     });
 
     return {
         orders: [
+            ...(hideDefault ? [] : [ order(
+                DEFAULT_SORT, defaultTitle ?? t("sorting.default"), "bx bx-collection") ]),
             order(undefined, noneTitle ?? t("sorting.none"), "bx bx-move-vertical"),
             order("title", t("sorting.title"), "bx bx-text"),
             order("creationDate", t("sorting.creation-date"), "bx bx-calendar-plus"),

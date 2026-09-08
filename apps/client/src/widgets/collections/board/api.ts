@@ -18,7 +18,9 @@ import {
     type PromotedAttribute, resolvePromotedAttributes, storedPromotedAttributes,
     visiblePromotedAttributeNames
 } from "../promoted_attributes";
-import { parseSortKey, type SortKey } from "../sorting";
+import {
+    DEFAULT_SORT, parseSortKey, parseStoredSortKey, type SortKey, type StoredSortKey
+} from "../sorting";
 import { BoardColumnData, BoardViewData } from ".";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import {
@@ -621,20 +623,35 @@ export default class BoardApi {
     }
 
     /**
-     * How a column orders its cards.
+     * What a column is set to order its cards by, which can be the board's own order.
      *
-     * @returns the key to sort by, absent for the manual order, and its direction.
+     * @returns the stored key, absent for the manual order, and the direction stored with it. See
+     *          {@link getEffectiveColumnSort} for what the column is actually drawn in.
      */
     getColumnSort(column: string) {
         const stored = this.viewConfig?.columns?.find(col => col.value === column);
         return {
-            orderBy: parseSortKey(stored?.orderBy),
+            orderBy: parseStoredSortKey(stored?.orderBy),
             isDescending: !!stored?.descendingOrder
         };
     }
 
+    /**
+     * The order a column is drawn in: its own, or the board's where it takes that. A column taking
+     * an order the board does not hold keeps the manual one.
+     */
+    getEffectiveColumnSort(column: string) {
+        const stored = this.getColumnSort(column);
+        if (stored.orderBy !== DEFAULT_SORT) {
+            return { orderBy: stored.orderBy, isDescending: stored.isDescending };
+        }
+
+        const board = this.getDefaultSort();
+        return { orderBy: board.orderBy, isDescending: board.isDescending };
+    }
+
     /** Sets what a column sorts by. Pass `undefined` for the manual order. */
-    async setColumnSort(column: string, orderBy: SortKey | undefined) {
+    async setColumnSort(column: string, orderBy: StoredSortKey | undefined) {
         await this.updateColumn(column, { orderBy });
     }
 
@@ -1222,7 +1239,7 @@ export default class BoardApi {
 
     /** Whether a column orders its own cards rather than keeping the order the user set. */
     isColumnSorted(column: string) {
-        return !!this.getColumnSort(column).orderBy;
+        return !!this.getEffectiveColumnSort(column).orderBy;
     }
 
     /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */

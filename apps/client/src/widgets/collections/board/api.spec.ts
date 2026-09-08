@@ -1849,6 +1849,53 @@ describe("how a column orders its cards", () => {
     });
 });
 
+describe("a column that takes the board's order", () => {
+    /** A board holding an order of its own, which a column can be stored as taking. */
+    function boardSorting() {
+        return buildNote({
+            title: "Board", "#sortColumns": "attr:dueDate", "#sortColumnsDescending": ""
+        });
+    }
+
+    it("keeps the stored value apart from the order the column is drawn in", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "default" } ] }, [ "To Do" ], boardSorting());
+
+        // What the menu marks, and what the cards are ordered by.
+        expect(api.getColumnSort("To Do"))
+            .toEqual({ orderBy: "default", isDescending: false });
+        expect(api.getEffectiveColumnSort("To Do"))
+            .toEqual({ orderBy: "attr:dueDate", isDescending: true });
+        expect(api.isColumnSorted("To Do")).toBe(true);
+    });
+
+    it("keeps the manual order while the board holds none", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "default" } ] }, [ "To Do" ]);
+
+        expect(api.getColumnSort("To Do").orderBy).toBe("default");
+        expect(api.getEffectiveColumnSort("To Do").orderBy).toBeUndefined();
+        expect(api.isColumnSorted("To Do")).toBe(false);
+    });
+
+    it("leaves a column with an order of its own alone", () => {
+        const { api } = createApi(
+            { columns: [ { value: "To Do", orderBy: "title", descendingOrder: true } ] },
+            [ "To Do" ],
+            boardSorting());
+
+        expect(api.getEffectiveColumnSort("To Do"))
+            .toEqual({ orderBy: "title", isDescending: true });
+    });
+
+    it("stores the value a pick names", async () => {
+        const { api, saved } = createApi({ columns: [ { value: "To Do" } ] }, [ "To Do" ]);
+
+        await api.setColumnSort("To Do", "default");
+        expect(saved.at(-1)?.columns).toEqual([ { value: "To Do", orderBy: "default" } ]);
+    });
+});
+
 describe("the order the board offers its columns", () => {
     beforeEach(() => vi.restoreAllMocks());
 

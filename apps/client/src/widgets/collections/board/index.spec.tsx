@@ -3619,8 +3619,8 @@ describe("a column that sorts its cards", () => {
         const items = show.mock.calls.at(-1)?.[0].items ?? [];
         expect(items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator")))
             .toEqual([
-                "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus", "separator",
-                "bx bx-sort-up", "bx bx-sort-down"
+                "bx bx-collection", "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus",
+                "separator", "bx bx-sort-up", "bx bx-sort-down"
             ]);
         show.mockRestore();
 

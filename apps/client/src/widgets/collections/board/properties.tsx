@@ -102,6 +102,7 @@ function General({ api, note }: { api: BoardApi, note: FNote }) {
                     isDescending={isDescending}
                     attributes={api.getPromotedAttributes()}
                     noneTitle={t("board_view.sort-manually")}
+                    hideDefault
                     onSelect={(orderBy) => api.setDefaultSort(orderBy)}
                     onDirectionChange={(descending) => api.setDefaultSortDirection(descending)}
                 />

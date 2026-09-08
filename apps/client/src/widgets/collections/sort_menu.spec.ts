@@ -10,8 +10,9 @@ import {
 vi.mock("../../services/i18n", () => ({ t: (key: string) => key }));
 
 describe("buildSortMenuItems", () => {
-    it("offers no sorting, the two built-in keys and the direction", () => {
+    it("offers the collection's own order, no sorting, the built-in keys and the direction", () => {
         expect(icons(build())).toEqual([
+            "bx bx-collection",
             "bx bx-move-vertical",
             "bx bx-text",
             "bx bx-calendar-plus",
@@ -21,24 +22,41 @@ describe("buildSortMenuItems", () => {
         ]);
     });
 
-    it("calls the entry for no sorting None, and lets the caller name it otherwise", () => {
-        expect(titles(build())[0]).toBe("sorting.none");
-        expect(titles(build({ noneTitle: "Manually" }))[0]).toBe("Manually");
+    it("names both fallbacks itself, and lets the caller name them otherwise", () => {
+        expect(titles(build()).slice(0, 2)).toEqual([ "sorting.default", "sorting.none" ]);
+        expect(titles(build({ defaultTitle: "Board's default", noneTitle: "Manually" }))
+            .slice(0, 2)).toEqual([ "Board's default", "Manually" ]);
+    });
+
+    /** The menu that sets the collection's own order has nothing above it to take one from. */
+    it("leaves out the collection's own order where the caller hides it", () => {
+        expect(titles(build({ hideDefault: true }))[0]).toBe("sorting.none");
+        expect(icons(build({ hideDefault: true }))).not.toContain("bx bx-collection");
     });
 
     it("checks no sorting while nothing is sorted, and offers no direction", () => {
         const items = build();
 
-        expect(items[0]).toMatchObject({ trailingIcon: "bx bx-check" });
-        expect(items[1]).toMatchObject({ trailingIcon: undefined });
+        expect(items[1]).toMatchObject({ trailingIcon: "bx bx-check" });
+        expect(items[2]).toMatchObject({ trailingIcon: undefined });
         expect(items.at(-2)).toMatchObject({ enabled: false, trailingIcon: undefined });
         expect(items.at(-1)).toMatchObject({ enabled: false, trailingIcon: undefined });
     });
 
+    /** The order comes from above with a direction of its own, so there is none to pick here. */
+    it("checks the collection's own order, and offers no direction with it", () => {
+        const items = build({ orderBy: "default", isDescending: true });
+
+        expect(items[0]).toMatchObject({ trailingIcon: "bx bx-check" });
+        expect(items[1]).toMatchObject({ trailingIcon: undefined });
+        expect(items.at(-2)).toMatchObject({ enabled: false });
+        expect(items.at(-1)).toMatchObject({ enabled: false, trailingIcon: "bx bx-check" });
+    });
+
     it("checks the key it sorts by, and the direction it sorts in", () => {
         const ascending = build({ orderBy: "title" });
-        expect(ascending[0]).toMatchObject({ trailingIcon: undefined });
-        expect(ascending[1]).toMatchObject({ trailingIcon: "bx bx-check" });
+        expect(ascending[1]).toMatchObject({ trailingIcon: undefined });
+        expect(ascending[2]).toMatchObject({ trailingIcon: "bx bx-check" });
         expect(ascending.at(-2)).toMatchObject({ enabled: true, trailingIcon: "bx bx-check" });
         expect(ascending.at(-1)).toMatchObject({ enabled: true, trailingIcon: undefined });
 
@@ -56,14 +74,14 @@ describe("buildSortMenuItems", () => {
             ]
         });
 
-        expect(titles(items).slice(3, 5)).toEqual([
+        expect(titles(items).slice(4, 6)).toEqual([
             `<span class="sort-menu-name">Due date</span>`,
             `<span class="sort-menu-name">Owner</span>`
         ]);
-        expect(items[3]).toMatchObject({
+        expect(items[4]).toMatchObject({
             uiIcon: "bx bx-calendar", className: "sort-menu-item", trailingIcon: undefined
         });
-        expect(items[4]).toMatchObject({ uiIcon: "bx bx-transfer", trailingIcon: "bx bx-check" });
+        expect(items[5]).toMatchObject({ uiIcon: "bx bx-transfer", trailingIcon: "bx bx-check" });
     });
 
     it("escapes what a crafted attribute name would plant in the menu", () => {
@@ -71,26 +89,29 @@ describe("buildSortMenuItems", () => {
             attributes: [ attribute({ name: "x", title: `<img src=x onerror="alert(1)">` }) ]
         });
 
-        expect(titles(items)[3]).toBe("<span class=\"sort-menu-name\">"
+        expect(titles(items)[4]).toBe("<span class=\"sort-menu-name\">"
             + "&lt;img src&#x3D;x onerror&#x3D;&quot;alert(1)&quot;&gt;</span>");
     });
 
-    it("reports the key a pick names, and no key at all for the first entry", () => {
+    it("reports the key a pick names, and no key at all for the manual order", () => {
         const onSelect = vi.fn();
         const items = build({
             attributes: [ attribute({ name: "dueDate", title: "Due date" }) ]
         }, { onSelect });
 
-        pick(items[1]);
-        expect(onSelect).toHaveBeenCalledWith("title");
+        pick(items[0]);
+        expect(onSelect).toHaveBeenCalledWith("default");
 
         pick(items[2]);
-        expect(onSelect).toHaveBeenCalledWith("creationDate");
+        expect(onSelect).toHaveBeenCalledWith("title");
 
         pick(items[3]);
+        expect(onSelect).toHaveBeenCalledWith("creationDate");
+
+        pick(items[4]);
         expect(onSelect).toHaveBeenCalledWith("attr:dueDate");
 
-        pick(items[0]);
+        pick(items[1]);
         expect(onSelect).toHaveBeenCalledWith(undefined);
     });
 
@@ -113,6 +134,7 @@ describe("sortEntries", () => {
         const { orders, directions } = entries({ attributes });
 
         expect(orders.map((entry) => [ entry.key, entry.title, entry.icon ])).toEqual([
+            [ "default", "sorting.default", "bx bx-collection" ],
             [ "none", "sorting.none", "bx bx-move-vertical" ],
             [ "title", "sorting.title", "bx bx-text" ],
             [ "creationDate", "sorting.creation-date", "bx bx-calendar-plus" ],
@@ -122,18 +144,18 @@ describe("sortEntries", () => {
         expect(directions.map((entry) => entry.key)).toEqual([ "ascending", "descending" ]);
         // Only a name the user wrote is escaped and clipped where a menu draws it.
         expect(orders.map((entry) => entry.isUserNamed))
-            .toEqual([ false, false, false, true ]);
+            .toEqual([ false, false, false, false, true ]);
     });
 
     it("marks the order the collection is in, and turns the direction off while it has none", () => {
         const unsorted = entries({ attributes });
         expect(unsorted.orders.map((entry) => entry.isSelected))
-            .toEqual([ true, false, false, false ]);
+            .toEqual([ false, true, false, false, false ]);
         expect(unsorted.directions.map((entry) => entry.isEnabled)).toEqual([ false, false ]);
 
         const sorted = entries({ attributes, orderBy: "attr:dueDate", isDescending: true });
         expect(sorted.orders.map((entry) => entry.isSelected))
-            .toEqual([ false, false, false, true ]);
+            .toEqual([ false, false, false, false, true ]);
         expect(sorted.directions.map((entry) => entry.isSelected)).toEqual([ false, true ]);
         expect(sorted.directions.map((entry) => entry.isEnabled)).toEqual([ true, true ]);
     });
@@ -143,10 +165,13 @@ describe("sortEntries", () => {
         const onDirectionChange = vi.fn();
         const { orders, directions } = entries({ attributes }, { onSelect, onDirectionChange });
 
-        orders[3].pick();
+        orders[4].pick();
         expect(onSelect).toHaveBeenCalledWith("attr:dueDate");
 
         orders[0].pick();
+        expect(onSelect).toHaveBeenLastCalledWith("default");
+
+        orders[1].pick();
         expect(onSelect).toHaveBeenLastCalledWith(undefined);
 
         directions[1].pick();
