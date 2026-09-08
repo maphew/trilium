@@ -108,6 +108,41 @@ describe("ViewModeStorage", () => {
         ]);
     });
 
+    /**
+     * A queued write announces itself while a later one is still waiting to be sent, so what comes
+     * back is what the view wrote a moment ago rather than what it now holds. Taken for an external
+     * change, it would put the view back to that older config, and the next change made from there
+     * would drop whatever the queued write carried.
+     */
+    it("passes over the echo of its own write that a later one has moved past", async () => {
+        // Carrying an attachment already, which is what the echoes below are read from.
+        const note = noteWithStoredConfig(JSON.stringify({ view: { zoom: 0 } }));
+        const storage = new ViewModeStorage<Config>(note, "geoMap");
+        let releaseFirst = () => {};
+        vi.mocked(server.post).mockImplementationOnce(async () => {
+            await new Promise<void>((resolve) => { releaseFirst = resolve; });
+        });
+
+        const first = storage.store({ view: { zoom: 1 } });
+        const second = storage.store({ view: { zoom: 2 } });
+        await new Promise((resolve) => setTimeout(resolve));
+
+        // The first write has landed and announced itself; the second has not been sent yet.
+        vi.mocked(server.get).mockResolvedValue({ content: JSON.stringify({ view: { zoom: 1 } }) });
+        expect(await storage.restoreIfChanged()).toBeUndefined();
+
+        releaseFirst();
+        await Promise.all([ first, second ]);
+
+        // ...and the second write echoes back as its own too.
+        vi.mocked(server.get).mockResolvedValue({ content: JSON.stringify({ view: { zoom: 2 } }) });
+        expect(await storage.restoreIfChanged()).toBeUndefined();
+
+        // A change from anywhere else is still reported.
+        vi.mocked(server.get).mockResolvedValue({ content: JSON.stringify({ view: { zoom: 9 } }) });
+        expect(await storage.restoreIfChanged()).toEqual({ view: { zoom: 9 } });
+    });
+
     /** One write failing is not a reason to drop the next: the config it carries is still wanted. */
     it("keeps writing after one is refused", async () => {
         const storage = new ViewModeStorage<Config>(noteWithStoredConfig(undefined), "geoMap");
