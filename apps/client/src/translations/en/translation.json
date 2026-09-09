@@ -3526,10 +3526,11 @@
     "card-outside-filter": "This card is outside of the current filtering scope",
     "sort": "Sort",
     "sort-manually": "Manually",
-    "sort-cards": "Sort cards",
+    "default-card-order": "Default card order",
+    "default-card-order-description": "How cards are sorted in each column, unless you choose different sorting options for a particular column.",
     "sort-board-default": "Board's default",
-    "sort-actions": "More actions",
-    "reset-columns-to-default": "Reset all columns to default",
+    "reset-column-sorting": "Reset sorting options to default for all columns",
+    "reset-column-sorting-confirm": "Do you want to reset the sorting options for all columns from the current view to default?",
     "sorted-no-reorder": "Cards cannot be reordered, since this is a sorted column."
   },
   "dashboard_view": {

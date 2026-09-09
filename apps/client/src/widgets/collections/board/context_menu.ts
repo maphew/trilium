@@ -255,27 +255,6 @@ export function openColumnSortMenu(api: Api, x: number, y: number, column: strin
     });
 }
 
-/**
- * What can be done to the orders the columns hold, offered beside the board's own order.
- *
- * Opened at the pointer from the button in the properties card, as the template entries there open
- * theirs.
- */
-export function openSortActionsMenu(api: Api, event: { pageX: number, pageY: number }) {
-    contextMenu.show({
-        x: event.pageX,
-        y: event.pageY,
-        items: [
-            {
-                title: t("board_view.reset-columns-to-default"),
-                uiIcon: "bx bx-reset",
-                handler: () => api.resetColumnSortsToDefault()
-            }
-        ],
-        selectMenuItemHandler() {}
-    });
-}
-
 /** What the board asks the shared sort menu for, wherever it is opened. */
 function sortMenuOptions(api: Api, column: string): SortMenuOptions {
     return {
