@@ -85,6 +85,7 @@ overrides:
 
 patchedDependencies:
   '@excalidraw/excalidraw@0.18.1': 859531a8ff622291b895d36bcd33e07ced6fcb3bcc90631ccaf776789b03f0c2
+  html@1.0.0: 8acc288f8e9cde3c8a0c6e89f0b3796aeeb8251b88db9d1ba313e2352a591d68
 
 importers:
 
@@ -733,7 +734,7 @@ importers:
         version: 8.3.0
       html:
         specifier: 1.0.0
-        version: 1.0.0
+        version: 1.0.0(patch_hash=8acc288f8e9cde3c8a0c6e89f0b3796aeeb8251b88db9d1ba313e2352a591d68)
       http-proxy-agent:
         specifier: 9.1.0
         version: 9.1.0(supports-color@10.2.2)
@@ -21155,7 +21156,7 @@ snapshots:
 
   html-void-elements@3.0.0: {}
 
-  html@1.0.0:
+  html@1.0.0(patch_hash=8acc288f8e9cde3c8a0c6e89f0b3796aeeb8251b88db9d1ba313e2352a591d68):
     dependencies:
       concat-stream: 1.6.2
 
