@@ -606,7 +606,7 @@ importers:
         version: 4.0.60(zod@4.5.4)
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.3.207
-        version: 0.3.259(@anthropic-ai/sdk@0.111.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(zod@4.5.4)
+        version: 0.3.263(@anthropic-ai/sdk@0.111.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(zod@4.5.4)
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.1
         version: 1.30.0(supports-color@10.2.2)(zod@4.5.4)
@@ -1564,52 +1564,52 @@ packages:
   '@antfu/install-pkg@1.1.0':
     resolution: {integrity: sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ==}
 
-  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.259':
-    resolution: {integrity: sha512-irMesPeaTll57VE+ZWw1+J9eSMtllbb1Mr9cKVW9igS0mu4nPtDFaNuycSSb0e/XJZlmUwEM+Q74XbilcfUBdA==}
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.263':
+    resolution: {integrity: sha512-H4eLd4Tkx3rJkt739CHb+9AcaKiiOpibU4tYsmma47mV+2zAPjUyFxpuE2N57VSmpAgbLQxu44du0TFN+UH5dg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.259':
-    resolution: {integrity: sha512-L8IESfv0vwoVFp+4icW3oSj1f0AT0jonnS5vVIF4RBr+52JogiPCTstG1AI9xSD5R82084Ov6G7ekjS/eZRREA==}
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.263':
+    resolution: {integrity: sha512-jKwmfkem1s/TcK7u83cJf2zLHMz846irV4vqYGUlo74uX2qfX57R4UsrCMlcTUMou/U9vQyNCc/Kk0s+zSxYRg==}
     cpu: [x64]
     os: [darwin]
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.259':
-    resolution: {integrity: sha512-6Mbet5P5LWwX1YexyzDkNP4vn1pmw8dlnNF/NU1+rXxEYmXiDVt2uf+p1hA/FbHCVottx8dc1CcVNgFy+QbQTA==}
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.263':
+    resolution: {integrity: sha512-TiOmi9mqYvu3uGgM+0eQrUQzgXb7pgTzqahtRyEjpJrNigddGoANHcbNKL7P7y4etJpyIuYXGuVh5SLJzySYVA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.259':
-    resolution: {integrity: sha512-3AblD+jFXRkYssGQ/bfjIZ3kUmoqzgiVUO6G9UkVq8wClo6YNJTnYMUrkPvwX0ahR65Y3QsM2iPcLmao13vVCw==}
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.263':
+    resolution: {integrity: sha512-2KPY1wu1hdjpVsw+Tg3i50uhxhhetO1fB24wjUJAQJ8YPSogqO32UbtYPJ6I3F17lBNHb/Mq3nRYGAuSU5yjtg==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.259':
-    resolution: {integrity: sha512-5lBXB6eXN90VKc+HT+PEKQp+/omhK88OK9caWohUp4ozCiyy2LoUz4s+l0S2HaNa2yiY7z+lhwcgpAkuOp8Olw==}
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.263':
+    resolution: {integrity: sha512-PWctt/XjebBxtI37i2xx2OMxSscPMnKmxU82MWdtIvoAyJ40U5yfqpm92fm45R02eLn9j4LQpvNocVTcRAHv+g==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.259':
-    resolution: {integrity: sha512-kpPgmCwNN+OA+q1suGvzKbUk9sfrYKz/gJmLne4ag91oqRHBP0wAEWex0c/0bmTb+wDa98WmpwpZYCmqKppCdg==}
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.263':
+    resolution: {integrity: sha512-un7HJzTT+DSQLgM33emQ0qHAwIY3CXIwe8JXoD9PaT7pdLepK4Ffa4r5j84pHTVS5uoGqxcf196tBgqb5/Z7FA==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.259':
-    resolution: {integrity: sha512-ryidK7vUU9CV4RStETCBwfQctMgFZ0nb/uP08GL85mpbnzPFnw+tD06rA7aIkQTXHuOv4BFvFxHRgYouBoZ0bg==}
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.263':
+    resolution: {integrity: sha512-n8owOwNSSi7/KpONb/ut+uXRjBIp9N6EjwADiB+YygPwGRtpWP+PR/qFsGdTVBE5cpPwhgKVAf27xEZEfNvcSQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.259':
-    resolution: {integrity: sha512-0zJUo/avBoyxzI/81/T7Yv3xBor4rjUJAQvUa8bJ2zmc0RL/fczGlJAKEfOql69kG8ap+Igo9nbNZ6TLyURjrw==}
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.263':
+    resolution: {integrity: sha512-EwqzsOLxIJTX6RIXtQ21ekOKmYBNfwbtGtqaPqdWZGzpMbHaie8kGsM630h9RFaoxeytS/jbg8B3fPCdUKfhPw==}
     cpu: [x64]
     os: [win32]
 
-  '@anthropic-ai/claude-agent-sdk@0.3.259':
-    resolution: {integrity: sha512-5VJSzHQTAPFl2BytZSgyL0Xtdi3I7CeajEhO4KTvm6bx4nt1OIp+IHx78MuurA4Pp/t9UEPa3cWz8Q55Pi9MYw==}
+  '@anthropic-ai/claude-agent-sdk@0.3.263':
+    resolution: {integrity: sha512-0QWoHgWWlSmgXfEqZRbVYRoXT9p4tx/yKaZ4eLJ8l1MR65SIvMGR+cd5ZXUpGYZpj9RzbYiYU9LoFg90mdIjmw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@anthropic-ai/sdk': '>=0.93.0'
@@ -2131,13 +2131,6 @@ packages:
     resolution: {integrity: sha512-064IFJdjTfUqnjpCVpMOdbr8FLQBhinbZj6yRv2An2E41O/pLEXqfFRWqGq/SxlE5PEUYTlvWsG2r8MswAVvkg==}
     engines: {node: '>=20.19.0'}
 
-  '@csstools/css-calc@3.2.1':
-    resolution: {integrity: sha512-DtdHlgXh5ZkA43cwBcAm+huzgJiwx3ZTWVjBs94kwz2xKqSimDA3lBgCjphYgwgVUMWatSM0pDd8TILB1yrVVg==}
-    engines: {node: '>=20.19.0'}
-    peerDependencies:
-      '@csstools/css-parser-algorithms': ^4.0.0
-      '@csstools/css-tokenizer': ^4.0.0
-
   '@csstools/css-calc@3.3.0':
     resolution: {integrity: sha512-c5ihYsPkdG6JCkU2zTMm4+k6r7RXuGxtWYhu5DHMIiF1FHzrfmHL5so11AoFpUv/tu61xfcmT4AmKoFfMPoqdQ==}
     engines: {node: '>=20.19.0'}
@@ -2160,14 +2153,6 @@ packages:
 
   '@csstools/css-syntax-patches-for-csstree@1.1.12':
     resolution: {integrity: sha512-3vLQK+dXxhBMR2Wx99PTCifE+vHtW2ndZWyla8yK813ev6oGhyn8Lja8jCyGAWTJ+LEYZK7EVtJxrDj8ztevJw==}
-    peerDependencies:
-      css-tree: ^3.2.1
-    peerDependenciesMeta:
-      css-tree:
-        optional: true
-
-  '@csstools/css-syntax-patches-for-csstree@1.1.7':
-    resolution: {integrity: sha512-fQ+05118eQS1cofO3aJpB5efgpBZMvIzwr/sbC8kDLVA5XLG8q1kJV5yzrUAI1f7lvhPnm8fgIjzFB8/O/5Dig==}
     peerDependencies:
       css-tree: ^3.2.1
     peerDependenciesMeta:
@@ -12083,44 +12068,44 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.3.0
 
-  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-darwin-arm64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-darwin-x64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-linux-arm64-musl@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-linux-arm64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-linux-x64-musl@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-linux-x64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-win32-arm64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.259':
+  '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.263':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.3.259(@anthropic-ai/sdk@0.111.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(zod@4.5.4)':
+  '@anthropic-ai/claude-agent-sdk@0.3.263(@anthropic-ai/sdk@0.111.0(zod@4.5.4))(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.5.4))(zod@4.5.4)':
     dependencies:
       '@anthropic-ai/sdk': 0.111.0(zod@4.5.4)
       '@modelcontextprotocol/sdk': 1.30.0(supports-color@10.2.2)(zod@4.5.4)
       zod: 4.5.4
     optionalDependencies:
-      '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-linux-arm64': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-linux-arm64-musl': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-linux-x64': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.259
-      '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.259
+      '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-darwin-x64': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-linux-arm64': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-linux-arm64-musl': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-linux-x64': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-linux-x64-musl': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-win32-arm64': 0.3.263
+      '@anthropic-ai/claude-agent-sdk-win32-x64': 0.3.263
 
   '@anthropic-ai/sdk@0.111.0(zod@4.5.4)':
     dependencies:
@@ -12133,7 +12118,7 @@ snapshots:
 
   '@asamuzakjp/css-color@6.0.5':
     dependencies:
-      '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-color-parser': 4.1.9(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
@@ -13212,11 +13197,6 @@ snapshots:
 
   '@csstools/color-helpers@6.1.0': {}
 
-  '@csstools/css-calc@3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
-    dependencies:
-      '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
-      '@csstools/css-tokenizer': 4.0.0
-
   '@csstools/css-calc@3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
@@ -13225,7 +13205,7 @@ snapshots:
   '@csstools/css-color-parser@4.1.9(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)':
     dependencies:
       '@csstools/color-helpers': 6.1.0
-      '@csstools/css-calc': 3.2.1(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
+      '@csstools/css-calc': 3.3.0(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
 
@@ -13234,10 +13214,6 @@ snapshots:
       '@csstools/css-tokenizer': 4.0.0
 
   '@csstools/css-syntax-patches-for-csstree@1.1.12(css-tree@3.2.1)':
-    optionalDependencies:
-      css-tree: 3.2.1
-
-  '@csstools/css-syntax-patches-for-csstree@1.1.7(css-tree@3.2.1)':
     optionalDependencies:
       css-tree: 3.2.1
 
@@ -15168,7 +15144,7 @@ snapshots:
       detect-libc: 2.1.2
       is-glob: 4.0.3
       node-addon-api: 7.1.1
-      picomatch: 4.0.5
+      picomatch: 4.0.7
     optionalDependencies:
       '@parcel/watcher-android-arm64': 2.6.0
       '@parcel/watcher-darwin-arm64': 2.6.0
@@ -21672,7 +21648,7 @@ snapshots:
       '@asamuzakjp/css-color': 6.0.5
       '@asamuzakjp/dom-selector': 8.3.0
       '@bramus/specificity': 2.4.2
-      '@csstools/css-syntax-patches-for-csstree': 1.1.7(css-tree@3.2.1)
+      '@csstools/css-syntax-patches-for-csstree': 1.1.12(css-tree@3.2.1)
       '@exodus/bytes': 1.15.1(@noble/hashes@2.4.0)
       css-tree: 3.2.1
       data-urls: 7.0.0(@noble/hashes@2.4.0)
