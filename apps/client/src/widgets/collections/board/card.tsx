@@ -259,12 +259,6 @@ function Card({
                         title={t("board_view.edit-note-title")}
                         onClick={handleEdit}
                     />
-                    <UserAttributesDisplay
-                        note={note}
-                        ignoredAttributes={[statusAttribute]}
-                        shownAttributes={shownAttributes}
-                        badges={isOutsideFilter && <OutsideFilterBadge />}
-                    />
                 </>
             ) : (
                 <TitleEditor
@@ -283,6 +277,14 @@ function Card({
                     }}
                 />
             )}
+            {/* Drawn while the title is being edited as well, so a card keeps what it shows and
+                stands the same height either way. */}
+            <UserAttributesDisplay
+                note={note}
+                ignoredAttributes={[statusAttribute]}
+                shownAttributes={shownAttributes}
+                badges={isOutsideFilter && <OutsideFilterBadge />}
+            />
         </div>
     )
 }

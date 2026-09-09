@@ -371,6 +371,22 @@ describe("Board card", () => {
         }
     });
 
+    /**
+     * The card is the same height either way, so opening the editor neither drops what the card
+     * shows nor moves the cards below it.
+     */
+    it("keeps the badges it shows while its title is being edited", async () => {
+        const { first } = await renderBoard();
+        // Held on to: the editor takes the place of the title the lookup goes by.
+        const element = card(first);
+        expect(element.querySelector(".user-attributes")).toBeTruthy();
+
+        await act(async () => { press(element, "F2"); });
+
+        expect(element.querySelector("textarea")).toBeTruthy();
+        expect(element.querySelector(".user-attributes")).toBeTruthy();
+    });
+
     it("offers the card menu on a right click", async () => {
         const { first } = await renderBoard();
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});

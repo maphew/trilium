@@ -50,6 +50,8 @@
   --card-font-size: 0.9em;
   --card-line-height: 1.2;
   --card-padding: 0.6em;
+  /* What stands between a card's title and the row of badges under it, in both modes. */
+  --card-badge-gap: 8px;
   /* The icon a card carries, and where it and the title stand from the card's leading edge. The
      card and the editor it opens into are laid out from these, so switching between them moves
      nothing. All three are worked out in the card's own font. */
@@ -649,6 +651,27 @@ body.mobile .board-view-container .board-add-column {
   display: flex;
   align-items: center;
   padding: 0;
+}
+
+/* A card being edited stacks the field over what it shows, rather than standing them side by side:
+   the badges are drawn either way, so the card keeps its own height as the editor opens. */
+.board-view-container .board-note.editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* The card gives its padding to the field while one is open, so what stands under it is inset by
+   the card's own instead. The field's foot padding already stands between the text and this row,
+   so only what is left of the gap is added, and the card is the height it is either way. */
+.board-view-container .board-note.editing .user-attributes {
+  margin-block-start: calc(var(--card-badge-gap) - var(--card-padding));
+  padding-inline: var(--card-padding);
+  padding-block-end: var(--card-padding);
+}
+
+/* Named here as well, so both modes are worked out from the one value. */
+.board-view-container .board-note .user-attributes {
+  margin-block-start: var(--card-badge-gap);
 }
 
 /* One line stands exactly as tall as the card, or as the closed button; typing more grows it from
