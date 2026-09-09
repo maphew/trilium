@@ -3223,6 +3223,83 @@ describe("Board editors and menus", () => {
         await act(async () => { await flush(); });
     }
 
+    /**
+     * The backdrop and the frozen cards are driven by classes rather than by `:has()`: a `:has()`
+     * naming a descendant makes every card insertion invalidate the whole board.
+     */
+    it("marks the board and the one column while a card title is being edited", async () => {
+        const board = await renderBoard();
+        const view = board.querySelector<HTMLElement>(".board-view");
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const card = columns[0]?.querySelector<HTMLElement>(".board-note");
+        if (!view || !card || columns.length < 2) throw new Error("expected a card in two columns");
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "F2", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(true);
+        expect(columns[0].classList.contains("editing-open")).toBe(true);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+
+        const editor = card.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the card editor to be open");
+
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+        expect(columns[0].classList.contains("editing-open")).toBe(false);
+    });
+
+    it("marks a field opened between cards, and leaves the one at a column's foot unmarked", async () => {
+        const board = await renderBoard();
+        const view = board.querySelector<HTMLElement>(".board-view");
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const card = columns[0]?.querySelector<HTMLElement>(".board-note");
+        if (!view || !card || columns.length < 2) throw new Error("expected a card in two columns");
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        expect(board.querySelector(".board-new-item.inserting")).toBeTruthy();
+        expect(view.classList.contains("editing-open")).toBe(true);
+        expect(columns[0].classList.contains("editing-open")).toBe(true);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+
+        const field = columns[0].querySelector<HTMLTextAreaElement>(
+            ".board-new-item.inserting textarea");
+        if (!field) throw new Error("expected the insert field to be open");
+
+        await act(async () => {
+            field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+
+        // The field below a column makes a card the same way but leaves the board undimmed.
+        const footer = columns[1].querySelector<HTMLElement>(".board-new-item");
+        if (!footer) throw new Error("expected the column footer");
+
+        await act(async () => {
+            footer.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            await flush();
+        });
+
+        expect(footer.classList.contains("editing")).toBe(true);
+        expect(footer.classList.contains("inserting")).toBe(false);
+        expect(view.classList.contains("editing-open")).toBe(false);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+    });
+
     async function renderBoard() {
         const note = buildNote({
             title: "Board",

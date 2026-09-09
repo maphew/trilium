@@ -192,6 +192,13 @@ interface BoardActions {
     setDraggedColumn: (column: ColumnDrag | null) => void;
     setDropPosition: (position: ColumnDrag | null) => void;
     setDropTarget: (target: string | null) => void;
+    /**
+     * Reports whether a column holds an open insert field, which the board reads to raise the
+     * backdrop. Held here rather than matched with `:has()` in the stylesheet: a `:has()` naming a
+     * descendant makes every card insertion invalidate the whole board, which on a column of
+     * thousands is hundreds of milliseconds of style recalculation per card added.
+     */
+    setInsertingColumn: (column: string, isOpen: boolean) => void;
 }
 
 /**
@@ -221,7 +228,8 @@ export const BoardActionsContext = createContext<BoardActions>({
     setDraggedCard: () => undefined,
     setDraggedColumn: () => undefined,
     setDropPosition: () => undefined,
-    setDropTarget: () => undefined
+    setDropTarget: () => undefined,
+    setInsertingColumn: () => undefined
 });
 
 /**
@@ -251,6 +259,9 @@ export const BoardKeptCardsContext = createContext<Set<string>>(new Set());
  * board handles itself (see `keyboard.ts` and the card and column handlers), none of them
  * rebindable, so each is listed literally rather than through a registered action.
  */
+/** Stands for a board where no column has an insert field open, so no render allocates a set. */
+const NO_COLUMNS: ReadonlySet<string> = new Set();
+
 /** How long a finger stays on the create button before it offers where to put the card. */
 const HOLD_TO_PLACE_MS = 500;
 
@@ -389,6 +400,24 @@ export default function BoardView({
     const [ isEditingProperties, setIsEditingProperties ] = useState(false);
     /** Adds `frozen`, which takes `pointer-events` off the cards. Set once the backdrop has faded in. */
     const [ isFrozen, setIsFrozen ] = useState(false);
+    /** The columns holding an open insert field, which each column reports for itself. */
+    const [ insertingColumns, setInsertingColumns ] = useState<ReadonlySet<string>>(NO_COLUMNS);
+    const setInsertingColumn = useCallback((column: string, isOpen: boolean) => {
+        setInsertingColumns((current) => {
+            if (current.has(column) === isOpen) {
+                return current;
+            }
+
+            const next = new Set(current);
+            if (isOpen) {
+                next.add(column);
+            } else {
+                next.delete(column);
+            }
+
+            return next;
+        });
+    }, []);
     const selectColumn = useCallback<Dispatch<StateUpdater<string | undefined>>>((column) => {
         setIsPeekingAll(false);
         setActiveColumn(column);
@@ -571,10 +600,11 @@ export default function BoardView({
         setDraggedCard,
         setDraggedColumn,
         setDropPosition,
-        setDropTarget
+        setDropTarget,
+        setInsertingColumn
     }), [
         setBranchIdToEdit, setColumnNameToEdit, setColumnLimitToEdit, selectColumn,
-        setDraggedCard, setDraggedColumn, setDropPosition, setDropTarget
+        setDraggedCard, setDraggedColumn, setDropPosition, setDropTarget, setInsertingColumn
     ]);
 
     // Read off the config rather than off `columns`, which the resolver hands back as names alone.
@@ -1156,10 +1186,12 @@ export default function BoardView({
         : undefined;
 
     return (
-        <div className={clsx("board-view", { frozen: isFrozen })}>
+        <div className={clsx("board-view", {
+            frozen: isFrozen,
+            "editing-open": branchIdToEdit !== undefined || insertingColumns.size > 0
+        })}>
             {/* Dims the board while a title is being typed, with the edited card lifted above it.
-                Always rendered so that it can fade in. `index.css` picks the fields that raise it
-                with `:has()`, since each column holds its own editing state.
+                Always rendered so that it can fade in.
 
                 `frozen` waits for the fade to finish: setting it restyles every card, which in the
                 same frame drops the fade's frames. */}

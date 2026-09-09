@@ -186,7 +186,7 @@ export default function Column({
     // `isNew` stays true until another column is added, so the reveal is recorded here rather than
     // replayed on every redraw of the board.
     const [ isRevealed, setIsRevealed ] = useState(false);
-    const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn } =
+    const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn, setInsertingColumn } =
         useContext(BoardActionsContext);
     const { branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn } =
         useContext(BoardDragStateContext);
@@ -516,6 +516,16 @@ export default function Column({
         return () => window.clearTimeout(timer);
     }, [ insertedNoteId, columnItems ]);
 
+    // The board raises its backdrop for any open field, and each column holds its own.
+    useEffect(() => {
+        setInsertingColumn(column, !!insertBefore);
+        return () => setInsertingColumn(column, false);
+    }, [ column, insertBefore, setInsertingColumn ]);
+
+    // Whether the title being edited is one of this column's, which lifts the mask below.
+    const hasEditedCard = !!branchIdToEdit
+        && !!columnItems?.some(({ branch }) => branch.branchId === branchIdToEdit);
+
     // The field a card is inserted in, drawn where the reader asked for the card. The same field
     // as the one below the column, so a card is made the same way wherever it goes.
     const insertField = insertBefore && (
@@ -539,6 +549,7 @@ export default function Column({
                 // The class the themes key a hue off, worn here as anywhere else that carries one.
                 "with-hue": hue !== undefined,
                 "board-column-archived": archived,
+                "editing-open": hasEditedCard || !!insertBefore,
                 "over-limit": isOverLimit,
                 collapsed: isCollapsed,
                 "quick-collapse": isCollapsingByHand,
