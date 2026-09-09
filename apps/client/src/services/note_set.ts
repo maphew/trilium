@@ -29,15 +29,14 @@ export function shared<T>(notes: FNote[], read: (note: FNote) => T): Shared<T> {
 /**
  * Sets a label to one value on every note.
  *
- * Written note by note through `setLabelValues`, which reuses the labels already there and leaves
- * inherited ones alone. The bulk-action endpoint would be one request instead of several, but its
+ * Written through `setLabelValues`, which reuses the labels already there and leaves inherited ones
+ * alone. The bulk-action endpoint would be one request instead of several, but its
  * `updateLabelValue` only touches labels a note already owns and `addLabel` always adds another,
- * so neither writes "hold this value" on a note that may or may not already hold it.
+ * so neither writes "hold this value" on a note that may or may not already hold it. The notes go
+ * together instead, so a set is not written one card at a time.
  */
 export async function setLabelOnNotes(notes: FNote[], name: string, value: string) {
-    for (const note of notes) {
-        await setLabelValues(note, name, [ value ]);
-    }
+    await Promise.all(notes.map((note) => setLabelValues(note, name, [ value ])));
 }
 
 /**
@@ -48,24 +47,18 @@ export async function setLabelOnNotes(notes: FNote[], name: string, value: strin
  * holds and what `renderLabelValue` draws as nothing.
  */
 export async function clearLabelOnNotes(notes: FNote[], name: string) {
-    for (const note of notes) {
+    await Promise.all(notes.map((note) => {
         const isInherited = note.getAttributes("label", name)
             .some((attribute) => attribute.noteId !== note.noteId);
-        await setLabelValues(note, name, isInherited ? [ "" ] : []);
-    }
+        return setLabelValues(note, name, isInherited ? [ "" ] : []);
+    }));
 }
 
 /** Adds or removes `#archived` on every note, leaving the ones already in that state alone. */
 export async function setArchivedOnNotes(notes: FNote[], archived: boolean) {
-    for (const note of notes) {
-        if (note.isArchived === archived) {
-            continue;
-        }
-
-        if (archived) {
-            await attributes.addLabel(note.noteId, "archived");
-        } else {
-            attributes.removeOwnedLabelByName(note, "archived");
-        }
-    }
+    await Promise.all(notes
+        .filter((note) => note.isArchived !== archived)
+        .map((note) => archived
+            ? attributes.addLabel(note.noteId, "archived")
+            : attributes.removeOwnedLabelByName(note, "archived")));
 }

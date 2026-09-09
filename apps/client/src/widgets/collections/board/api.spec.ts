@@ -555,13 +555,21 @@ describe("BoardApi card operations", () => {
         const [ first ] = items;
 
         // The target column is empty, so there is nothing to place it against.
-        await api.moveWithinBoard(first.note.noteId, first.branch.branchId, 0, 1, "Done", "To Do");
+        await api.moveWithinBoard(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "To Do", 1);
         expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
         expect(branches.moveAfterBranch).not.toHaveBeenCalled();
 
-        await api.moveWithinBoard(first.note.noteId, first.branch.branchId, 0, 1, "To Do", "Done");
+    });
+
+    it("files a card arriving from another column before the one it was dropped on", async () => {
+        const { api, done, spare } = createBoardWithSpareCard();
+
+        await api.moveWithinBoard(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done", 1);
+
         expect(branches.moveBeforeBranch)
-            .toHaveBeenCalledWith([ first.branch.branchId ], items[1].branch.branchId);
+            .toHaveBeenCalledWith([ spare.branch.branchId ], done[1].branch.branchId);
     });
 
     /** A board whose "Done" column holds three cards, with a fourth waiting in "To Do". */
@@ -599,7 +607,8 @@ describe("BoardApi card operations", () => {
     it("files a card dropped past the last card of another column after it", async () => {
         const { api, done, spare } = createBoardWithSpareCard();
 
-        await api.moveWithinBoard(spare.note.noteId, spare.branch.branchId, 0, 3, "To Do", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done", 3);
 
         expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
         expect(branches.moveAfterBranch)
@@ -609,7 +618,8 @@ describe("BoardApi card operations", () => {
     it("files a card dropped into a column a filter empties after the cards it hides", async () => {
         const { api, done, spare } = createBoardWithSpareCard(() => []);
 
-        await api.moveWithinBoard(spare.note.noteId, spare.branch.branchId, 0, 0, "To Do", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done", 0);
 
         expect(branches.moveAfterBranch)
             .toHaveBeenCalledWith([ spare.branch.branchId ], done[2].branch.branchId);
@@ -618,7 +628,8 @@ describe("BoardApi card operations", () => {
     it("files a card dropped past the last card shown after that one, not the hidden", async () => {
         const { api, done, spare } = createBoardWithSpareCard((all) => [ all[0] ]);
 
-        await api.moveWithinBoard(spare.note.noteId, spare.branch.branchId, 0, 1, "To Do", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done", 1);
 
         expect(branches.moveAfterBranch)
             .toHaveBeenCalledWith([ spare.branch.branchId ], done[0].branch.branchId);
@@ -627,7 +638,8 @@ describe("BoardApi card operations", () => {
     it("sends a card after the last one drawn in a column a filter narrows", async () => {
         const { api, done, spare } = createBoardWithSpareCard((all) => [ all[0] ]);
 
-        await api.moveToColumnEnd(spare.note.noteId, spare.branch.branchId, "Done");
+        await api.moveToColumnEnd(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done");
 
         expect(branches.moveAfterBranch)
             .toHaveBeenCalledWith([ spare.branch.branchId ], done[0].branch.branchId);
@@ -636,7 +648,8 @@ describe("BoardApi card operations", () => {
     it("sends a card past the cards a filter hides when it draws none of them", async () => {
         const { api, done, spare } = createBoardWithSpareCard(() => []);
 
-        await api.moveToColumnEnd(spare.note.noteId, spare.branch.branchId, "Done");
+        await api.moveToColumnEnd(
+            [ { noteId: spare.note.noteId, branchId: spare.branch.branchId } ], "Done");
 
         expect(branches.moveAfterBranch)
             .toHaveBeenCalledWith([ spare.branch.branchId ], done[2].branch.branchId);
@@ -673,11 +686,13 @@ describe("BoardApi card operations", () => {
         const { api, items } = createBoardWithCards();
         const [ first, , third ] = items;
 
-        await api.moveWithinBoard(first.note.noteId, first.branch.branchId, 0, 2, "Done", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "Done", 2);
         expect(branches.moveBeforeBranch)
             .toHaveBeenCalledWith([ first.branch.branchId ], third.branch.branchId);
 
-        await api.moveWithinBoard(first.note.noteId, first.branch.branchId, 0, 3, "Done", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "Done", 3);
         expect(branches.moveAfterBranch)
             .toHaveBeenCalledWith([ first.branch.branchId ], third.branch.branchId);
     });
@@ -690,10 +705,12 @@ describe("BoardApi card operations", () => {
         const { api, items } = createBoardWithCards();
         const [ first, second ] = items;
 
-        await api.moveToColumnEnd(first.note.noteId, first.branch.branchId, "To Do");
+        await api.moveToColumnEnd(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "To Do");
         expect(branches.moveAfterBranch).not.toHaveBeenCalled();
 
-        await api.moveToColumnEnd(second.note.noteId, second.branch.branchId, "To Do");
+        await api.moveToColumnEnd(
+            [ { noteId: second.note.noteId, branchId: second.branch.branchId } ], "To Do");
         expect(branches.moveAfterBranch)
             .toHaveBeenLastCalledWith([ second.branch.branchId ], first.branch.branchId);
     });
@@ -707,7 +724,8 @@ describe("BoardApi card operations", () => {
         const { api, items } = createBoardWithCards();
         const [ first, second, third ] = items;
 
-        await api.moveToColumnEnd(first.note.noteId, first.branch.branchId, "To Do");
+        await api.moveToColumnEnd(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "To Do");
 
         // The refresh that catches up, and with it a card that now stands last in that column.
         api.update(
@@ -715,7 +733,8 @@ describe("BoardApi card operations", () => {
             [ "To Do", "Done" ], first.note.getParentNotes()[0], "status", {}, () => {}, () => {});
 
         // Behind what the board now shows last, not behind what this sent before it.
-        await api.moveToColumnEnd(second.note.noteId, second.branch.branchId, "To Do");
+        await api.moveToColumnEnd(
+            [ { noteId: second.note.noteId, branchId: second.branch.branchId } ], "To Do");
         expect(branches.moveAfterBranch)
             .toHaveBeenLastCalledWith([ second.branch.branchId ], third.branch.branchId);
     });
@@ -724,8 +743,10 @@ describe("BoardApi card operations", () => {
         const { api, items } = createBoardWithCards();
         const [ first ] = items;
 
-        await api.moveWithinBoard(first.note.noteId, first.branch.branchId, 1, 1, "Done", "Done");
-        await api.moveWithinBoard("missingNote", "missingBranch", 0, 2, "Done", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: first.note.noteId, branchId: first.branch.branchId } ], "Done", 1);
+        await api.moveWithinBoard(
+            [ { noteId: "missingNote", branchId: "missingBranch" } ], "Done", 2);
 
         expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
         expect(branches.moveAfterBranch).not.toHaveBeenCalled();
@@ -735,11 +756,11 @@ describe("BoardApi card operations", () => {
         const { api, items } = createBoardWithCards();
         const removeLabel = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
 
-        await api.removeFromBoard(items[0].note.noteId);
+        await api.removeFromBoard([ items[0].note.noteId ]);
         expect(removeLabel).toHaveBeenCalledWith(items[0].note, "status");
 
         // A note the cache has never heard of is left alone rather than throwing.
-        await api.removeFromBoard("missingNote");
+        await api.removeFromBoard([ "missingNote" ]);
         expect(removeLabel).toHaveBeenCalledTimes(1);
     });
 
@@ -758,7 +779,7 @@ describe("BoardApi card operations", () => {
         const removeLabel = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
         const setLabel = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined as never);
 
-        await api.removeFromBoard(cardId);
+        await api.removeFromBoard([ cardId ]);
 
         expect(setLabel).toHaveBeenCalledWith(cardId, "status", "");
         expect(removeLabel).not.toHaveBeenCalled();
@@ -770,7 +791,7 @@ describe("BoardApi card operations", () => {
         const removeRelation = vi.spyOn(attributes, "removeOwnedRelationByName")
             .mockReturnValue(true);
 
-        await api.removeFromBoard(board.getChildNoteIds()[0]);
+        await api.removeFromBoard([ board.getChildNoteIds()[0] ]);
         expect(removeRelation).toHaveBeenCalledWith(expect.anything(), "status");
     });
 
@@ -789,7 +810,7 @@ describe("BoardApi card operations", () => {
             .mockReturnValue(true);
         const message = vi.spyOn(toast, "showMessage").mockReturnValue(undefined);
 
-        await api.removeFromBoard(board.getChildNoteIds()[0]);
+        await api.removeFromBoard([ board.getChildNoteIds()[0] ]);
 
         expect(message).toHaveBeenCalledWith("board_view.inherited-column", 3000);
         expect(removeRelation).not.toHaveBeenCalled();
@@ -1828,7 +1849,7 @@ describe("filing a card under the inbox", () => {
         const removeRelation = vi.spyOn(attributes, "removeOwnedRelationByName")
             .mockReturnValue(true);
 
-        await api.removeFromBoard(board.getChildNoteIds()[0]);
+        await api.removeFromBoard([ board.getChildNoteIds()[0] ]);
 
         expect(removeRelation).toHaveBeenCalled();
     });
@@ -2130,7 +2151,8 @@ describe("moving a card into or inside a sorted column", () => {
     it("writes the value alone when a card crosses into one", async () => {
         const { api } = sortedApi([ "Done" ]);
 
-        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: "a2", branchId: "b_a2" } ], "Done", 0);
 
         expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
         expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
@@ -2140,7 +2162,8 @@ describe("moving a card into or inside a sorted column", () => {
     it("writes nothing at all for a move inside one", async () => {
         const { api } = sortedApi([ "To Do" ]);
 
-        await api.moveWithinBoard("a1", "b_a1", 0, 2, "To Do", "To Do");
+        await api.moveWithinBoard(
+            [ { noteId: "a1", branchId: "b_a1" } ], "To Do", 2);
 
         expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
         expect(branches.moveAfterBranch).not.toHaveBeenCalled();
@@ -2149,7 +2172,8 @@ describe("moving a card into or inside a sorted column", () => {
     it("still places a card in a column left in the manual order", async () => {
         const { api } = sortedApi([ "To Do" ]);
 
-        await api.moveWithinBoard("a2", "b_a2", 1, 0, "To Do", "Done");
+        await api.moveWithinBoard(
+            [ { noteId: "a2", branchId: "b_a2" } ], "Done", 0);
 
         expect(setLabel).toHaveBeenCalledWith("a2", "status", "Done");
         expect(branches.moveBeforeBranch).toHaveBeenCalledWith([ "b_a2" ], "b_b1");
@@ -2158,7 +2182,7 @@ describe("moving a card into or inside a sorted column", () => {
     it("sends a card across to a sorted column by value alone", async () => {
         const { api } = sortedApi([ "Done" ]);
 
-        await api.moveToColumnEnd("a1", "b_a1", "Done");
+        await api.moveToColumnEnd([ { noteId: "a1", branchId: "b_a1" } ], "Done");
 
         expect(setLabel).toHaveBeenCalledWith("a1", "status", "Done");
         expect(branches.moveAfterBranch).not.toHaveBeenCalled();
@@ -2248,7 +2272,7 @@ describe("a selection of cards", () => {
         const { api, items } = createBoard();
         const moved = [ items[3], items[0] ];
 
-        await api.moveManyWithinBoard(
+        await api.moveWithinBoard(
             moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
             "Done", 2);
 
@@ -2266,7 +2290,7 @@ describe("a selection of cards", () => {
         const { api, items } = createBoard();
         const moved = [ items[3] ];
 
-        await api.moveManyWithinBoard(
+        await api.moveWithinBoard(
             moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
             "Done", 3);
 
@@ -2281,7 +2305,7 @@ describe("a selection of cards", () => {
             { columns: [ { value: "Done", orderBy: "title" } ] });
         const moved = [ items[3] ];
 
-        await api.moveManyWithinBoard(
+        await api.moveWithinBoard(
             moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
             "Done", 0);
 

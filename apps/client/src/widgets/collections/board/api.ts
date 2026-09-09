@@ -374,7 +374,7 @@ export default class BoardApi {
             return;
         }
 
-        return this.removeFromBoard(noteId);
+        return this.removeCardFromBoard(noteId);
     }
 
     /**
@@ -1249,7 +1249,15 @@ export default class BoardApi {
             .some(attribute => attribute.noteId !== note.noteId);
     }
 
-    removeFromBoard(noteId: string) {
+    /**
+     * Takes cards off the board, which leaves the notes where they are and only takes the grouping
+     * value away. Written together, so a set does not leave a card at a time.
+     */
+    async removeFromBoard(noteIds: string[]) {
+        await Promise.all(noteIds.map((noteId) => this.removeCardFromBoard(noteId)));
+    }
+
+    private removeCardFromBoard(noteId: string) {
         const note = froca.getNoteFromCache(noteId);
         if (!note) return;
         if (this.isRelationMode) {
@@ -1278,28 +1286,40 @@ export default class BoardApi {
         return !!this.getEffectiveColumnSort(column).orderBy;
     }
 
-    /** Moves a card to the end of another column, where a card sent by the keyboard belongs. */
-    async moveToColumnEnd(noteId: string, branchId: string, targetColumn: string) {
-        // Only the grouping value is written: `sortColumnMap` decides where the card is drawn.
-        if (this.isColumnSorted(targetColumn)) {
-            await this.changeColumn(noteId, targetColumn);
+    /**
+     * Sends cards to the end of another column, where the ones the keyboard sends belong, keeping
+     * the order they are given in.
+     *
+     * The grouping values go together rather than one after another, which is what keeps a set from
+     * arriving a card at a time: each is a request of its own, and one at a time makes the wait the
+     * sum of them. `moveAfterBranch` then places the whole set against one card, in order.
+     */
+    async moveToColumnEnd(cards: { noteId: string, branchId: string }[], targetColumn: string) {
+        const arrived = cards.at(-1);
+        if (!arrived) {
             return;
         }
 
         // What is already at the end, as far as this instance can know: nothing waits for the board
         // to redraw between two keystrokes, so the column map still shows the target as it was
-        // before the card the last press sent. Anything sent since is remembered here instead, and
+        // before the cards the last press sent. Anything sent since is remembered here instead, and
         // the memory lasts exactly as long as the map it stands in for, both being rebuilt by the
-        // refresh that catches up.
-        const last = this.sentToColumnEnd.get(targetColumn)
-            ?? this.lastInColumn(targetColumn);
+        // refresh that catches up. Read before the writes below for the same reason.
+        const last = this.sentToColumnEnd.get(targetColumn) ?? this.lastInColumn(targetColumn);
 
-        await this.changeColumn(noteId, targetColumn);
-        if (last && last !== branchId) {
-            await branches.moveAfterBranch([ branchId ], last);
+        await Promise.all(cards.map((card) => this.changeColumn(card.noteId, targetColumn)));
+
+        // Only the grouping value is written for a sorted column: `sortColumnMap` decides where
+        // its cards are drawn.
+        if (this.isColumnSorted(targetColumn)) {
+            return;
         }
 
-        this.sentToColumnEnd.set(targetColumn, branchId);
+        if (last && last !== arrived.branchId) {
+            await branches.moveAfterBranch(cards.map((card) => card.branchId), last);
+        }
+
+        this.sentToColumnEnd.set(targetColumn, arrived.branchId);
     }
 
     /**
@@ -1349,22 +1369,46 @@ export default class BoardApi {
      * `moveBeforeBranch` and `moveAfterBranch` both take the whole set and keep its order, so the
      * cards land together rather than each being placed against the one before it.
      */
-    async moveManyWithinBoard(
+    async moveWithinBoard(
         cards: { noteId: string, branchId: string }[], targetColumn: string, targetIndex: number
     ) {
+        // A card the cache has never heard of is left out rather than written for.
+        const moving = cards.filter((card) => froca.getNoteFromCache(card.noteId));
+        if (!moving.length) {
+            return;
+        }
+
         // Read before the writes below: a redraw between them hands this instance the map with the
         // cards already moved.
         const targetItems = this.byColumn?.get(targetColumn) ?? [];
-        const moved = new Set(cards.map((card) => card.branchId));
+        const branchIds = moving.map((card) => card.branchId);
+        const moved = new Set(branchIds);
         // The place is counted among the cards as they are drawn, which includes the ones being
         // moved. Each of those standing above it names one place that is about to close up.
         const above = targetItems.slice(0, targetIndex)
             .filter((item) => moved.has(item.branch.branchId)).length;
         const staying = targetItems.filter((item) => !moved.has(item.branch.branchId));
-        const before = staying[targetIndex - above];
+        const at = targetIndex - above;
 
-        for (const card of cards) {
-            await this.changeColumn(card.noteId, targetColumn);
+        // Nothing at all is written where the cards already stand where this would put them, which
+        // is what a card dropped back where it was picked up amounts to.
+        const standing = targetItems.map((item) => item.branch.branchId);
+        const landing = [
+            ...staying.slice(0, at).map((item) => item.branch.branchId),
+            ...branchIds,
+            ...staying.slice(at).map((item) => item.branch.branchId)
+        ];
+        if (landing.length === standing.length
+                && landing.every((branchId, place) => branchId === standing[place])) {
+            return;
+        }
+
+        // Only the cards arriving from elsewhere are written: one already under this column holds
+        // the value already, and writing it again is a change the board has to redraw for.
+        // Together rather than one after another, so a set does not arrive a card at a time.
+        const arriving = moving.filter((card) => !standing.includes(card.branchId));
+        if (arriving.length) {
+            await Promise.all(arriving.map((card) => this.changeColumn(card.noteId, targetColumn)));
         }
 
         // A sorted column places its own cards, so nothing is written against a card there.
@@ -1372,14 +1416,17 @@ export default class BoardApi {
             return;
         }
 
-        const branchIds = cards.map((card) => card.branchId);
+        const before = staying[at];
         if (before) {
             await branches.moveBeforeBranch(branchIds, before.branch.branchId);
-        } else {
-            const last = staying.at(-1);
-            if (last) {
-                await branches.moveAfterBranch(branchIds, last.branch.branchId);
-            }
+            return;
+        }
+
+        // What the cards are placed after: the last one staying, or `lastInColumn`'s answer where
+        // a filter draws none of them at all.
+        const after = staying.at(-1)?.branch.branchId ?? this.lastInColumn(targetColumn);
+        if (after && !moved.has(after)) {
+            await branches.moveAfterBranch(branchIds, after);
         }
     }
 
@@ -1422,55 +1469,7 @@ export default class BoardApi {
             return;
         }
 
-        await this.moveWithinBoard(noteId, branchId, at, 0, column, column);
-    }
-
-    async moveWithinBoard(noteId: string, sourceBranchId: string, sourceIndex: number, targetIndex: number, sourceColumn: string, targetColumn: string) {
-        const targetItems = this.byColumn?.get(targetColumn) ?? [];
-        // Read before the writes below, since a redraw between them hands this instance the map
-        // with the card already moved.
-        const lastInTarget = this.lastInColumn(targetColumn);
-
-        const note = froca.getNoteFromCache(noteId);
-        if (!note) return;
-
-        // A move into or inside a sorted column writes the grouping value and no branch
-        // position. Clearing `orderBy` then restores the arrangement the user made.
-        const isSortedTarget = this.isColumnSorted(targetColumn);
-
-        if (sourceColumn !== targetColumn) {
-            // Moving to a different column
-            await this.changeColumn(noteId, targetColumn);
-
-            if (isSortedTarget) {
-                return;
-            }
-
-            if (targetIndex < targetItems.length) {
-                const targetBranch = targetItems[targetIndex].branch;
-                await branches.moveBeforeBranch([ sourceBranchId ], targetBranch.branchId);
-            } else if (lastInTarget && lastInTarget !== sourceBranchId) {
-                await branches.moveAfterBranch([ sourceBranchId ], lastInTarget);
-            }
-        } else if (!isSortedTarget && sourceIndex !== targetIndex) {
-            // Reordering within the same column
-            let targetBranchId: string | null = null;
-
-            if (targetIndex < targetItems.length) {
-                // Moving before an existing item
-                const adjustedIndex = sourceIndex < targetIndex ? targetIndex : targetIndex;
-                if (adjustedIndex < targetItems.length) {
-                    targetBranchId = targetItems[adjustedIndex].branch.branchId;
-                    if (targetBranchId) {
-                        await branches.moveBeforeBranch([ sourceBranchId ], targetBranchId);
-                    }
-                }
-            } else if (targetIndex > 0) {
-                // Moving to the end - place after the last item
-                const lastItem = targetItems[targetItems.length - 1];
-                await branches.moveAfterBranch([ sourceBranchId ], lastItem.branch.branchId);
-            }
-        }
+        await this.moveWithinBoard([ { noteId, branchId } ], column, 0);
     }
 
 }

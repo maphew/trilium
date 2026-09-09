@@ -836,16 +836,12 @@ export default function BoardView({
                 // from the server a moment later, so a refresh here reads the new column with the
                 // old order and puts the card at the top of it. The change reaches the board as an
                 // entity reload, which settles it once there is something to read.
-                (carried.length === 1
-                    ? api.moveWithinBoard(
-                        card.noteId, carried[0].branch.branchId, card.index, position.index,
-                        card.fromColumn, position.column)
-                    : api.moveManyWithinBoard(
-                        carried.map((item) => ({
-                            noteId: item.note.noteId,
-                            branchId: item.branch.branchId
-                        })),
-                        position.column, position.index))
+                api.moveWithinBoard(
+                    carried.map((item) => ({
+                        noteId: item.note.noteId,
+                        branchId: item.branch.branchId
+                    })),
+                    position.column, position.index)
                     .finally(() => { movesInFlight.current--; });
             }
             setDraggedCard(null);
@@ -1034,6 +1030,47 @@ export default function BoardView({
         setColumnDropPosition(null);
     }, [ api, shownColumns ]);
 
+    /**
+     * Draws a move where it will leave the cards and holds the board there until the writes are in.
+     *
+     * A move is a write per card that changes column and one per branch being placed, and each
+     * lands a redraw of its own. Drawn as they arrive, the cards are seen to shuffle into place one
+     * after another: under their new column in the order their old branches give them, then each
+     * into the position the next write settles. The board is drawn where the move ends instead.
+     */
+    const holdMove = useCallback((
+        cards: { noteId: string, branchId: string }[],
+        targetColumn: string,
+        targetIndex: number,
+        done: Promise<unknown>
+    ) => {
+        if (allByColumn) {
+            setAllByColumn(applyCardMoves(
+                allByColumn, cards.map((card) => card.noteId), targetColumn, targetIndex));
+        }
+
+        movesInFlight.current++;
+        // Any refresh already on its way is about the board as it stood before the move, and would
+        // put the cards back where they came from as it resolves.
+        refreshSeqRef.current++;
+
+        return done.finally(() => { movesInFlight.current--; });
+    }, [ allByColumn ]);
+
+    /** Sends cards to the end of another column, which is where the keyboard puts them. */
+    const sendCardsToColumn = useCallback((
+        cards: { noteId: string, branchId: string }[], targetColumn: string
+    ) => holdMove(
+        cards, targetColumn, api.getColumnNoteIds(targetColumn).length,
+        api.moveToColumnEnd(cards, targetColumn)),
+    [ api, holdMove ]);
+
+    /** Moves cards to a place among the ones already in a column. */
+    const moveCardsWithin = useCallback((
+        cards: { noteId: string, branchId: string }[], column: string, index: number
+    ) => holdMove(cards, column, index, api.moveWithinBoard(cards, column, index)),
+    [ api, holdMove ]);
+
     const clearSelectionOutsideCards = useCallback((e: MouseEvent) => {
         if (!(e.target as HTMLElement | null)?.closest(".board-note")) {
             selection.clear();
@@ -1048,6 +1085,8 @@ export default function BoardView({
         api,
         moveColumn: handleColumnDrop,
         selection,
+        sendCardsToColumn,
+        moveCardsWithin,
         insertColumn: useCallback(async (relativeTo: string, direction: "before" | "after") => {
             setColumnNameToEdit(await api.insertColumn(relativeTo, direction));
         }, [ api ])

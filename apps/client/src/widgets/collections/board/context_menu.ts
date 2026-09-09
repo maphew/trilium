@@ -451,13 +451,12 @@ function buildColumnItems(api: Api, target: NoteMenuTarget): MenuItem<CommandNam
         badges: api.isColumnArchived(name)
             ? [ { title: t("board_view.archived-badge") } ]
             : undefined,
-        handler: async () => {
+        handler: () => {
             // Asked for before the write: the cards are drawn afresh under the column they land
             // in, so the element the menu was opened from will be gone.
             target.onFocusCard(target.note.noteId);
-            for (const note of target.notes) {
-                await api.changeColumn(note.noteId, name);
-            }
+            return Promise.all(
+                target.notes.map((note) => api.changeColumn(note.noteId, name)));
         }
     }));
 
@@ -570,11 +569,7 @@ export function openNoteContextMenu(api: Api, event: ContextMenuEvent, target: N
                 title: t("board_view.remove-from-board"),
                 uiIcon: "bx bx-task-x",
                 shortcut: "Delete",
-                handler: async () => {
-                    for (const selected of notes) {
-                        await api.removeFromBoard(selected.noteId);
-                    }
-                }
+                handler: () => api.removeFromBoard(notes.map((selected) => selected.noteId))
             },
             {
                 title: t("board_view.delete-note"),
@@ -610,13 +605,9 @@ function CardsColorPicker({ notes }: { notes: FNote[] }) {
         currentValue: currentColor,
         onChange: async (picked) => {
             setCurrentColor(picked);
-            for (const note of notes) {
-                if (picked !== null) {
-                    await attributes.setLabel(note.noteId, "color", picked);
-                } else {
-                    attributes.removeOwnedLabelByName(note, "color");
-                }
-            }
+            await Promise.all(notes.map((note) => picked !== null
+                ? attributes.setLabel(note.noteId, "color", picked)
+                : attributes.removeOwnedLabelByName(note, "color")));
         },
         tooltips: {
             clear: t("note-color.clear-color"),

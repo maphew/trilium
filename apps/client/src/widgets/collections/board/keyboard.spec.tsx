@@ -317,6 +317,71 @@ describe("Board keyboard", () => {
             expect(focusedName(board)).toBe("Second");
         });
 
+        it("takes every picked-out card off the board, not only the focused one", async () => {
+            const board = await renderBoard();
+            const strip = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
+            const first = noteOf(board, "First");
+            const third = noteOf(board, "Third");
+            pick(board, 0, 0);
+            pick(board, 1, 0);
+            focusCard(board, 0, 0);
+
+            press(board, "Delete");
+            await settleWrites();
+
+            expect(strip)
+                .toHaveBeenCalledWith(expect.objectContaining({ noteId: first }), "status");
+            expect(strip)
+                .toHaveBeenCalledWith(expect.objectContaining({ noteId: third }), "status");
+            // The card that was never picked out stays where it is.
+            expect(strip).toHaveBeenCalledTimes(2);
+        });
+
+        it("deletes every picked-out card with Shift and Delete, in one call", async () => {
+            const board = await renderBoard();
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "Delete", { shiftKey: true });
+
+            expect(branches.deleteNotes).toHaveBeenCalledWith(
+                [ branchOf(board, "First"), branchOf(board, "Second") ], false, false);
+        });
+
+        /**
+         * The card beside the focused one may be leaving with it, so focus walks past the cards on
+         * their way out rather than landing on one about to be drawn no more.
+         */
+        it("hands focus past the cards going with it", async () => {
+            const board = await renderBoard();
+            vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "Delete");
+
+            // Both cards of the column are going, so what is left to take focus is its button.
+            expect(document.activeElement?.classList.contains("board-new-item")).toBe(true);
+        });
+
+        /** A card the reader is standing on but has not picked out goes on its own. */
+        it("leaves a selection the focused card is no part of alone", async () => {
+            const board = await renderBoard();
+            const strip = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
+            const second = noteOf(board, "Second");
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "Delete");
+            await settleWrites();
+
+            expect(strip).toHaveBeenCalledTimes(1);
+            expect(strip)
+                .not.toHaveBeenCalledWith(expect.objectContaining({ noteId: second }), "status");
+        });
+
         it("takes the whole column off the board from its header, asking first", async () => {
             const board = await renderBoard();
             const strip = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
@@ -455,19 +520,212 @@ describe("Board keyboard", () => {
             expect(focusedName(board)).toBe("First");
         });
 
-        it("moves a card up and down its own column", async () => {
+        it("sends every picked-out card to the next column, and leaves them picked out", async () => {
+            const board = await renderBoard();
+            const write = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined);
+            const first = noteOf(board, "First");
+            const second = noteOf(board, "Second");
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowRight", { ctrlKey: true });
+            await settleWrites();
+
+            expect(write).toHaveBeenCalledWith(first, "status", "Doing");
+            expect(write).toHaveBeenCalledWith(second, "status", "Doing");
+            // One placement for the set, against the card already at the end of that column.
+            expect(branches.moveAfterBranch).toHaveBeenCalledExactlyOnceWith(
+                [ branchOf(board, "First"), branchOf(board, "Second") ],
+                branchOf(board, "Third"));
+            expect(pickedNames(board)).toEqual([ "First", "Second" ]);
+        });
+
+        /**
+         * A move is two writes, the grouping value and the branch position, and each lands a redraw
+         * of its own. Drawn only by the first, the cards stand under their new column in the order
+         * their old branches give them, and are seen to reorder a moment later.
+         */
+        it("draws the cards where the move will leave them, before the writes land", async () => {
+            const board = await renderBoard();
+            // Never answered, so what the board shows is only what it has drawn for itself.
+            vi.spyOn(attributes, "setLabel").mockReturnValue(new Promise(() => {}));
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowRight", { ctrlKey: true });
+
+            // At the end of the column they join, after the card already standing there.
+            expect(namesIn(board, 1)).toEqual([ "Third", "First", "Second" ]);
+            expect(namesIn(board, 0)).toEqual([]);
+        });
+
+        /**
+         * The set lands at the end of the column it joins, so the last of them is what the board
+         * scrolls to: focus is what `reveal` follows, and the reader is left at the end of what
+         * they sent rather than above it.
+         */
+        it("leaves focus on the last card of the set it has sent", async () => {
+            const board = await renderBoard();
+            vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined);
+            const first = noteOf(board, "First");
+            const second = noteOf(board, "Second");
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowRight", { ctrlKey: true });
+            await settleWrites();
+
+            setStatus(first, "Doing");
+            setStatus(second, "Doing");
+            await redraw();
+
+            expect(focusedName(board)).toBe("Second");
+        });
+
+        /** Every card has a neighbour of its own, so there is no one column to send them all to. */
+        it("does nothing while the picked-out cards stand in several columns", async () => {
+            const board = await renderBoard();
+            const write = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined);
+            pick(board, 0, 0);
+            pick(board, 1, 0);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowRight", { ctrlKey: true });
+            await settleWrites();
+
+            expect(write).not.toHaveBeenCalled();
+            expect(pickedNames(board)).toEqual([ "First", "Third" ]);
+        });
+
+        /**
+         * A move takes nothing away, so a selection the focused card is no part of is left where it
+         * stands rather than given up as deleting gives it up.
+         */
+        it("sends a card that is not picked out on its own", async () => {
+            const board = await renderBoard();
+            const write = vi.spyOn(attributes, "setLabel").mockResolvedValue(undefined);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowRight", { ctrlKey: true });
+            await settleWrites();
+
+            expect(write).toHaveBeenCalledExactlyOnceWith(noteOf(board, "First"), "status", "Doing");
+            expect(pickedNames(board)).toEqual([ "Second" ]);
+        });
+
+        it("moves a card up its own column", async () => {
             const board = await renderBoard();
             focusCard(board, 0, 1);
 
             press(board, "ArrowUp", { ctrlKey: true });
+
             expect(branches.moveBeforeBranch)
                 .toHaveBeenCalledWith([ branchOf(board, "Second") ], branchOf(board, "First"));
+        });
 
+        /**
+         * A board of its own: the board draws a move as soon as it is asked for, so one press
+         * moves the cards the next press is counted against.
+         */
+        it("moves a card down its own column", async () => {
+            const board = await renderBoard();
             focusCard(board, 0, 0);
+
             press(board, "ArrowDown", { ctrlKey: true });
+
             // Placed past the card below it, which is the last, so it goes after that one.
             expect(branches.moveAfterBranch)
                 .toHaveBeenCalledWith([ branchOf(board, "First") ], branchOf(board, "Second"));
+        });
+
+        /** A column of four, so a run of two has cards both above and below it. */
+        const deepColumn = () => renderBoard(undefined, undefined, [ "To Do", "To Do" ]);
+
+        it("moves a run of picked-out cards up and down as one", async () => {
+            const board = await deepColumn();
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            // Already at the head, so there is nowhere above for the run to go.
+            press(board, "ArrowUp", { ctrlKey: true });
+            expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+            expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+
+            // The whole run passes the card below it, in one call and in its own order.
+            press(board, "ArrowDown", { ctrlKey: true });
+            expect(branches.moveBeforeBranch).toHaveBeenCalledExactlyOnceWith(
+                [ branchOf(board, "First"), branchOf(board, "Second") ],
+                branchOf(board, "Fifth"));
+        });
+
+        it("sends a run of picked-out cards to either end of its column", async () => {
+            const board = await deepColumn();
+            pick(board, 0, 1);
+            pick(board, 0, 2);
+            focusCard(board, 0, 1);
+
+            press(board, "End", { ctrlKey: true });
+            expect(branches.moveAfterBranch).toHaveBeenCalledExactlyOnceWith(
+                [ branchOf(board, "Second"), branchOf(board, "Fourth") ],
+                branchOf(board, "Fifth"));
+
+            press(board, "Home", { ctrlKey: true });
+            expect(branches.moveBeforeBranch).toHaveBeenCalledExactlyOnceWith(
+                [ branchOf(board, "Second"), branchOf(board, "Fourth") ],
+                branchOf(board, "First"));
+        });
+
+        /**
+         * A run is placed one branch at a time, each write landing a redraw of its own, so the
+         * cards would be seen shuffling into place one after another.
+         */
+        it("draws a run where the move leaves it, before the writes land", async () => {
+            const board = await deepColumn();
+            // Never answered, so what the board shows is only what it has drawn for itself.
+            vi.mocked(branches.moveBeforeBranch).mockReturnValue(new Promise(() => {}));
+            pick(board, 0, 0);
+            pick(board, 0, 1);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowDown", { ctrlKey: true });
+
+            expect(namesIn(board, 0)).toEqual([ "Fourth", "First", "Second", "Fifth" ]);
+        });
+
+        /**
+         * Cards with others of their own column between them have no one place to be moved to, and
+         * a selection reaching into another column has no single order to keep.
+         */
+        it("moves nothing for picked-out cards that do not stand together", async () => {
+            const board = await deepColumn();
+            pick(board, 0, 0);
+            pick(board, 0, 2);
+            focusCard(board, 0, 0);
+
+            for (const key of [ "ArrowDown", "ArrowUp", "Home", "End" ]) {
+                press(board, key, { ctrlKey: true });
+            }
+
+            expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+            expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+        });
+
+        it("moves nothing up or down while the cards stand in several columns", async () => {
+            const board = await deepColumn();
+            pick(board, 0, 0);
+            pick(board, 1, 0);
+            focusCard(board, 0, 0);
+
+            press(board, "ArrowDown", { ctrlKey: true });
+            press(board, "End", { ctrlKey: true });
+
+            expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+            expect(branches.moveAfterBranch).not.toHaveBeenCalled();
         });
 
         /** A sorted column decides its own order, so there is nowhere for a card to be sent. */
@@ -856,6 +1114,37 @@ describe("Board keyboard", () => {
             .querySelectorAll<HTMLElement>(".board-note")[item].focus();
     }
 
+    /**
+     * Lets a fan-out finish. The cards are written one after another, each awaiting the one before
+     * it, so a single turn of the microtask queue reaches only the first of them.
+     */
+    async function settleWrites() {
+        await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    }
+
+    /** Picks a card out the way Ctrl and a click do. */
+    function pick(board: HTMLElement, column: number, item: number) {
+        const card = board.querySelectorAll(".board-column")[column]
+            .querySelectorAll<HTMLElement>(".board-note")[item];
+        act(() => {
+            card.dispatchEvent(new MouseEvent(
+                "click", { bubbles: true, cancelable: true, detail: 1, ctrlKey: true }));
+        });
+    }
+
+    /** The cards of one column, by title, in the order the board draws them. */
+    function namesIn(board: HTMLElement, column: number) {
+        return [ ...board.querySelectorAll(".board-column")[column]
+            .querySelectorAll(".board-note") ]
+            .map((card) => card.querySelector(".title")?.textContent?.trim());
+    }
+
+    /** The cards picked out, by title, in the order the board draws them. */
+    function pickedNames(board: HTMLElement) {
+        return [ ...board.querySelectorAll(".board-note.selected") ]
+            .map((card) => card.querySelector(".title")?.textContent?.trim());
+    }
+
     function focusButton(board: HTMLElement, column: number) {
         board.querySelectorAll(".board-column")[column]
             .querySelector<HTMLElement>(".board-new-item")?.focus();
@@ -874,8 +1163,13 @@ describe("Board keyboard", () => {
 
     let boardNote: ReturnType<typeof buildNote>;
 
-    /** Two columns of cards, one empty column, and the button that adds another. */
-    async function renderBoard(collapsed?: string, orderBy?: string) {
+    /**
+     * Two columns of cards, one empty column, and the button that adds another.
+     *
+     * @param extra the cards to add beyond the three, each named by the column it stands in. Only
+     * the tests about moving a run of them need a column deep enough to hold one.
+     */
+    async function renderBoard(collapsed?: string, orderBy?: string, extra: string[] = []) {
         boardNote = buildNote({
             title: "Board",
             "#collection": "",
@@ -883,7 +1177,9 @@ describe("Board keyboard", () => {
             children: [
                 { title: "First", "#status": "To Do" },
                 { title: "Second", "#status": "To Do" },
-                { title: "Third", "#status": "Doing" }
+                { title: "Third", "#status": "Doing" },
+                ...extra.map((status, at) => (
+                    { title: [ "Fourth", "Fifth", "Sixth" ][at], "#status": status }))
             ]
         });
 
