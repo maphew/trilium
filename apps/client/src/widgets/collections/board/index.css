@@ -33,6 +33,9 @@
   --board-drag-ring-width: 3px;
   /* The ring a picked-out card carries. */
   --board-selected-ring-color: var(--link-color);
+  /* The wash the board goes behind while a card is being named. Light: it is there to draw the
+     eye to the field, not to shut the board off. */
+  --board-edit-backdrop: rgba(0, 0, 0, 0.15);
 
   --board-focus-outline-saturation: 55%;
   --board-focus-outline-lightness: 45%;
@@ -651,6 +654,60 @@ body.mobile .board-view-container .board-add-column {
   display: flex;
   align-items: center;
   padding: 0;
+}
+
+/* The board behind the card being named.
+ *
+ * A sibling of the scrolling container rather than a child, so it covers the board as it stands
+ * rather than as far as it scrolls. Nothing between a card and here opens a stacking context, so
+ * the card lifts through it on a `z-index` of its own. */
+.board-view .board-edit-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--board-edit-backdrop);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Read off the field itself rather than from the board's state: a new item's field is the column's
+   own business, and the one that opens between two cards is a third piece of state again.
+   `inserting` is that one alone, so the field at the foot of a column raises nothing. */
+.board-view:has(.board-note.editing, .board-new-item.inserting) .board-edit-backdrop {
+  opacity: 1;
+}
+
+.board-view-container .board-note.editing,
+.board-view-container .board-new-item.inserting {
+  z-index: 51;
+}
+
+/* While a title is being typed the board stops answering the pointer: a card neither lights up
+   under it nor takes a press, so leaving the field cannot also open a note or pick a card out.
+   `:hover` follows hit testing rather than any event, so this is the only thing that takes it away.
+   The columns themselves are left alone, which is what keeps the board scrolling, and the field is
+   excluded rather than re-enabled below: this rule outweighs a plainer one, and the field would go
+   inert with everything else.
+
+   It restyles every card on the board, which is a few hundred milliseconds on a board of thousands,
+   and is why it waits for `frozen` rather than following the wash: done in the same frame the wash
+   begins in, that recalculation eats the fade whole. */
+.board-view.frozen :is(
+  .board-column > h3,
+  .board-column > .board-new-item,
+  .board-column-content > *:not(.editing)
+) {
+  pointer-events: none;
+}
+
+/* The fade a column draws over its edges is a mask, and a mask holds everything under it in a
+   layer of its own, which the field being typed into could not rise out of. Taken off the one
+   column that holds it, for as long as it stands. `!important` because `useScrollFade` writes the
+   mask on the element itself. */
+.board-view-container .board-column:has(.board-note.editing, .board-new-item.inserting)
+    .board-column-content {
+  mask: none !important;
 }
 
 /* A card being edited stacks the field over what it shows, rather than standing them side by side:

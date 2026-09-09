@@ -386,6 +386,8 @@ export default function BoardView({
     /** Everything a card could be made from: the note types and every template. */
     const availableTemplates = useNoteTypeOptions();
     const [ isEditingProperties, setIsEditingProperties ] = useState(false);
+    /** Whether the board has stopped answering the pointer, which the wash arriving is what sets. */
+    const [ isFrozen, setIsFrozen ] = useState(false);
     const selectColumn = useCallback<Dispatch<StateUpdater<string | undefined>>>((column) => {
         setIsPeekingAll(false);
         setActiveColumn(column);
@@ -1137,7 +1139,18 @@ export default function BoardView({
         : undefined;
 
     return (
-        <div className="board-view">
+        <div className={clsx("board-view", { frozen: isFrozen })}>
+            {/* Stands over the board while a title is being typed, with the field lifted through
+                it. Always drawn, so it fades in rather than appearing. Which fields raise it is
+                the stylesheet's to say, since each keeps its own state.
+
+                The board is frozen once the wash has arrived rather than as it starts: freezing
+                restyles every card, which in the same frame would eat the fade whole. */}
+            <div
+                className="board-edit-backdrop"
+                onTransitionEnd={(e) => setIsFrozen(
+                    getComputedStyle(e.currentTarget as HTMLElement).opacity === "1")}
+            />
             <CollectionProperties
                 note={parentNote}
                 rightChildren={<>

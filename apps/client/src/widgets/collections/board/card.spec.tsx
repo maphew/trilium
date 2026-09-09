@@ -387,6 +387,33 @@ describe("Board card", () => {
         expect(element.querySelector(".user-attributes")).toBeTruthy();
     });
 
+    /**
+     * The wash over the board is raised by the stylesheet from the classes checked here, since each
+     * field keeps its own state and there is nothing above them all to read. These are the names it
+     * goes by; the wash itself is a rule that `happy-dom` lays nothing out for.
+     */
+    it("marks what a backdrop is raised for while a title is being typed", async () => {
+        const { first } = await renderBoard();
+        expect(container?.querySelector(".board-edit-backdrop")).toBeTruthy();
+        // Held on to: the editor takes the place of the title the lookup goes by.
+        const element = card(first);
+
+        await act(async () => { press(element, "F2"); });
+        expect(element.classList.contains("editing")).toBe(true);
+
+        const editor = element.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the title editor");
+        await act(async () => { press(editor, "Escape"); });
+        expect(element.classList.contains("editing")).toBe(false);
+
+        // The field that opens between two cards is marked; the one at the foot of the column is
+        // left as it is, and raises nothing.
+        await act(async () => { press(element, "Enter"); });
+        expect(container?.querySelectorAll(".board-new-item.inserting")).toHaveLength(1);
+        expect(container?.querySelector(".board-new-item:not(.inserting)")?.classList
+            .contains("inserting")).toBe(false);
+    });
+
     it("offers the card menu on a right click", async () => {
         const { first } = await renderBoard();
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
