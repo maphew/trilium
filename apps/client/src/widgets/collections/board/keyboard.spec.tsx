@@ -350,7 +350,7 @@ describe("Board keyboard", () => {
         });
 
         /**
-         * The card beside the focused one may be leaving with it, so focus walks past the cards on
+         * The card beside the focused one can be leaving with it, so focus walks past the cards on
          * their way out rather than landing on one about to be drawn no more.
          */
         it("hands focus past the cards going with it", async () => {

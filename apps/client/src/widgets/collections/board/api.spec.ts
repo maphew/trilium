@@ -739,6 +739,22 @@ describe("BoardApi card operations", () => {
             .toHaveBeenLastCalledWith([ second.branch.branchId ], third.branch.branchId);
     });
 
+    /**
+     * The place a card is dropped at is counted among the cards on screen, so a filter can leave
+     * that order unchanged for a move that does reorder the column underneath. Read as standing
+     * still, the move would be dropped and the board would snap back.
+     */
+    it("places a card a filter makes look as though it has not moved", async () => {
+        const { api, done } = createBoardWithSpareCard((all) => [ all[0], all[2] ]);
+
+        // Before the second card drawn, which stands past the one the filter hides.
+        await api.moveWithinBoard(
+            [ { noteId: done[0].note.noteId, branchId: done[0].branch.branchId } ], "Done", 1);
+
+        expect(branches.moveBeforeBranch)
+            .toHaveBeenCalledWith([ done[0].branch.branchId ], done[2].branch.branchId);
+    });
+
     it("moves nothing for a card dropped where it is, or one it cannot find", async () => {
         const { api, items } = createBoardWithCards();
         const [ first ] = items;

@@ -1390,23 +1390,34 @@ export default class BoardApi {
         const staying = targetItems.filter((item) => !moved.has(item.branch.branchId));
         const at = targetIndex - above;
 
+        // The column as the board holds it, cards a filter hides included, which is what says
+        // whether a card is arriving from elsewhere and whether this move changes anything.
+        const whole = this.allByColumn?.get(targetColumn) ?? targetItems;
+        const held = whole.map((item) => item.branch.branchId);
+
         // Nothing at all is written where the cards already stand where this would put them, which
         // is what a card dropped back where it was picked up amounts to.
-        const standing = targetItems.map((item) => item.branch.branchId);
-        const landing = [
-            ...staying.slice(0, at).map((item) => item.branch.branchId),
-            ...branchIds,
-            ...staying.slice(at).map((item) => item.branch.branchId)
-        ];
-        if (landing.length === standing.length
-                && landing.every((branchId, place) => branchId === standing[place])) {
-            return;
+        //
+        // Only where the column is drawn whole. The places are counted among the cards on screen,
+        // so a filter hiding some of them leaves that order unchanged for a move that does reorder
+        // what is underneath, and the move would be dropped for standing still.
+        if (whole.length === targetItems.length) {
+            const standing = targetItems.map((item) => item.branch.branchId);
+            const landing = [
+                ...staying.slice(0, at).map((item) => item.branch.branchId),
+                ...branchIds,
+                ...staying.slice(at).map((item) => item.branch.branchId)
+            ];
+            if (landing.length === standing.length
+                    && landing.every((branchId, place) => branchId === standing[place])) {
+                return;
+            }
         }
 
         // Only the cards arriving from elsewhere are written: one already under this column holds
         // the value already, and writing it again is a change the board has to redraw for.
         // Together rather than one after another, so a set does not arrive a card at a time.
-        const arriving = moving.filter((card) => !standing.includes(card.branchId));
+        const arriving = moving.filter((card) => !held.includes(card.branchId));
         if (arriving.length) {
             await Promise.all(arriving.map((card) => this.changeColumn(card.noteId, targetColumn)));
         }

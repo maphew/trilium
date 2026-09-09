@@ -32,8 +32,8 @@ export function shared<T>(notes: FNote[], read: (note: FNote) => T): Shared<T> {
  * Written through `setLabelValues`, which reuses the labels already there and leaves inherited ones
  * alone. The bulk-action endpoint would be one request instead of several, but its
  * `updateLabelValue` only touches labels a note already owns and `addLabel` always adds another,
- * so neither writes "hold this value" on a note that may or may not already hold it. The notes go
- * together instead, so a set is not written one card at a time.
+ * so neither says "hold this value" for a note that might already hold it. The notes go together
+ * instead, so a set is not written one card at a time.
  */
 export async function setLabelOnNotes(notes: FNote[], name: string, value: string) {
     await Promise.all(notes.map((note) => setLabelValues(note, name, [ value ])));

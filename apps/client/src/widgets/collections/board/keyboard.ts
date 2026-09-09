@@ -350,7 +350,7 @@ export function useBoardKeyboard({
  * What to put focus on once a card goes: the one under it, the one over it, or the column.
  *
  * @param going the cards leaving with it, which are passed over: a whole selection can be deleted
- * at once, and the card beside the focused one may be on its way out too.
+ * at once, and the card beside the focused one can be on its way out too.
  */
 function neighbourOf(
     container: HTMLElement,
