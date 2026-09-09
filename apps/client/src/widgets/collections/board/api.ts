@@ -1250,6 +1250,17 @@ export default class BoardApi {
     }
 
     /**
+     * Whether the board draws the inbox column, which holds the cards with no grouping value.
+     *
+     * {@link removeFromBoard} takes that value away, so with the inbox drawn a card has nowhere to
+     * go: it lands in the inbox instead of leaving, and one already there does not move at all.
+     * The menu and the Delete key leave the action out where this is true.
+     */
+    get isInboxEnabled() {
+        return !!this.parentNote?.isLabelTruthy("enableInboxColumn");
+    }
+
+    /**
      * Takes cards off the board, which leaves the notes where they are and only takes the grouping
      * value away. Written together, so a set does not leave a card at a time.
      */

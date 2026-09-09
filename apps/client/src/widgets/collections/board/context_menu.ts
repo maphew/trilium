@@ -544,12 +544,14 @@ export function openNoteContextMenu(api: Api, event: ContextMenuEvent, target: N
             }),
             { kind: "separator" },
             ...getArchiveMenuItems<CommandNames>(notes),
-            {
+            // Left out where the inbox is drawn: taking the grouping value away would leave the
+            // card in the inbox rather than off the board. Deleting the note is what removes it.
+            ...(api.isInboxEnabled ? [] : [ {
                 title: t("board_view.remove-from-board"),
                 uiIcon: "bx bx-task-x",
                 shortcut: "Delete",
                 handler: () => api.removeFromBoard(notes.map((selected) => selected.noteId))
-            },
+            } ]),
             {
                 title: t("board_view.delete-note"),
                 uiIcon: "bx bx-trash",

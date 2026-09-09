@@ -678,6 +678,29 @@ describe("Board item context menu", () => {
     });
 
     /**
+     * The inbox is the column a card with no grouping value stands in, so taking that value away
+     * leaves the card there instead of off the board. Deleting the note is what removes it.
+     */
+    it("offers no way off the board while the inbox column is drawn", () => {
+        const api = {
+            columns: [],
+            isColumnArchived: () => false,
+            getColumnIcon: () => DEFAULT_COLUMN_ICON,
+            getColumnColorClass: () => "",
+            isInboxEnabled: true,
+            removeFromBoard: vi.fn()
+        } as unknown as BoardApi;
+
+        const items = openItemMenu(api);
+
+        expect(items.find(item => item && "uiIcon" in item && item.uiIcon === "bx bx-task-x"))
+            .toBeUndefined();
+        // Deleting the note is still offered, since that does take it off the board.
+        expect(items.find(item => item && "uiIcon" in item && item.uiIcon === "bx bx-trash"))
+            .toBeTruthy();
+    });
+
+    /**
      * A board can hold more columns than a menu has screen to stand in, so what does not fit goes
      * behind one entry. The card's own column is listed whatever its place, since the check beside
      * it is what says where the card stands.

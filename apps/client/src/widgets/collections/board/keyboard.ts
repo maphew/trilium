@@ -315,6 +315,9 @@ export function useBoardKeyboard({
         if (e.key === "Delete" && spot.kind === "item") {
             const item = itemAt(columns, byColumn, spot);
             if (!item) return;
+            // Plain Delete takes the card off the board, which the inbox leaves nowhere to do: the
+            // card would land there instead. The menu leaves the entry out for the same reason.
+            if (!e.shiftKey && api.isInboxEnabled) return;
             take(e);
 
             // The whole selection while the focused card belongs to it, and that card alone

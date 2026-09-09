@@ -286,6 +286,32 @@ describe("Board keyboard", () => {
             expect(branches.deleteNotes).not.toHaveBeenCalled();
         });
 
+        /**
+         * The inbox holds the cards with no grouping value, so stripping the label would leave the
+         * card there rather than off the board. The card's own menu leaves the entry out to match.
+         */
+        it("leaves Delete unanswered while the inbox column is drawn", async () => {
+            const board = await renderBoard(undefined, undefined, [], true);
+            const strip = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
+            // The inbox is seeded at the front, so the first card stands in the column after it.
+            focusCard(board, 1, 0);
+
+            press(board, "Delete");
+
+            expect(strip).not.toHaveBeenCalled();
+            expect(branches.deleteNotes).not.toHaveBeenCalled();
+        });
+
+        /** Deleting the note is what takes it off a board drawing the inbox, so Shift still works. */
+        it("still deletes the note with Shift and Delete while the inbox is drawn", async () => {
+            const board = await renderBoard(undefined, undefined, [], true);
+            focusCard(board, 1, 0);
+
+            press(board, "Delete", { shiftKey: true });
+
+            expect(branches.deleteNotes).toHaveBeenCalled();
+        });
+
         it("deletes the note itself with Shift and Delete", async () => {
             const board = await renderBoard();
             const strip = vi.spyOn(attributes, "removeOwnedLabelByName").mockReturnValue(true);
@@ -1169,11 +1195,14 @@ describe("Board keyboard", () => {
      * @param extra the cards to add beyond the three, each named by the column it stands in. Only
      * the tests about moving a run of them need a column deep enough to hold one.
      */
-    async function renderBoard(collapsed?: string, orderBy?: string, extra: string[] = []) {
+    async function renderBoard(
+        collapsed?: string, orderBy?: string, extra: string[] = [], inbox = false
+    ) {
         boardNote = buildNote({
             title: "Board",
             "#collection": "",
             "#viewType": "board",
+            ...(inbox ? { "#enableInboxColumn": "true" } : {}),
             children: [
                 { title: "First", "#status": "To Do" },
                 { title: "Second", "#status": "To Do" },
