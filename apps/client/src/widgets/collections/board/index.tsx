@@ -1111,6 +1111,13 @@ export default function BoardView({
         handleBoardKeys(e);
     }, [ selection, handleBoardKeys ]);
 
+    // The note actions menu offers the properties dialog, which lives here rather than in the menu.
+    useTriliumEvent("showBoardProperties", ({ ntxId }) => {
+        if (ntxId === noteContext?.ntxId) {
+            setIsEditingProperties(true);
+        }
+    });
+
     useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
         // The column list is read off the definition, which may be edited from the attribute panel,
         // another split, or a synced instance. Re-reading it re-runs the refresh through the effect.

@@ -3974,3 +3974,84 @@ describe("Switchable board grouping", () => {
         expect(columnIcons(mountPoint)).toEqual([ "bx bx-down-arrow", DEFAULT_COLUMN_ICON ]);
     });
 });
+
+describe("Board properties from the note menu", () => {
+    let container: HTMLElement | undefined;
+
+    afterEach(() => {
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+
+        // A modal Bootstrap still believes is shown traps the focus of every later test, and its
+        // teardown waits on a transition happy-dom never runs.
+        const modal = document.querySelector<HTMLElement>(".board-properties-dialog");
+        if (modal) {
+            BootstrapModal.getInstance(modal)?.dispose();
+            modal.remove();
+        }
+        document.querySelector(".modal-backdrop")?.remove();
+        document.body.classList.remove("modal-open");
+    });
+
+    /**
+     * The menu is drawn outside the board, so it asks for the dialog by event. Each open board
+     * hears it, and only the one in the tab the menu was opened from answers.
+     */
+    it("opens the dialog for its own tab, and not for another one", async () => {
+        const host = await renderBoardInContext("ntx-1");
+        const isOpen = () => !!document.querySelector(".board-properties-dialog .modal-dialog");
+
+        expect(isOpen()).toBe(false);
+
+        await act(async () => {
+            await host.handleEvent("showBoardProperties", { ntxId: "ntx-2" });
+            await flush();
+        });
+        expect(isOpen()).toBe(false);
+
+        await act(async () => {
+            await host.handleEvent("showBoardProperties", { ntxId: "ntx-1" });
+            await flush();
+        });
+        expect(isOpen()).toBe(true);
+    });
+
+    /** Mounts a board belonging to the given tab, returning what events reach it through. */
+    async function renderBoardInContext(ntxId: string) {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { title: "First", "#status": "To Do" },
+                { title: "Second", "#status": "Done" }
+            ]
+        });
+
+        const host = new Component();
+        Object.assign(host, { noteContext: { ntxId, isActive: () => true } });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+
+        return host;
+    }
+});
