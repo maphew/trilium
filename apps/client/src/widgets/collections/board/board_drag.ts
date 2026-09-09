@@ -357,6 +357,7 @@ export function useBoardDrag(
             const tapped = held.touch && !held.active && event.type === "pointerup"
                 && Math.hypot(event.clientX - held.startX, event.clientY - held.startY)
                     <= TOUCH_TOLERANCE;
+            const dragged = held.active && event.type === "pointerup";
             const target = held.menuTarget;
             // A tap on a collapsed column opens it: that is what the strip is for, and its menu is
             // on the button it carries. Everything else answers a tap with its menu, the long
@@ -371,14 +372,29 @@ export function useBoardDrag(
                 // first of them takes the menu straight back off again. Refused at `touchend`,
                 // which is what the browser makes them from, and which has yet to be sent.
                 justTapped = true;
-                // The click is left out as well, for a browser that sends one regardless. Given up
-                // after a moment so a later click of the reader's own is never the one taken.
-                container.addEventListener("click", swallow, { capture: true, once: true });
-                window.setTimeout(
-                    () => container.removeEventListener("click", swallow, { capture: true }),
-                    COMPATIBILITY_WINDOW_MS);
+                // The click is left out as well, for a browser that sends one regardless.
+                swallowNextClick();
                 askForMenu(target, event.clientX, event.clientY);
             }
+
+            // A mouse drag is followed by a click on whatever the press and the release have in
+            // common, which for a card carried anywhere is the board itself. Taken here, so that
+            // what a click on the board means is not also what letting go of a card means.
+            if (dragged) {
+                swallowNextClick();
+            }
+        };
+
+        /**
+         * Refuses the one click the browser is about to send, if it sends one.
+         *
+         * Given up after a moment so a later click of the reader's own is never the one taken.
+         */
+        const swallowNextClick = () => {
+            container.addEventListener("click", swallow, { capture: true, once: true });
+            window.setTimeout(
+                () => container.removeEventListener("click", swallow, { capture: true }),
+                COMPATIBILITY_WINDOW_MS);
         };
 
         /** Set between a tap and the `touchend` the browser would make mouse events from. */

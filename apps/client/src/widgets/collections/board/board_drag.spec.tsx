@@ -66,6 +66,32 @@ describe("useBoardDrag, carrying a card", () => {
         expect(copy?.querySelector(".title")).toBeNull();
     });
 
+    /**
+     * A mouse drag is followed by a click on whatever the press and the release have in common,
+     * which for a card carried anywhere is the board itself. Left to stand, letting a card go
+     * would also read as a click on the board, which is a gesture of its own.
+     */
+    it("takes the click a mouse drag is followed by", () => {
+        setup();
+        const reached = vi.fn();
+        board.addEventListener("click", reached);
+
+        press(card("n1"), 50, 60);
+        move(90, 90);
+        release(90, 90);
+
+        const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+        card("n2").dispatchEvent(click);
+
+        expect(reached).not.toHaveBeenCalled();
+        expect(click.defaultPrevented).toBe(true);
+
+        // The one click, and no more: a press of the reader's own still counts.
+        const later = new MouseEvent("click", { bubbles: true, cancelable: true });
+        card("n2").dispatchEvent(later);
+        expect(reached).toHaveBeenCalledTimes(1);
+    });
+
     /** Two cards on the move leave one card behind the copy. */
     it("stacks one card behind a pair", () => {
         setup({ carried: [ "n1", "n2" ] });
