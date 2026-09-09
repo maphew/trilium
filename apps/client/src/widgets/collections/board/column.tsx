@@ -190,6 +190,11 @@ export default function Column({
         useContext(BoardActionsContext);
     const { branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn } =
         useContext(BoardDragStateContext);
+    // Every card on the move. The one under the pointer is taken out of the flow by the gesture
+    // itself; the rest of a carried selection stay where they are drawn and are dimmed instead.
+    const carriedNoteIds = draggedCard
+        ? new Set(draggedCard.noteIds ?? [ draggedCard.noteId ])
+        : null;
     // Asked about this column alone: where the gap stands changes on every step of a drag, and a
     // column that the answer does not concern is left as it is rather than drawn again.
     const standingDropIndex = useDropIndex(column);
@@ -672,7 +677,7 @@ export default function Column({
                             isNew={note.noteId === createdNoteId
                                 || note.noteId === landedNoteId}
                             focusOnArrival={note.noteId === insertedNoteId}
-                            isDragging={draggedCard?.noteId === note.noteId}
+                            isDragging={!!carriedNoteIds?.has(note.noteId)}
                             isEditing={branch.branchId === branchIdToEdit}
                             onFocusCard={onFocusCard}
                             onInsert={beginInsert}
