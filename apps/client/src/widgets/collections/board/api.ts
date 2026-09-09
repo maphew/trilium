@@ -1398,20 +1398,18 @@ export default class BoardApi {
         // Nothing at all is written where the cards already stand where this would put them, which
         // is what a card dropped back where it was picked up amounts to.
         //
-        // Only where the column is drawn whole. The places are counted among the cards on screen,
-        // so a filter hiding some of them leaves that order unchanged for a move that does reorder
-        // what is underneath, and the move would be dropped for standing still.
-        if (whole.length === targetItems.length) {
-            const standing = targetItems.map((item) => item.branch.branchId);
-            const landing = [
-                ...staying.slice(0, at).map((item) => item.branch.branchId),
-                ...branchIds,
-                ...staying.slice(at).map((item) => item.branch.branchId)
-            ];
-            if (landing.length === standing.length
-                    && landing.every((branchId, place) => branchId === standing[place])) {
-                return;
-            }
+        // Compared over the cards on screen, which is the order the drop was aimed at. Under a
+        // filter `moveBeforeBranch` can only place a card against a visible neighbour, so writing
+        // a move that leaves the screen unchanged would reorder the hidden cards instead.
+        const standing = targetItems.map((item) => item.branch.branchId);
+        const landing = [
+            ...staying.slice(0, at).map((item) => item.branch.branchId),
+            ...branchIds,
+            ...staying.slice(at).map((item) => item.branch.branchId)
+        ];
+        if (landing.length === standing.length
+                && landing.every((branchId, place) => branchId === standing[place])) {
+            return;
         }
 
         // Only the cards arriving from elsewhere are written: one already under this column holds

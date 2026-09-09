@@ -740,19 +740,23 @@ describe("BoardApi card operations", () => {
     });
 
     /**
-     * The place a card is dropped at is counted among the cards on screen, so a filter can leave
-     * that order unchanged for a move that does reorder the column underneath. Read as standing
-     * still, the move would be dropped and the board would snap back.
+     * A card can only be placed against a neighbour that is drawn, so a move leaving the cards on
+     * screen where they are would move the ones a filter hides instead: dropping the second card
+     * drawn back at the end writes `moveAfterBranch` against the first, taking it past the hidden
+     * card between them.
      */
-    it("places a card a filter makes look as though it has not moved", async () => {
+    it("moves nothing for a drop that leaves the cards a filter draws where they are", async () => {
         const { api, done } = createBoardWithSpareCard((all) => [ all[0], all[2] ]);
 
-        // Before the second card drawn, which stands past the one the filter hides.
+        // Back at the end of the two cards drawn, which is where the second one already stands.
+        await api.moveWithinBoard(
+            [ { noteId: done[2].note.noteId, branchId: done[2].branch.branchId } ], "Done", 2);
+        // And the same drop read from the other card: before the second drawn, where it already is.
         await api.moveWithinBoard(
             [ { noteId: done[0].note.noteId, branchId: done[0].branch.branchId } ], "Done", 1);
 
-        expect(branches.moveBeforeBranch)
-            .toHaveBeenCalledWith([ done[0].branch.branchId ], done[2].branch.branchId);
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
     });
 
     it("moves nothing for a card dropped where it is, or one it cannot find", async () => {
