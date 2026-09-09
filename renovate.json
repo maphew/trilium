@@ -58,7 +58,7 @@
             "groupName": "ckeditor monorepo"
         },
         {
-            "description": "fullcalendar and @fullcalendar/rrule both pin @fullcalendar/core and @full-ui/headless-calendar to their exact version, so bumping one alone installs two copies of core and the calendar rejects the plugin built against the other",
+            "description": "Group FullCalendar packages because mixed core versions make plugins incompatible.",
             "matchPackageNames": [
                 "fullcalendar",
                 "@fullcalendar/**",
