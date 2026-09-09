@@ -45,7 +45,10 @@ export interface DraggedCard {
     noteIds: string[];
     fromColumn: string;
     index: number;
-    /** How tall it stands, so the gap held open for it is the size it will fill. */
+    /**
+     * How tall the cards being carried stand together, so the gap held open for them is the space
+     * they will fill and the column they land in does not resize around them.
+     */
     height: number;
 }
 
@@ -549,21 +552,39 @@ function startCard(
     if (!element || !columnElement || !noteId) return null;
 
     const cards = [ ...columnElement.querySelectorAll(".board-note") ];
+    const noteIds = carriedWith(noteId);
     return {
         kind: "card",
         element,
         menuTarget: element,
         card: {
             noteId,
-            noteIds: carriedWith(noteId),
+            noteIds,
             fromColumn: columnElement.dataset.column ?? "",
             index: cards.indexOf(element),
-            height: element.getBoundingClientRect().height
+            height: carriedHeight(element, noteIds)
         },
         position: null,
         inside: false,
         reported: false
     };
+}
+
+/**
+ * How much room the cards being carried take together: their own heights, and the space between
+ * each pair of them.
+ *
+ * Measured from the board rather than from the column, since a selection can reach across columns.
+ * A card the board is no longer drawing counts for nothing.
+ */
+function carriedHeight(element: HTMLElement, noteIds: string[]) {
+    const board = element.closest(".board-view-container") ?? element.ownerDocument;
+    const spacing = parseFloat(getComputedStyle(element).marginBottom) || 0;
+
+    return noteIds.reduce((total, noteId) => {
+        const card = board.querySelector<HTMLElement>(`.board-note[data-note-id="${noteId}"]`);
+        return total + (card?.getBoundingClientRect().height ?? 0);
+    }, spacing * (noteIds.length - 1));
 }
 
 /**

@@ -21,6 +21,7 @@ import { ContextMenuEvent } from "../../../menus/context_menu";
 import { isIMEComposing } from "../../../services/shortcuts";
 import type { ShortcutHintDefinition } from "../../../services/shortcut_hints";
 import toast from "../../../services/toast";
+import ws from "../../../services/ws";
 import { escapeHtml, isMobile } from "../../../services/utils";
 import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
 import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
@@ -829,19 +830,16 @@ export default function BoardView({
                     setLandedNoteId(card.noteId);
                 }
                 movesInFlight.current++;
-                // Any refresh already on its way is about the board as it stood before the drop,
-                // and would put the card back where it came from as it resolves.
+                // As `holdMove` does for a move made by the keyboard, and for the same reason: the
+                // board is held where the drop has drawn it until `froca` has the changes.
                 refreshSeqRef.current++;
-                // Nothing is asked for once the writes are in: `froca` learns of the branch move
-                // from the server a moment later, so a refresh here reads the new column with the
-                // old order and puts the card at the top of it. The change reaches the board as an
-                // entity reload, which settles it once there is something to read.
                 api.moveWithinBoard(
                     carried.map((item) => ({
                         noteId: item.note.noteId,
                         branchId: item.branch.branchId
                     })),
                     position.column, position.index)
+                    .then(settled)
                     .finally(() => { movesInFlight.current--; });
             }
             setDraggedCard(null);
@@ -1054,7 +1052,13 @@ export default function BoardView({
         // put the cards back where they came from as it resolves.
         refreshSeqRef.current++;
 
-        return done.finally(() => { movesInFlight.current--; });
+        // Held until `froca` has the changes, not merely until the server has answered for them:
+        // the answers come back over HTTP and the changes over the websocket, so a refresh let
+        // through in between reads a board with some of the cards moved and the rest still where
+        // they were, and draws that.
+        return done
+            .then(settled)
+            .finally(() => { movesInFlight.current--; });
     }, [ allByColumn ]);
 
     /** Sends cards to the end of another column, which is where the keyboard puts them. */
@@ -1288,6 +1292,23 @@ export default function BoardView({
  * Naming the winning check, rather than returning a boolean, is what lets the profiler attribute a
  * redraw to a cause.
  */
+/** How long the board waits for a move's changes before drawing again regardless. */
+const SETTLE_TIMEOUT_MS = 10000;
+
+/**
+ * Waits for `froca` to hold what a move has written.
+ *
+ * `waitForMaxKnownEntityChangeId` never settles while the websocket delivers nothing, and the board
+ * holds its refreshes until this resolves: unlimited, a connection gone quiet would stop the board
+ * redrawing for the rest of the session.
+ */
+function settled() {
+    return Promise.race([
+        ws.waitForMaxKnownEntityChangeId(),
+        new Promise<void>((resolve) => { window.setTimeout(resolve, SETTLE_TIMEOUT_MS); })
+    ]);
+}
+
 /**
  * Puts every card back where the column draws it, closes every gap and gives back the room they
  * took.

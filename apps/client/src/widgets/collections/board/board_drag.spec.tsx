@@ -92,6 +92,20 @@ describe("useBoardDrag, carrying a card", () => {
         expect(reached).toHaveBeenCalledTimes(1);
     });
 
+    /**
+     * The gap holds the space the cards will fill, so the column they land in is already the size
+     * it will be. Sized for one of them, it would resize around the rest as they arrive.
+     */
+    it("holds a gap the size of everything being carried", () => {
+        setup({ carried: [ "n1", "n2" ] });
+
+        press(card("n1"), 50, 60);
+        move(90, 90);
+
+        // Both cards stand 50 tall, and the stylesheet the spacing comes from is not loaded here.
+        expect(calls.start[0]?.height).toBe(100);
+    });
+
     /** Two cards on the move leave one card behind the copy. */
     it("stacks one card behind a pair", () => {
         setup({ carried: [ "n1", "n2" ] });
