@@ -283,7 +283,7 @@ export function useBoardKeyboard({
             const item = itemAt(columns, byColumn, spot);
             if (item) {
                 take(e);
-                api.openNote(item.note.noteId);
+                api.openCard(item.note);
             }
             return;
         }

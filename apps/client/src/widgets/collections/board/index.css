@@ -434,6 +434,13 @@ body.mobile .board-view-container .board-add-column {
   }
 }
 
+/* A card carrying `boardCardRedirectTo` opens the note it points at, so its title reads as a link.
+   Drawn on `.text` rather than on `.title`: a decoration set on the title propagates to the icon
+   beside it, and a descendant cannot turn a propagated one off. */
+.board-view-container .board-note.shortcut:hover > .title > .text {
+  text-decoration: underline;
+}
+
 .board-view-container .board-note > .title > .icon {
   flex: none;
   display: flex;

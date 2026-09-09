@@ -6,7 +6,7 @@ import {
 
 import FBranch from "../../../entities/fbranch";
 import FNote from "../../../entities/fnote";
-import BoardApi from "./api";
+import BoardApi, { CARD_REDIRECT_RELATION } from "./api";
 import {
     BoardActionsContext, BoardHighlightTokensContext, BoardKeptCardsContext,
     BoardPromotedAttributesContext, TitleEditor
@@ -19,7 +19,8 @@ import UserAttributesDisplay from "../../attribute_widgets/UserAttributesList";
 import { parseNavigationStateFromUrl } from "../../../services/link";
 import { FLIP_SETTLE_MS } from "../../react/flip";
 import {
-    useNoteColorClass, useNoteIcon, useNoteLabel, useNoteLabelBoolean, useTriliumEvent
+    useNoteColorClass, useNoteIcon, useNoteLabel, useNoteLabelBoolean, useNoteRelation,
+    useTriliumEvent
 } from "../../react/hooks";
 import { TooltipIcon } from "../../react/Icon";
 import { HighlightedText } from "../../react/RawHtml";
@@ -81,6 +82,9 @@ function Card({
     const cardRef = useRef<HTMLDivElement>(null);
     const [ isArchived ] = useNoteLabelBoolean(note, "archived");
     const [ iconClass, setIconClass ] = useNoteLabel(note, "iconClass");
+    // Only whether the card redirects, which is what draws its title as a link. Where it goes is
+    // read when the card is opened.
+    const [ redirectTo ] = useNoteRelation(note, CARD_REDIRECT_RELATION);
     // The card stays the one just made until another is, so what has already been shown is
     // remembered here rather than played again by every redraw of the column.
     const [ isRevealed, setIsRevealed ] = useState(false);
@@ -161,7 +165,7 @@ function Card({
         }
 
         selection.clear();
-        api.openNote(note.noteId);
+        api.openCard(note);
     }, [ api, note, column, selection ]);
 
     /**
@@ -253,6 +257,7 @@ function Card({
         <div
             ref={cardRef}
             className={clsx("board-note", colorClass, {
+                shortcut: !!redirectTo,
                 dragging: isDragging,
                 editing: isEditing,
                 archived: isArchived,
@@ -275,7 +280,8 @@ function Card({
                 <>
                     <span className="title">
                         <span class={`icon ${icon}`} />
-                        <HighlightedText text={title} highlightedTokens={highlightedTokens} />
+                        <HighlightedText
+                            className="text" text={title} highlightedTokens={highlightedTokens} />
                     </span>
                     <span
                         className="edit-icon icon bx bx-edit"

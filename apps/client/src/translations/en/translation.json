@@ -740,6 +740,7 @@
     "max_nesting_depth": "How many levels of children a table shows. Notes cannot be reordered while it is set.",
     "include_archived": "Includes archived notes in this collection, which are otherwise left out.",
     "enable_inbox_column": "For board collections, shows the inbox column, which lists all child notes that are not assigned to a board column.",
+    "board_card_redirect_to": "On a board card, opening the card jumps to the note this points at instead of opening the card itself.",
     "sort_columns": "For board collections, the order the columns sort their cards in, which a column follows unless it is given an order of its own. Holds <code>title</code>, <code>creationDate</code> or <code>attr:</code> followed by a promoted attribute's name.",
     "sort_columns_descending": "For board collections, runs the order in <code>#sortColumns</code> backwards.",
     "calendar_view": "Which view a calendar opens in: <code>timeGridDay</code>, <code>timeGridWeek</code>, <code>dayGridMonth</code>, <code>multiMonthYear</code> or <code>listMonth</code>.",

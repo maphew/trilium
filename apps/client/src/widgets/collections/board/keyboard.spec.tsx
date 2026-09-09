@@ -1058,6 +1058,26 @@ describe("Board keyboard", () => {
         expect(open).toHaveBeenCalledWith("openInPopup", { noteIdOrPath: noteOf(board, "First") });
     });
 
+    /** Space is the card's open gesture, so it redirects where a click on the card would. */
+    it("jumps to the redirect target with Space", async () => {
+        const board = await renderBoard(undefined, undefined, [], false, true);
+        const open = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        const setNote = vi.fn();
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveContext: () => ({ setNote }) } as never;
+
+        try {
+            focusCard(board, 0, 0);
+            press(board, " ");
+        } finally {
+            // Put back before the assertions: a stub left standing reaches every later test.
+            appContext.tabManager = previousTabManager;
+        }
+
+        expect(setNote).toHaveBeenCalledWith("targetNote");
+        expect(open).not.toHaveBeenCalled();
+    });
+
     /** Which column a card is drawn in, counted as the reader sees them. */
     function columnOf(board: HTMLElement, title: string) {
         return [ ...board.querySelectorAll(".board-column") ]
@@ -1196,7 +1216,8 @@ describe("Board keyboard", () => {
      * the tests about moving a run of them need a column deep enough to hold one.
      */
     async function renderBoard(
-        collapsed?: string, orderBy?: string, extra: string[] = [], inbox = false
+        collapsed?: string, orderBy?: string, extra: string[] = [], inbox = false,
+        redirect = false
     ) {
         boardNote = buildNote({
             title: "Board",
@@ -1204,7 +1225,11 @@ describe("Board keyboard", () => {
             "#viewType": "board",
             ...(inbox ? { "#enableInboxColumn": "true" } : {}),
             children: [
-                { title: "First", "#status": "To Do" },
+                {
+                    title: "First",
+                    "#status": "To Do",
+                    ...(redirect ? { "~boardCardRedirectTo": "targetNote" } : {})
+                },
                 { title: "Second", "#status": "To Do" },
                 { title: "Third", "#status": "Doing" },
                 ...extra.map((status, at) => (

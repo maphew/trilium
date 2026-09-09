@@ -82,7 +82,7 @@ describe("Board card", () => {
 
         expect(cardClasses(first)).not.toContain("archived");
 
-        await addLabel(component, first, "archived");
+        await addAttribute(component, first, "archived");
 
         expect(cardClasses(first)).toContain("archived");
         expect(cardClasses(second)).not.toContain("archived");
@@ -117,7 +117,7 @@ describe("Board card", () => {
 
         expect(cardClasses(first)).not.toContain(coloured);
 
-        await addLabel(component, first, "color", "#ff0000");
+        await addAttribute(component, first, "color", "#ff0000");
 
         expect(cardClasses(first)).toContain(coloured);
         expect(cardClasses(second)).not.toContain(coloured);
@@ -128,7 +128,7 @@ describe("Board card", () => {
 
         expect(cardIcon(first)).not.toContain("bx-bug");
 
-        await addLabel(component, first, "iconClass", "bx bx-bug");
+        await addAttribute(component, first, "iconClass", "bx bx-bug");
 
         expect(cardIcon(first)).toContain("bx-bug");
     });
@@ -141,6 +141,51 @@ describe("Board card", () => {
 
         expect(openInPopup)
             .toHaveBeenCalledWith("openInPopup", { noteIdOrPath: first });
+    });
+
+    /**
+     * A card carrying `boardCardRedirectTo` stands in for the note it points at, so the open gesture
+     * navigates there rather than opening an editor for the card itself.
+     */
+    it("jumps to the note it redirects to instead of opening itself", async () => {
+        const { first, component } = await renderBoard();
+        await addAttribute(component, first, "boardCardRedirectTo", "targetNote", "relation");
+
+        const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+        const setNote = vi.fn();
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveContext: () => ({ setNote }) } as never;
+
+        try {
+            await act(async () => { card(first).click(); });
+        } finally {
+            // Put back before the assertions: a stub left standing reaches every later test.
+            appContext.tabManager = previousTabManager;
+        }
+
+        expect(setNote).toHaveBeenCalledWith("targetNote");
+        expect(openInPopup).not.toHaveBeenCalled();
+        // `shortcut` is what underlines the title on hover, drawing it as a link.
+        expect(cardClasses(first)).toContain("shortcut");
+    });
+
+    it("marks no card a shortcut without the relation", async () => {
+        const { first } = await renderBoard();
+
+        expect(cardClasses(first)).not.toContain("shortcut");
+    });
+
+    /**
+     * The underline is drawn on the text alone. A decoration set on `.title` would propagate to the
+     * icon standing beside the text, and a descendant cannot turn a propagated one off.
+     */
+    it("keeps the title text in an element of its own, apart from the icon", async () => {
+        const { first } = await renderBoard();
+        const title = card(first).querySelector(".title");
+
+        expect(title?.querySelector(".text")).toBeTruthy();
+        expect(title?.querySelector(".text .icon")).toBeNull();
+        expect(title?.querySelector(":scope > .icon")).toBeTruthy();
     });
 
     /**
@@ -554,18 +599,24 @@ describe("Board card", () => {
             .map(column => column.getAttribute("data-column"));
     }
 
-    /** Adds a label to a note already in froca and announces it the way a websocket message would. */
-    async function addLabel(component: Component, noteId: string, name: string, value = "") {
+    /**
+     * Adds an attribute to a note already in froca and announces it the way a websocket message
+     * would.
+     */
+    async function addAttribute(
+        component: Component, noteId: string, name: string, value = "",
+        type: "label" | "relation" = "label"
+    ) {
         const attributeId = utils.randomString(12);
         const attribute = new FAttribute(froca, {
-            noteId, attributeId, type: "label", name, value, position: 0, isInheritable: false
+            noteId, attributeId, type, name, value, position: 0, isInheritable: false
         });
 
         froca.attributes[attributeId] = attribute;
         froca.notes[noteId].attributes.push(attributeId);
         noteAttributeCache.attributes[noteId] = [ ...(noteAttributeCache.attributes[noteId] ?? []), attribute ];
 
-        const entity = { attributeId, noteId, type: "label", name, value, isDeleted: false };
+        const entity = { attributeId, noteId, type, name, value, isDeleted: false };
         const loadResults = new LoadResults([ {
             entityName: "attributes", entityId: attributeId, entity, hash: "", isSynced: true, isErased: false
         } ]);

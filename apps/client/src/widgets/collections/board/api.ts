@@ -34,6 +34,9 @@ import { SORT_DESCENDING_LABEL, SORT_LABEL } from "./sort";
 /** Which end of a column a new card is made at. */
 export type CardPlacement = "top" | "bottom";
 
+/** The relation a card carries to stand in for another note rather than open an editor of its own. */
+export const CARD_REDIRECT_RELATION = "boardCardRedirectTo";
+
 /** One write's claim on a column, held until that write lands or is taken back. */
 interface ColumnClaim {
     /**
@@ -1211,6 +1214,23 @@ export default class BoardApi {
 
     openNote(noteId: string) {
         appContext.triggerCommand("openInPopup", { noteIdOrPath: noteId });
+    }
+
+    /**
+     * Answers the card's own open gesture, a click or Space.
+     *
+     * A card carrying `boardCardRedirectTo` stands in for the note that relation points at, so it
+     * navigates there instead of opening an editor of its own. Quick edit calls `openNote` and
+     * still opens the card's own editor.
+     */
+    openCard(note: FNote) {
+        const target = note.getRelationValue(CARD_REDIRECT_RELATION);
+        if (target) {
+            void appContext.tabManager.getActiveContext()?.setNote(target);
+            return;
+        }
+
+        this.openNote(note.noteId);
     }
 
     startEditing(branchId: string) {
