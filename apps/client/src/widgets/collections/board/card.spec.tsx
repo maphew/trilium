@@ -371,6 +371,40 @@ describe("Board card", () => {
         }
     });
 
+    describe("the drag that carries a card off the board", () => {
+        it("fills the drag with the one card, in the two entries the tree reads", async () => {
+            const { first } = await renderBoard();
+            const data = new Map<string, string>();
+
+            fireDrag(card(first), "dragstart", { setData: (type: string, value: string) => data.set(type, value) });
+
+            expect(data.get("application/x-fancytree-node")).toBe("");
+            expect(JSON.parse(data.get("text") ?? "[]")).toEqual([
+                { noteId: first, branchId: expect.any(String), title: "First" }
+            ]);
+        });
+
+        /** A drag started on a card that is picked out takes everything picked out with it. */
+        it("fills it with every card picked out, where the one dragged is among them", async () => {
+            const { first, second } = await renderBoard();
+            const data = new Map<string, string>();
+
+            await act(async () => {
+                card(first).dispatchEvent(new MouseEvent(
+                    "click", { bubbles: true, cancelable: true, detail: 1, ctrlKey: true }));
+            });
+            await act(async () => {
+                card(second).dispatchEvent(new MouseEvent(
+                    "click", { bubbles: true, cancelable: true, detail: 1, ctrlKey: true }));
+            });
+
+            fireDrag(card(first), "dragstart", { setData: (type: string, value: string) => data.set(type, value) });
+
+            expect(JSON.parse(data.get("text") ?? "[]").map((entry: { title: string }) => entry.title))
+                .toEqual([ "First", "Second" ]);
+        });
+    });
+
     /**
      * The card is the same height either way, so opening the editor neither drops what the card
      * shows nor moves the cards below it.

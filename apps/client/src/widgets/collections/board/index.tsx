@@ -11,6 +11,7 @@ import {
 
 import { type HighlightedTokenInfo, normalizeBoardGroupBy } from "@triliumnext/commons";
 
+import appContext from "../../../components/app_context";
 import FNote from "../../../entities/fnote";
 import attributes from "../../../services/attributes";
 import froca from "../../../services/froca";
@@ -671,9 +672,15 @@ export default function BoardView({
         // hears every change: a card renamed once redraws each of them, whichever is on screen. The
         // change is remembered instead, and drawn once the tab is looked at again. Asked of the
         // context rather than of the box, which is empty for a board that has not drawn yet.
+        // Compared by main context, not `noteContext.isActive()`: that names one pane across the
+        // whole app, so a board in a split the reader is not focused on is on screen but would
+        // never redraw, the `ResizeObserver` above having no size change to report.
         // Only once it has drawn: a board opened straight into a background tab has to draw at
         // least once, or there is no container to notice the tab being shown and it stays empty.
-        if (byColumn && noteContext && !noteContext.isActive()) {
+        // Nothing is deferred where the active tab cannot be read, so an answer that has yet to
+        // arrive leaves the board drawn rather than blank.
+        const shownTab = appContext.tabManager?.getActiveMainContext();
+        if (byColumn && noteContext && shownTab && shownTab !== noteContext.getMainContext()) {
             isStale.current = true;
             return;
         }

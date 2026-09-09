@@ -590,6 +590,52 @@ describe("useBoardDrag, carrying a card", () => {
         expect(calls.start).toHaveLength(0);
     });
 
+    describe("the drag Ctrl hands to the browser", () => {
+        /**
+         * Nothing else reaches the note tree or a board in another split, so a Ctrl press makes the
+         * card natively draggable and stands back. `draggable` is set on the press rather than kept
+         * on the card, or every ordinary drag would become a native one.
+         */
+        it("makes the card draggable and opens no gesture of its own", () => {
+            setup();
+            const element = card("n1");
+            // `toBeFalsy`, not `toBe(false)`: happy-dom does not reflect the `draggable` attribute
+            // onto the property, so an element nothing has set it on reads undefined.
+            expect(element.draggable).toBeFalsy();
+
+            press(element, 50, 60, "mouse", { ctrlKey: true });
+            expect(element.draggable).toBe(true);
+
+            move(90, 90);
+            expect(calls.start).toHaveLength(0);
+        });
+
+        it("puts `draggable` back, whether the press became a drag or stayed a click", () => {
+            setup();
+            const element = card("n1");
+
+            press(element, 50, 60, "mouse", { ctrlKey: true });
+            act(() => { element.dispatchEvent(new Event("dragend", { bubbles: true })); });
+            expect(element.draggable).toBe(false);
+
+            // A Ctrl click that never moved delivers no `dragend`, so the release clears it.
+            press(element, 50, 60, "mouse", { ctrlKey: true });
+            release(50, 60);
+            expect(element.draggable).toBe(false);
+        });
+
+        it("leaves an ordinary press to the board's own gesture", () => {
+            setup();
+            const element = card("n1");
+
+            press(element, 50, 60);
+            move(90, 90);
+
+            expect(element.draggable).toBeFalsy();
+            expect(calls.start).toHaveLength(1);
+        });
+    });
+
     describe("carrying a column", () => {
         it("takes hold of it by its heading, and says what it measures", () => {
             setup();
@@ -770,18 +816,26 @@ describe("useBoardDrag, carrying a card", () => {
         }) as DOMRect;
     }
 
-    function pointer(type: string, clientX: number, clientY: number, pointerType: string) {
+    function pointer(
+        type: string, clientX: number, clientY: number, pointerType: string,
+        modifiers: { ctrlKey?: boolean } = {}
+    ) {
         const event = new Event(type, { bubbles: true, cancelable: true });
         for (const [ name, value ] of Object.entries({
-            clientX, clientY, pointerId: 1, button: 0, pointerType
+            clientX, clientY, pointerId: 1, button: 0, pointerType, ...modifiers
         })) {
             Object.defineProperty(event, name, { value, configurable: true });
         }
         return event;
     }
 
-    function press(target: HTMLElement, x: number, y: number, pointerType = "mouse") {
-        act(() => { target.dispatchEvent(pointer("pointerdown", x, y, pointerType)); });
+    function press(
+        target: HTMLElement, x: number, y: number, pointerType = "mouse",
+        modifiers: { ctrlKey?: boolean } = {}
+    ) {
+        act(() => {
+            target.dispatchEvent(pointer("pointerdown", x, y, pointerType, modifiers));
+        });
     }
 
     function move(x: number, y: number, pointerType = "mouse") {

@@ -24,6 +24,7 @@ import {
 import { TooltipIcon } from "../../react/Icon";
 import { HighlightedText } from "../../react/RawHtml";
 import { useIsSelected, useSelection } from "../../react/selection";
+import { type DragData, TREE_CLIPBOARD_TYPE } from "../../note_tree";
 
 function Card({
     api,
@@ -163,6 +164,27 @@ function Card({
         api.openNote(note.noteId);
     }, [ api, note, column, selection ]);
 
+    /**
+     * Fills the drag with what the note tree reads, for the native drag a Ctrl press arms in
+     * `board_drag.ts`. Carries the whole selection where this card is part of one.
+     *
+     * The same two entries the tree writes, so a card reaches everything a note dragged from the
+     * tree does: `TREE_CLIPBOARD_TYPE` says the drag holds notes, `text` says which.
+     */
+    const handleDragStart = useCallback((e: DragEvent) => {
+        const carried = isSelected
+            ? api.getCards(selection.keys)
+            : [ { note, branch } ];
+        const dragged: DragData[] = carried.map((item) => ({
+            noteId: item.note.noteId,
+            branchId: item.branch.branchId,
+            title: item.note.title
+        }));
+
+        e.dataTransfer?.setData(TREE_CLIPBOARD_TYPE, "");
+        e.dataTransfer?.setData("text", JSON.stringify(dragged));
+    }, [ api, note, branch, isSelected, selection ]);
+
     const handleEdit = useCallback((e: MouseEvent) => {
         e.stopPropagation(); // don't also open the note
         setBranchIdToEdit(branch.branchId);
@@ -244,6 +266,7 @@ function Card({
             }}
             data-note-id={note.noteId}
             onContextMenu={handleContextMenu}
+            onDragStart={handleDragStart}
             onClick={!isEditing ? handleClick : undefined}
             onKeyDown={handleKeyDown}
             tabIndex={300}

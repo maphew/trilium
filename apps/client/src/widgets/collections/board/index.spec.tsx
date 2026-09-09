@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Modal as BootstrapModal } from "bootstrap";
 
+import appContext from "../../../components/app_context";
 import Component from "../../../components/component";
 import contextMenu from "../../../menus/context_menu";
 import dialog from "../../../services/dialog";
@@ -788,10 +789,15 @@ describe("A board in a tab the reader is not looking at", () => {
         });
 
         // The context the board belongs to, reached the way `useNoteContext` reaches it: from the
-        // nearest ancestor carrying one.
-        let active = true;
+        // nearest ancestor carrying one. The board compares main contexts, so the tab is what the
+        // stub stands for and a split pane of it would answer with the same one.
+        const tab = {};
+        const otherTab = {};
+        let shown: object = tab;
         const host = new Component();
-        Object.assign(host, { noteContext: { isActive: () => active } });
+        Object.assign(host, { noteContext: { getMainContext: () => tab } });
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveMainContext: () => shown } as never;
 
         const mountPoint = document.createElement("div");
         container = mountPoint;
@@ -821,8 +827,8 @@ describe("A board in a tab the reader is not looking at", () => {
         await draw();
         expect(columnOf("First")).toBe("To Do");
 
-        // The card moves column while the tab is in the background.
-        active = false;
+        // The card moves column while another tab is the one being looked at.
+        shown = otherTab;
         for (const attribute of froca.getNoteFromCache("one")?.getAttributes() ?? []) {
             if (attribute.name === "status") attribute.value = "Done";
         }
@@ -830,9 +836,71 @@ describe("A board in a tab the reader is not looking at", () => {
         expect(columnOf("First")).toBe("To Do");
 
         // Looked at again, it catches up with what it missed.
-        active = true;
+        shown = tab;
         await draw();
         expect(columnOf("First")).toBe("Done");
+
+        appContext.tabManager = previousTabManager;
+    });
+
+    /**
+     * `getActiveMainContext` names one pane across the whole app, so a board sharing a tab with the
+     * focused pane is on screen and redraws: a card dropped onto it from another split appears at
+     * once rather than waiting for something to force a refresh.
+     */
+    it("redraws for a change while it is the split the reader is not focused on", async () => {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { id: "split1", title: "First", "#status": "To Do" },
+                { id: "split2", title: "Second", "#status": "Done" }
+            ]
+        });
+
+        // One tab, and the board is in a pane of it that does not hold the focus.
+        const tab = {};
+        const host = new Component();
+        Object.assign(host, { noteContext: { getMainContext: () => tab } });
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveMainContext: () => tab } as never;
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        const draw = async () => {
+            await act(async () => {
+                render(
+                    <ParentComponent.Provider value={host}>
+                        <Harness
+                            note={note}
+                            noteIds={[ ...note.getChildNoteIds() ]}
+                            initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                        />
+                    </ParentComponent.Provider>,
+                    mountPoint
+                );
+            });
+            await act(async () => { await flush(); });
+        };
+
+        const columnOf = (title: string) => [ ...mountPoint.querySelectorAll(".board-column") ]
+            .find(column => [ ...column.querySelectorAll(".board-note") ]
+                .some(card => card.textContent?.includes(title)))
+            ?.getAttribute("data-column");
+
+        await draw();
+        expect(columnOf("First")).toBe("To Do");
+
+        for (const attribute of froca.getNoteFromCache("split1")?.getAttributes() ?? []) {
+            if (attribute.name === "status") attribute.value = "Done";
+        }
+        await draw();
+        expect(columnOf("First")).toBe("Done");
+
+        appContext.tabManager = previousTabManager;
     });
 });
 

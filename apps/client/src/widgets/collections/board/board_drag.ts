@@ -122,6 +122,8 @@ export function useBoardDrag(
     const [ isDragging, setDragging ] = useState(false);
     // Held in a ref rather than in state: every move reads them, and none of them draw anything.
     const gesture = useRef<Gesture | null>(null);
+    /** The card a Ctrl press made natively draggable, which `disarm` puts back. */
+    const armed = useRef<HTMLElement | null>(null);
     const latest = useRef(callbacks);
     latest.current = callbacks;
     // The board draws its container only once the notes have loaded, and filling a ref triggers no
@@ -290,6 +292,17 @@ export function useBoardDrag(
             // Anything the card or the heading offers in its own right keeps its press.
             if (!target || target.closest("input, textarea, button, a")) return;
 
+            // Ctrl hands the press to the browser's own drag, which is the only one that reaches
+            // outside the board: the note tree, and a board in another split. `draggable` is set
+            // here rather than left on the card so that an ordinary press still opens the board's
+            // own gesture, and cleared again in `disarm`.
+            const held = target.closest<HTMLElement>(".board-note");
+            if (held && !held.classList.contains("editing") && (event.ctrlKey || event.metaKey)) {
+                held.draggable = true;
+                armed.current = held;
+                return;
+            }
+
             const started = startCard(target, latest.current.carriedWith)
                 ?? startColumn(target, container);
             if (!started) return;
@@ -351,7 +364,23 @@ export function useBoardDrag(
             }
         };
 
+        /**
+         * Takes `draggable` off the card a Ctrl press armed.
+         *
+         * Left on, the next ordinary press on that card would start a native drag instead of the
+         * board's own. Called from `dragend` for a press that became a drag, and from `pointerup`
+         * for a Ctrl click that did not: a native drag delivers no `pointerup`.
+         */
+        const disarm = () => {
+            if (armed.current) {
+                armed.current.draggable = false;
+                armed.current = null;
+            }
+        };
+
         const onPointerUp = (event: PointerEvent) => {
+            disarm();
+
             const held = gesture.current;
             if (!held || event.pointerId !== held.pointerId) return;
 
@@ -440,6 +469,7 @@ export function useBoardDrag(
         };
 
         container.addEventListener("contextmenu", onContextMenu, { capture: true });
+        container.addEventListener("dragend", disarm);
         container.addEventListener("pointerdown", onPointerDown);
         container.addEventListener("pointermove", onPointerMove);
         container.addEventListener("pointerup", onPointerUp);
@@ -450,7 +480,9 @@ export function useBoardDrag(
 
         return () => {
             close(true);
+            disarm();
             container.removeEventListener("contextmenu", onContextMenu, { capture: true });
+            container.removeEventListener("dragend", disarm);
             container.removeEventListener("pointerdown", onPointerDown);
             container.removeEventListener("pointermove", onPointerMove);
             container.removeEventListener("pointerup", onPointerUp);
