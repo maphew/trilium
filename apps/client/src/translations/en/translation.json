@@ -3514,7 +3514,10 @@
       "move_across": "Move to the previous / next column",
       "move_to_end_column": "Move to the first / last column",
       "move_column": "Move the column left / right",
-      "move_column_to_edge": "Move the column to the far left / right"
+      "move_column_to_edge": "Move the column to the far left / right",
+      "selection": "Selection",
+      "select_column": "Select every item of the column",
+      "clear_selection": "Clear the selection"
     },
     "status-alias": "Status",
     "filter-placeholder": "Filter board...",

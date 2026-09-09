@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useRef } from "preact/hooks";
 
 import branches from "../../../services/branches";
 import { FLIP_SETTLE_MS } from "../../react/flip";
+import { SelectionStore } from "../../react/selection";
 import BoardApi from "./api";
 import { ColumnMap } from "./data";
 
@@ -70,6 +71,8 @@ export interface BoardKeyboardOptions {
      * for the focus to land on.
      */
     setActiveColumn: (column: string) => void;
+    /** Which cards are picked out, which Ctrl+A fills with the focused column. */
+    selection: SelectionStore;
 }
 
 /**
@@ -88,7 +91,7 @@ export interface BoardKeyboardOptions {
  * would otherwise be left focused on nothing.
  */
 export function useBoardKeyboard({
-    containerRef, columns, byColumn, api, moveColumn, insertColumn, setActiveColumn
+    containerRef, columns, byColumn, api, moveColumn, insertColumn, setActiveColumn, selection
 }: BoardKeyboardOptions) {
     const pendingFocus = useRef<PendingFocus | null>(null);
 
@@ -162,6 +165,14 @@ export function useBoardKeyboard({
         if (!spot) return;
 
         if (e.ctrlKey) {
+            // Every card of the column focus is in, wherever inside it focus sits. The button that
+            // adds a column stands in none, and Ctrl+A there is the page's own.
+            if (e.key === "a" && !e.altKey && !e.shiftKey && spot.kind !== "add-column") {
+                take(e);
+                selection.selectAll(api.getColumnNoteIds(columns[spot.column]));
+                return;
+            }
+
             // A column beside the one focus is in, wherever inside it focus sits. The button that
             // adds a column stands beside none, and is the plain way to add one at the end anyway.
             if (e.key === "Enter" && !e.altKey && spot.kind !== "add-column") {

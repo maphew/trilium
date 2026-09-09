@@ -298,6 +298,13 @@ const BOARD_HINTS: ShortcutHintDefinition = [
                 labelKey: "board_view.hints.move_column_to_edge"
             }
         ]
+    },
+    {
+        titleKey: "board_view.hints.selection",
+        hints: [
+            { keys: [ "Ctrl+A" ], labelKey: "board_view.hints.select_column" },
+            { keys: [ "Escape" ], labelKey: "board_view.hints.clear_selection" }
+        ]
     }
 ];
 
@@ -1040,6 +1047,7 @@ export default function BoardView({
         byColumn,
         api,
         moveColumn: handleColumnDrop,
+        selection,
         insertColumn: useCallback(async (relativeTo: string, direction: "before" | "after") => {
             setColumnNameToEdit(await api.insertColumn(relativeTo, direction));
         }, [ api ])

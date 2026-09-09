@@ -41,6 +41,19 @@ describe("SelectionStore", () => {
         expect(store.anchor).toBe("a");
     });
 
+    it("takes a whole list at once, with the anchor on its first item", () => {
+        store.toggle("e");
+        store.selectAll([ "a", "b", "c" ]);
+
+        expect(selected()).toEqual([ "a", "b", "c" ]);
+        expect(store.anchor).toBe("a");
+
+        // A column holding nothing leaves the selection empty rather than as it was.
+        store.selectAll([]);
+        expect(selected()).toEqual([]);
+        expect(store.anchor).toBeNull();
+    });
+
     it("gives up everything at once", () => {
         store.toggle("b");
         store.clear();

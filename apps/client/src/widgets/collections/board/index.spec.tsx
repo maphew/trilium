@@ -1124,7 +1124,8 @@ describe("Board column rename", () => {
         expect(sections.map(section => section.titleKey)).toEqual([
             "board_view.hints.navigation",
             "board_view.hints.editing",
-            "board_view.hints.moving"
+            "board_view.hints.moving",
+            "board_view.hints.selection"
         ]);
         // Every key the board answers for is spoken for, and none it does not.
         expect(sections.flatMap(section => section.hints)).toEqual([
@@ -1155,7 +1156,9 @@ describe("Board column rename", () => {
             {
                 keys: [ "Ctrl+Alt+Home", "Ctrl+Alt+End" ],
                 labelKey: "board_view.hints.move_column_to_edge"
-            }
+            },
+            { keys: [ "Ctrl+A" ], labelKey: "board_view.hints.select_column" },
+            { keys: [ "Escape" ], labelKey: "board_view.hints.clear_selection" }
         ]);
     });
 

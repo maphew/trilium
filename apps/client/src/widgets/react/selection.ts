@@ -52,6 +52,17 @@ export class SelectionStore {
     }
 
     /**
+     * Selects a whole list at once, dropping whatever else was selected. Ctrl+A does this.
+     *
+     * The anchor lands on the first of them, so a Shift+Click afterwards ranges from the head of
+     * what was just taken.
+     */
+    selectAll(keys: string[]) {
+        this.anchorKey = keys[0] ?? null;
+        this.replace(new Set(keys));
+    }
+
+    /**
      * Selects everything between the anchor and `to`, dropping whatever else was selected.
      *
      * The anchor stays where it was, so a second Shift+Click grows or shrinks the same range

@@ -298,6 +298,19 @@ describe("Board card", () => {
             expect(selectedCards()).toEqual([ "Extra 2" ]);
         });
 
+        it("takes every card of the column focus is in on Ctrl+A", async () => {
+            const { first, extra } = await renderBoard([ "Done" ]);
+
+            await act(async () => {
+                card(first).focus();
+                press(card(first), "a", { ctrlKey: true });
+            });
+
+            // The card in the other column is left alone, whichever way the columns are drawn.
+            expect(selectedCards()).toEqual([ "First", "Second" ]);
+            expect(cardClasses(extra[0])).not.toContain("selected");
+        });
+
         it("gives the whole selection up on a plain click, which opens the note", async () => {
             const { first, second } = await renderBoard();
             const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
