@@ -1,6 +1,7 @@
 import { BulkAction, type DefinitionObject, promotedAttributeDefinitionParser } from "@triliumnext/commons";
 
 import appContext from "../../../components/app_context";
+import type NoteContext from "../../../components/note_context";
 import FNote from "../../../entities/fnote";
 import attributes from "../../../services/attributes";
 import branches from "../../../services/branches";
@@ -116,6 +117,14 @@ export default class BoardApi {
      * write is keyed by it, so one grouping's columns can never be stored under another's.
      */
     groupBy: string;
+
+    /**
+     * The pane the board is drawn in, set by the board on every render.
+     *
+     * A redirecting card navigates this rather than whichever pane holds the focus: the board can be
+     * one split of several, and the focused one is often the pane the reader came from.
+     */
+    noteContext: NoteContext | null | undefined;
 
     /** The config as the board last handed it over, against which a fresh one is recognised. */
     private viewConfigSource: BoardViewData | undefined;
@@ -1226,7 +1235,8 @@ export default class BoardApi {
     openCard(note: FNote) {
         const target = note.getRelationValue(CARD_REDIRECT_RELATION);
         if (target) {
-            void appContext.tabManager.getActiveContext()?.setNote(target);
+            const context = this.noteContext ?? appContext.tabManager?.getActiveContext();
+            void context?.setNote(target);
             return;
         }
 
@@ -1272,9 +1282,8 @@ export default class BoardApi {
     /**
      * Whether the board draws the inbox column, which holds the cards with no grouping value.
      *
-     * {@link removeFromBoard} takes that value away, so with the inbox drawn a card has nowhere to
-     * go: it lands in the inbox instead of leaving, and one already there does not move at all.
-     * The menu and the Delete key leave the action out where this is true.
+     * {@link removeFromBoard} clears that value, so a card lands in the inbox instead of leaving
+     * the board, and one already there does not move at all.
      */
     get isInboxEnabled() {
         return !!this.parentNote?.isLabelTruthy("enableInboxColumn");
@@ -1426,12 +1435,9 @@ export default class BoardApi {
         const whole = this.allByColumn?.get(targetColumn) ?? targetItems;
         const held = whole.map((item) => item.branch.branchId);
 
-        // Nothing at all is written where the cards already stand where this would put them, which
-        // is what a card dropped back where it was picked up amounts to.
-        //
-        // Compared over the cards on screen, which is the order the drop was aimed at. Under a
-        // filter `moveBeforeBranch` can only place a card against a visible neighbour, so writing
-        // a move that leaves the screen unchanged would reorder the hidden cards instead.
+        // A move that leaves `targetItems` in the order it already holds writes nothing:
+        // `moveBeforeBranch` places a card against a drawn neighbour, so under a filter it would
+        // reorder the hidden cards instead.
         const standing = targetItems.map((item) => item.branch.branchId);
         const landing = [
             ...staying.slice(0, at).map((item) => item.branch.branchId),

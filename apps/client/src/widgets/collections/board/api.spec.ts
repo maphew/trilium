@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import appContext from "../../../components/app_context";
 import FAttribute from "../../../entities/fattribute";
 import type FBranch from "../../../entities/fbranch";
 import branches from "../../../services/branches";
@@ -549,6 +550,53 @@ describe("BoardApi card operations", () => {
 
         return { ...createApi({}, [ "To Do", "Done" ], board, "status", byColumn), items };
     }
+
+    describe("opening a card", () => {
+        /**
+         * The board can be one split of several, and the focused pane is often the one the reader
+         * came from, so a redirect navigates the pane the board itself is drawn in.
+         */
+        it("navigates the board's own pane rather than the focused one", () => {
+            const { api, items } = createBoardWithCards();
+            const own = vi.fn();
+            const focused = vi.fn();
+            api.noteContext = { setNote: own } as never;
+            const previousTabManager = appContext.tabManager;
+            appContext.tabManager = { getActiveContext: () => ({ setNote: focused }) } as never;
+
+            try {
+                addRedirect(items[0].note, "targetNote");
+                api.openCard(items[0].note);
+            } finally {
+                appContext.tabManager = previousTabManager;
+            }
+
+            expect(own).toHaveBeenCalledWith("targetNote");
+            expect(focused).not.toHaveBeenCalled();
+        });
+
+        it("opens the card itself where it redirects nowhere", () => {
+            const { api, items } = createBoardWithCards();
+            const open = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+
+            api.openCard(items[0].note);
+
+            expect(open).toHaveBeenCalledWith(
+                "openInPopup", { noteIdOrPath: items[0].note.noteId });
+        });
+
+        /** Files the relation straight into froca, which is all `openCard` reads. */
+        function addRedirect(note: FNote, target: string) {
+            const attributeId = `redirect-${note.noteId}`;
+            froca.attributes[attributeId] = new FAttribute(froca, {
+                noteId: note.noteId, attributeId, type: "relation",
+                name: "boardCardRedirectTo", value: target, position: 0, isInheritable: false
+            });
+            note.attributes.push(attributeId);
+            // Cleared rather than emptied: the cache is rebuilt only for a note it has no entry for.
+            delete noteAttributeCache.attributes[note.noteId];
+        }
+    });
 
     it("files a card moved to another column before the one it was dropped on", async () => {
         const { api, items } = createBoardWithCards();

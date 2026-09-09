@@ -315,8 +315,8 @@ export function useBoardKeyboard({
         if (e.key === "Delete" && spot.kind === "item") {
             const item = itemAt(columns, byColumn, spot);
             if (!item) return;
-            // Plain Delete takes the card off the board, which the inbox leaves nowhere to do: the
-            // card would land there instead. The menu leaves the entry out for the same reason.
+            // Plain Delete clears the grouping value, which with the inbox drawn moves the card
+            // there rather than off the board. Shift+Delete still deletes the note.
             if (!e.shiftKey && api.isInboxEnabled) return;
             take(e);
 
