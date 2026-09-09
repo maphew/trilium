@@ -22,6 +22,12 @@
   --board-collapse-duration-quick: 0.3s;
   --board-expand-duration: 0.2s;
 
+  /* The lift a card takes under the pointer, named so that a picked-out card can carry its ring
+     and this shadow together. */
+  --board-item-hover-shadow: 2px 4px 8px rgba(0, 0, 0, 0.1);
+  /* The ring a picked-out card carries. */
+  --board-selected-ring-color: var(--link-color);
+
   --board-focus-outline-saturation: 55%;
   --board-focus-outline-lightness: 45%;
   /* Follows the theme of its own accord, so neither theme has to name it again. */
@@ -440,7 +446,34 @@ body.mobile .board-view-container .board-add-column {
 }
 
 .board-view-container .board-note:hover {
-  box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--board-item-hover-shadow);
+}
+
+/* A picked-out card. An inset ring rather than an outline, since focus is drawn as an outline and
+   a card can be both picked out and focused. */
+.board-view-container .board-note.selected {
+  box-shadow: inset 0 0 0 2px var(--board-selected-ring-color);
+}
+
+.board-view-container .board-note.selected:hover {
+  box-shadow:
+    inset 0 0 0 2px var(--board-selected-ring-color),
+    var(--board-item-hover-shadow);
+}
+
+/* A card travelling with the one under the pointer. That one is taken out of the flow by the
+   gesture; the rest stay where they are drawn. */
+.board-view-container .board-note.dragging {
+  opacity: 0.4;
+}
+
+/* What a carried selection is drawn as: one card-shaped block holding how many are on the move. */
+.board-view-container .board-note.board-drag-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6em;
+  font-weight: 600;
 }
 
 .board-view-container .board-note:hover > .edit-icon {

@@ -2179,3 +2179,116 @@ describe("moving a card into or inside a sorted column", () => {
         expect(api.isColumnSorted("To Do")).toBe(false);
     });
 });
+
+describe("a selection of cards", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.spyOn(server, "put").mockResolvedValue(undefined);
+        vi.mocked(branches.moveBeforeBranch).mockClear();
+        vi.mocked(branches.moveAfterBranch).mockClear();
+    });
+
+    /** A board of four cards, three under "Done" and one under "To Do". */
+    function createBoard(sorts?: BoardViewData) {
+        const board = buildNote({
+            title: "Board",
+            children: [
+                { title: "First", "#status": "Done" },
+                { title: "Second", "#status": "Done" },
+                { title: "Third", "#status": "Done" },
+                { title: "Spare", "#status": "To Do" }
+            ]
+        });
+
+        const items = board.getChildBranches().flatMap(branch => {
+            const note = froca.getNoteFromCache(branch.noteId);
+            return note ? [ { branch, note } ] : [];
+        });
+        const byColumn: ColumnMap = new Map([
+            [ "To Do", [ items[3] ] ],
+            [ "Done", items.slice(0, 3) ]
+        ]);
+
+        return {
+            ...createApi(sorts ?? {}, [ "To Do", "Done" ], board, "status", byColumn),
+            items
+        };
+    }
+
+    const ids = (items: ColumnItem[]) => items.map((item) => item.note.noteId);
+    const branchIds = (items: ColumnItem[]) => items.map((item) => item.branch.branchId);
+
+    it("names the cards a column draws, in the order it draws them", () => {
+        const { api, items } = createBoard();
+
+        expect(api.getColumnNoteIds("Done")).toEqual(ids(items.slice(0, 3)));
+        expect(api.getColumnNoteIds("Nowhere")).toEqual([]);
+    });
+
+    it("says which column a card stands in, and nothing for one it is not drawing", () => {
+        const { api, items } = createBoard();
+
+        expect(api.getCardColumn(items[0].note.noteId)).toBe("Done");
+        expect(api.getCardColumn(items[3].note.noteId)).toBe("To Do");
+        expect(api.getCardColumn("elsewhere")).toBeUndefined();
+    });
+
+    /**
+     * A selection kept from before a refresh can name a card the board has stopped drawing, which
+     * is left out rather than making a command act on something that is no longer there.
+     */
+    it("resolves a selection in board order, leaving out what it no longer holds", () => {
+        const { api, items } = createBoard();
+        const asked = new Set([ items[2].note.noteId, items[3].note.noteId, "gone" ]);
+
+        expect(ids(api.getCards(asked))).toEqual([ items[3].note.noteId, items[2].note.noteId ]);
+    });
+
+    it("files every card under the column and places them before the card dropped on", async () => {
+        const { api, items } = createBoard();
+        const moved = [ items[3], items[0] ];
+
+        await api.moveManyWithinBoard(
+            moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
+            "Done", 2);
+
+        // Each card's grouping value is written, then one placement carries the whole set.
+        expect(server.put).toHaveBeenCalledWith(
+            `notes/${items[3].note.noteId}/set-attribute`,
+            { type: "label", name: "status", value: "Done", isInheritable: false }, undefined);
+        // Counted among the cards as drawn: `First` is moving and stands above the place, so the
+        // set lands before `Third` rather than before `Second`.
+        expect(branches.moveBeforeBranch)
+            .toHaveBeenCalledWith(branchIds(moved), items[2].branch.branchId);
+    });
+
+    it("places a set dropped past the last card after the one staying at the end", async () => {
+        const { api, items } = createBoard();
+        const moved = [ items[3] ];
+
+        await api.moveManyWithinBoard(
+            moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
+            "Done", 3);
+
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch)
+            .toHaveBeenCalledWith(branchIds(moved), items[2].branch.branchId);
+    });
+
+    /** A sorted column decides where its own cards go, so nothing is written against one. */
+    it("writes no placement into a column that sorts itself", async () => {
+        const { api, items } = createBoard(
+            { columns: [ { value: "Done", orderBy: "title" } ] });
+        const moved = [ items[3] ];
+
+        await api.moveManyWithinBoard(
+            moved.map((item) => ({ noteId: item.note.noteId, branchId: item.branch.branchId })),
+            "Done", 0);
+
+        expect(server.put).toHaveBeenCalledWith(
+            `notes/${items[3].note.noteId}/set-attribute`,
+            { type: "label", name: "status", value: "Done", isInheritable: false }, undefined);
+        expect(branches.moveBeforeBranch).not.toHaveBeenCalled();
+        expect(branches.moveAfterBranch).not.toHaveBeenCalled();
+    });
+});

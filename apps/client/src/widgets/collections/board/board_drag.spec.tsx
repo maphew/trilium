@@ -3,13 +3,15 @@ import { useRef } from "preact/hooks";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type BoardDragCallbacks, type DropPosition, useBoardDrag } from "./board_drag";
+import {
+    type BoardDragCallbacks, type DraggedCard, type DropPosition, useBoardDrag
+} from "./board_drag";
 
 describe("useBoardDrag, carrying a card", () => {
     let container: HTMLElement | undefined;
     let board: HTMLElement;
     let calls: {
-        start: unknown[],
+        start: DraggedCard[],
         move: { position: unknown | null, inside: boolean }[],
         end: { card: unknown, position: unknown }[],
         columnStart: { column: string, index: number, size: unknown }[],
@@ -45,7 +47,23 @@ describe("useBoardDrag, carrying a card", () => {
 
         move(70, 60);
         expect(calls.start)
-            .toEqual([ { noteId: "n1", fromColumn: "To Do", index: 0, height: 50 } ]);
+            .toEqual([
+                { noteId: "n1", noteIds: [ "n1" ], fromColumn: "To Do", index: 0, height: 50 }
+            ]);
+    });
+
+    it("carries a selection as one card naming how many are on the move", () => {
+        setup({ carried: [ "n1", "n2", "n3" ] });
+
+        press(card("n1"), 50, 60);
+        move(90, 90);
+
+        expect(calls.start[0]?.noteIds).toEqual([ "n1", "n2", "n3" ]);
+        // A blank card holding the count, rather than a copy of the one under the pointer.
+        const copy = preview();
+        expect(copy?.classList.contains("board-drag-count")).toBe(true);
+        expect(copy?.textContent).toBe("3");
+        expect(copy?.querySelector(".title")).toBeNull();
     });
 
     it("carries a copy under the pointer without redrawing the board", () => {
@@ -255,7 +273,7 @@ describe("useBoardDrag, carrying a card", () => {
         release(320, 200);
 
         expect(calls.end).toEqual([ {
-            card: { noteId: "n1", fromColumn: "To Do", index: 0, height: 50 },
+            card: { noteId: "n1", noteIds: [ "n1" ], fromColumn: "To Do", index: 0, height: 50 },
             position: { column: "Doing", index: 1 }
         } ]);
     });
@@ -458,7 +476,7 @@ describe("useBoardDrag, carrying a card", () => {
         });
 
         expect(calls.end).toEqual([ {
-            card: { noteId: "n1", fromColumn: "To Do", index: 0, height: 50 },
+            card: { noteId: "n1", noteIds: [ "n1" ], fromColumn: "To Do", index: 0, height: 50 },
             position: null
         } ]);
         expect(element.style.transform).toBe("");
@@ -593,12 +611,17 @@ describe("useBoardDrag, carrying a card", () => {
      * Two 100px columns, 200 apart, each card 50 tall. The first holds two cards, the second one.
      * happy-dom lays nothing out, so every box is declared.
      */
-    function setup({ disabled = false } = {}) {
+    function setup({ disabled = false, carried }: {
+        disabled?: boolean,
+        /** The cards a press answers with, for the tests about carrying a selection. */
+        carried?: string[]
+    } = {}) {
         const mountPoint = document.createElement("div");
         container = mountPoint;
         document.body.appendChild(mountPoint);
 
         const callbacks: BoardDragCallbacks = {
+            carriedWith: (noteId) => carried ?? [ noteId ],
             onCardStart: (card) => calls.start.push(card),
             onCardMove: (position, inside) => calls.move.push({ position, inside }),
             onCardEnd: (card, position) => calls.end.push({ card, position }),

@@ -256,6 +256,108 @@ describe("Board card", () => {
         expect(openInPopup).not.toHaveBeenCalled();
     });
 
+    describe("picking several cards out", () => {
+        it("marks a card on Ctrl and click, and lets go of it on the next one", async () => {
+            const { first, second } = await renderBoard();
+            const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+
+            await click(first, { ctrlKey: true });
+            expect(cardClasses(first)).toContain("selected");
+            expect(cardClasses(second)).not.toContain("selected");
+            // Picking a card out is not opening it.
+            expect(openInPopup).not.toHaveBeenCalled();
+
+            await click(second, { ctrlKey: true });
+            expect(cardClasses(first)).toContain("selected");
+            expect(cardClasses(second)).toContain("selected");
+
+            await click(first, { ctrlKey: true });
+            expect(cardClasses(first)).not.toContain("selected");
+            expect(cardClasses(second)).toContain("selected");
+        });
+
+        it("takes everything between the two cards on Shift and click", async () => {
+            const { first, second, extra } = await renderBoard([ "To Do", "To Do" ]);
+
+            await click(first, { ctrlKey: true });
+            await click(extra[1], { shiftKey: true });
+
+            expect(selectedCards()).toEqual([ "First", "Second", "Extra 1", "Extra 2" ]);
+        });
+
+        /**
+         * A range is measured against one column, so an anchor left in another is not in the list
+         * the press is counted against and the card it landed on is taken on its own.
+         */
+        it("keeps a range inside one column", async () => {
+            const { first, extra } = await renderBoard([ "Done", "Done" ]);
+
+            await click(first, { ctrlKey: true });
+            await click(extra[1], { shiftKey: true });
+
+            expect(selectedCards()).toEqual([ "Extra 2" ]);
+        });
+
+        it("gives the whole selection up on a plain click, which opens the note", async () => {
+            const { first, second } = await renderBoard();
+            const openInPopup = vi.spyOn(appContext, "triggerCommand").mockReturnValue(undefined);
+
+            await click(first, { ctrlKey: true });
+            await click(second, { ctrlKey: true });
+            await click(first, {});
+
+            expect(selectedCards()).toEqual([]);
+            expect(openInPopup).toHaveBeenCalledTimes(1);
+        });
+
+        it("opens the menu on the whole selection when it is opened from within it", async () => {
+            const { first, second } = await renderBoard();
+            const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+            await click(first, { ctrlKey: true });
+            await click(second, { ctrlKey: true });
+            await act(async () => {
+                card(second).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+            });
+
+            // The entries that only make sense for one card are gone.
+            expect(menuTitles(show)).not.toContain("board_view.edit-title");
+            expect(menuTitles(show)).toContain("board_view.remove-from-board");
+        });
+
+        it("acts on a card alone when the menu is opened outside the selection", async () => {
+            const { first, second } = await renderBoard();
+            const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+            await click(first, { ctrlKey: true });
+            await act(async () => {
+                card(second).dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+            });
+
+            expect(menuTitles(show)).toContain("board_view.edit-title");
+            expect(selectedCards()).toEqual([]);
+        });
+
+        /** The titles of the cards picked out, in the order the board draws them. */
+        function selectedCards() {
+            return [ ...(container?.querySelectorAll(".board-note.selected") ?? []) ]
+                .map((element) => element.querySelector(".title")?.textContent);
+        }
+
+        function menuTitles(show: { mock: { calls: unknown[][] } }) {
+            const items = (show.mock.calls.at(-1)?.[0] as
+                { items: { title?: string }[] } | undefined)?.items ?? [];
+            return items.map((item) => item.title);
+        }
+
+        async function click(noteId: string, modifiers: MouseEventInit) {
+            await act(async () => {
+                card(noteId).dispatchEvent(new MouseEvent(
+                    "click", { bubbles: true, cancelable: true, detail: 1, ...modifiers }));
+            });
+        }
+    });
+
     it("offers the card menu on a right click", async () => {
         const { first } = await renderBoard();
         const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
@@ -284,16 +386,25 @@ describe("Board card", () => {
     }
 
     /** Renders a board of two cards and hands back the component their subscriptions register on. */
-    async function renderBoard() {
+    /**
+     * Draws a board of two cards under "To Do".
+     *
+     * @param extra the cards to add beyond those two, each named by the column it stands in. Only
+     * the tests about picking several cards out need them.
+     */
+    async function renderBoard(extra: string[] = []) {
         const first = `card${idSeed++}`;
         const second = `card${idSeed++}`;
+        const rest = extra.map((status, at) => (
+            { id: `card${idSeed++}`, title: `Extra ${at + 1}`, "#status": status }));
         const note = buildNote({
             title: "Board",
             "#collection": "",
             "#viewType": "board",
             children: [
                 { id: first, title: "First", "#status": "To Do" },
-                { id: second, title: "Second", "#status": "To Do" }
+                { id: second, title: "Second", "#status": "To Do" },
+                ...rest
             ]
         });
 
@@ -308,7 +419,7 @@ describe("Board card", () => {
                     <BoardView
                         note={note}
                         notePath={`root/${note.noteId}`}
-                        noteIds={[ first, second ]}
+                        noteIds={[ first, second, ...rest.map((card) => card.id) ]}
                         highlightedTokens={null}
                         viewConfig={{ columns: [ { value: "To Do" } ] }}
                         saveConfig={() => {}}
@@ -321,7 +432,7 @@ describe("Board card", () => {
         });
         await settle();
 
-        return { note, component, first, second };
+        return { note, component, first, second, extra: rest.map((card) => card.id) };
     }
 
     /** Moves a card to another column the way an edit made anywhere else reaches the board. */

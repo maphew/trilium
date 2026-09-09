@@ -32,6 +32,11 @@ const COMPATIBILITY_WINDOW_MS = 700;
 /** Which card is being carried, named the way the board's own moves are. */
 export interface DraggedCard {
     noteId: string;
+    /**
+     * Every card on the move, in the order the board draws them, this one among them. Holds one
+     * entry unless the card was taken hold of as part of a selection.
+     */
+    noteIds: string[];
     fromColumn: string;
     index: number;
     /** How tall it stands, so the gap held open for it is the size it will fill. */
@@ -45,6 +50,13 @@ export interface DropPosition {
 }
 
 export interface BoardDragCallbacks {
+    /**
+     * Which cards travel with the one being pressed, in the order the board draws them.
+     *
+     * Asked as the press lands rather than when the drag opens, so the answer is the selection as
+     * it stood when the reader took hold. Answers with the card alone where it is not selected.
+     */
+    carriedWith(noteId: string): string[];
     /** A card has been taken hold of, and is now being carried. */
     onCardStart(card: DraggedCard): void;
     /**
@@ -269,7 +281,8 @@ export function useBoardDrag(
             // Anything the card or the heading offers in its own right keeps its press.
             if (!target || target.closest("input, textarea, button, a")) return;
 
-            const started = startCard(target) ?? startColumn(target, container);
+            const started = startCard(target, latest.current.carriedWith)
+                ?? startColumn(target, container);
             if (!started) return;
 
             gesture.current = {
@@ -505,7 +518,9 @@ function askForMenu(element: HTMLElement, clientX: number, clientY: number) {
 }
 
 /** What a press on a card starts, or nothing where the press was not on one. */
-function startCard(target: HTMLElement): CardSubject | null {
+function startCard(
+    target: HTMLElement, carriedWith: (noteId: string) => string[]
+): CardSubject | null {
     const element = target.closest<HTMLElement>(".board-note");
     const columnElement = element?.closest<HTMLElement>(".board-column");
     const noteId = element?.dataset.noteId;
@@ -518,6 +533,7 @@ function startCard(target: HTMLElement): CardSubject | null {
         menuTarget: element,
         card: {
             noteId,
+            noteIds: carriedWith(noteId),
             fromColumn: columnElement.dataset.column ?? "",
             index: cards.indexOf(element),
             height: element.getBoundingClientRect().height
@@ -558,7 +574,13 @@ function startColumn(target: HTMLElement, container: HTMLElement): ColumnSubject
  */
 function lift(held: Gesture, container: HTMLElement) {
     const rect = held.element.getBoundingClientRect();
-    const preview = held.element.cloneNode(true) as HTMLElement;
+    // A selection is carried as one blank card saying how many are on the move. The cards
+    // themselves stay where they are drawn, and a stack of copies would hide the board they are
+    // being placed on without saying any more than the count does.
+    const carried = held.kind === "card" ? held.card.noteIds.length : 1;
+    const preview = carried > 1
+        ? countPreview(carried)
+        : held.element.cloneNode(true) as HTMLElement;
 
     preview.classList.add("board-drag-preview");
     preview.removeAttribute("data-note-id");
@@ -603,6 +625,14 @@ function lift(held: Gesture, container: HTMLElement) {
             height: rect.height
         }
     };
+}
+
+/** A card-shaped copy standing for the cards being carried, with their number in the middle. */
+function countPreview(count: number) {
+    const preview = document.createElement("div");
+    preview.className = "board-note board-drag-count";
+    preview.textContent = String(count);
+    return preview;
 }
 
 interface CardSubject {

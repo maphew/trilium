@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { memo } from "preact/compat";
 import {
     useCallback, useContext, useEffect, useLayoutEffect, useRef, useState
@@ -22,6 +23,7 @@ import {
 } from "../../react/hooks";
 import { TooltipIcon } from "../../react/Icon";
 import { HighlightedText } from "../../react/RawHtml";
+import { useIsSelected, useSelection } from "../../react/selection";
 
 function Card({
     api,
@@ -84,6 +86,11 @@ function Card({
     const [ title, setTitle ] = useState(note.title);
     // Tracks the `iconClass` label, which an attribute change carries and the note row never does.
     const icon = useNoteIcon(note);
+    // Read from the store rather than through the board's state, so picking one card redraws that
+    // card and no other. The store keeps one identity for the life of the board, so holding it
+    // here leaves the memo below intact.
+    const selection = useSelection();
+    const isSelected = useIsSelected(note.noteId);
 
     // A card owns its own title: the board does not redraw for a note-row change. Setting the value
     // already held is a no-op, so a save that left the title alone re-renders nothing.
@@ -95,17 +102,36 @@ function Card({
     });
 
     const handleContextMenu = useCallback((e: ContextMenuEvent) => {
-        openNoteContextMenu(
-            api, e, note, branch.branchId, column, index, onFocusCard, onInsert, onNewItem);
-    }, [ api, note, branch, column, index, onFocusCard, onInsert, onNewItem ]);
+        // A card outside the selection is acted on alone, and the selection it was not part of is
+        // dropped, so the menu never writes to cards the reader has stopped looking at.
+        if (!selection.has(note.noteId)) {
+            selection.clear();
+        }
 
-    const handleOpen = useCallback((e: MouseEvent) => {
+        const cards = api.getCards(selection.keys);
+        openNoteContextMenu(api, e, {
+            note,
+            branchId: branch.branchId,
+            column,
+            index,
+            notes: cards.length ? cards.map((card) => card.note) : [ note ],
+            branchIds: cards.length
+                ? cards.map((card) => card.branch.branchId)
+                : [ branch.branchId ],
+            onFocusCard,
+            onInsert,
+            onNewItem
+        });
+    }, [ api, note, branch, column, index, selection, onFocusCard, onInsert, onNewItem ]);
+
+    const handleClick = useCallback((e: MouseEvent) => {
         // A double click is one gesture, and its second click would open the note over itself: the
         // popup already standing is taken as the one to stack on, and closing that leaves neither.
         if (e.detail > 1) return;
 
         // A link to a note, such as a relation's target, opens in the popup. Cancelled here so that
         // `goToLink` does not open a tab for it as well; a link naming no note is left alone.
+        // Checked before the modifiers below, so Ctrl on a link still means what it means anywhere.
         const link = (e.target as HTMLElement | null)?.closest<HTMLAnchorElement>("a[href]");
         if (link) {
             const { notePath } = parseNavigationStateFromUrl(link.getAttribute("href") ?? undefined);
@@ -119,8 +145,23 @@ function Card({
             return;
         }
 
+        // Ctrl picks this card out on its own, keeping whatever else is picked. Neither modifier
+        // opens the note.
+        if (e.ctrlKey || e.metaKey) {
+            selection.toggle(note.noteId);
+            return;
+        }
+
+        // Shift takes everything between the card the selection started from and this one. Only
+        // this column is offered, so a range never reaches into another.
+        if (e.shiftKey) {
+            selection.selectRange(api.getColumnNoteIds(column), note.noteId);
+            return;
+        }
+
+        selection.clear();
         api.openNote(note.noteId);
-    }, [ api, note ]);
+    }, [ api, note, column, selection ]);
 
     const handleEdit = useCallback((e: MouseEvent) => {
         e.stopPropagation(); // don't also open the note
@@ -189,7 +230,13 @@ function Card({
     return (
         <div
             ref={cardRef}
-            className={`board-note ${colorClass} ${isDragging ? 'dragging' : ''} ${isEditing ? "editing" : ""} ${isArchived ? "archived" : ""} ${isNew && !isRevealed ? "appearing" : ""}`}
+            className={clsx("board-note", colorClass, {
+                dragging: isDragging,
+                editing: isEditing,
+                archived: isArchived,
+                selected: isSelected,
+                appearing: isNew && !isRevealed
+            })}
             onAnimationEnd={(e) => {
                 if (e.animationName === "board-item-appear") {
                     setIsRevealed(true);
@@ -197,7 +244,7 @@ function Card({
             }}
             data-note-id={note.noteId}
             onContextMenu={handleContextMenu}
-            onClick={!isEditing ? handleOpen : undefined}
+            onClick={!isEditing ? handleClick : undefined}
             onKeyDown={handleKeyDown}
             tabIndex={300}
         >

@@ -28,7 +28,7 @@ import {
     DEFAULT_GROUP_BY, INBOX_COLUMN, INBOX_COLUMN_ICON
 } from "./columns";
 import { readColumns, writeColumns } from "./column_storage";
-import { ColumnMap } from "./data";
+import { ColumnItem, ColumnMap } from "./data";
 import { SORT_DESCENDING_LABEL, SORT_LABEL } from "./sort";
 
 /** Which end of a column a new card is made at. */
@@ -1300,6 +1300,87 @@ export default class BoardApi {
         }
 
         this.sentToColumnEnd.set(targetColumn, branchId);
+    }
+
+    /**
+     * The notes a column draws, in the order it draws them.
+     *
+     * What a range selection is measured against, so a range covers only the cards the reader can
+     * see and never reaches into another column.
+     */
+    getColumnNoteIds(column: string) {
+        return (this.byColumn?.get(column) ?? []).map((item) => item.note.noteId);
+    }
+
+    /**
+     * The cards named by `noteIds`, in the order the board draws them.
+     *
+     * A note the board is not drawing is left out, so a selection that has fallen behind a refresh
+     * cannot make a command act on a card that is no longer there.
+     */
+    getCards(noteIds: ReadonlySet<string>) {
+        const cards: ColumnItem[] = [];
+        for (const items of this.byColumn?.values() ?? []) {
+            for (const item of items) {
+                if (noteIds.has(item.note.noteId)) {
+                    cards.push(item);
+                }
+            }
+        }
+
+        return cards;
+    }
+
+    /** Which column a card stands in, or nothing where the board is not drawing the card. */
+    getCardColumn(noteId: string) {
+        for (const [ column, items ] of this.byColumn ?? []) {
+            if (items.some((item) => item.note.noteId === noteId)) {
+                return column;
+            }
+        }
+
+        return undefined;
+    }
+
+    /**
+     * Moves several cards into a column at one place, keeping the order they were drawn in.
+     *
+     * The grouping value is written for each card, then the branches are placed in one call:
+     * `moveBeforeBranch` and `moveAfterBranch` both take the whole set and keep its order, so the
+     * cards land together rather than each being placed against the one before it.
+     */
+    async moveManyWithinBoard(
+        cards: { noteId: string, branchId: string }[], targetColumn: string, targetIndex: number
+    ) {
+        // Read before the writes below: a redraw between them hands this instance the map with the
+        // cards already moved.
+        const targetItems = this.byColumn?.get(targetColumn) ?? [];
+        const moved = new Set(cards.map((card) => card.branchId));
+        // The place is counted among the cards as they are drawn, which includes the ones being
+        // moved. Each of those standing above it names one place that is about to close up.
+        const above = targetItems.slice(0, targetIndex)
+            .filter((item) => moved.has(item.branch.branchId)).length;
+        const staying = targetItems.filter((item) => !moved.has(item.branch.branchId));
+        const before = staying[targetIndex - above];
+
+        for (const card of cards) {
+            await this.changeColumn(card.noteId, targetColumn);
+        }
+
+        // A sorted column places its own cards, so nothing is written against a card there.
+        if (this.isColumnSorted(targetColumn)) {
+            return;
+        }
+
+        const branchIds = cards.map((card) => card.branchId);
+        if (before) {
+            await branches.moveBeforeBranch(branchIds, before.branch.branchId);
+        } else {
+            const last = staying.at(-1);
+            if (last) {
+                await branches.moveAfterBranch(branchIds, last.branch.branchId);
+            }
+        }
     }
 
     /** Whether a card stands at the head of its column, with nowhere left to be moved up to. */
