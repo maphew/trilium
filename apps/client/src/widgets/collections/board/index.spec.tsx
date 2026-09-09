@@ -2356,7 +2356,15 @@ describe("Board column rename", () => {
 
         // Stored on the board, so the next editor opens on it as well.
         expect(saved.at(-1)?.template).toBe("type:canvas:application/json");
-        expect([ ...(menu?.querySelectorAll(".dropdown-item") ?? []) ]
+
+        // Picking closes the menu, as any dropdown item click does; open it again to read the tick.
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+            $(pill.closest(".dropdown") as HTMLElement).trigger("show.bs.dropdown");
+            await flush();
+        });
+        const reopened = [ ...document.querySelectorAll<HTMLElement>(".card-template-pill") ].at(-1);
+        expect([ ...(reopened?.querySelectorAll(".dropdown-item") ?? []) ]
             .map(item => !!item.querySelector(".card-template-current")))
             .toEqual([ false, false, true, false, false ]);
 
