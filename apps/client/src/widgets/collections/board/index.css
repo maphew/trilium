@@ -25,6 +25,12 @@
   /* The lift a card takes under the pointer, named so that a picked-out card can carry its ring
      and this shadow together. */
   --board-item-hover-shadow: 2px 4px 8px rgba(0, 0, 0, 0.1);
+  /* What a carried card casts, which the stack of a carried selection is drawn behind. */
+  --board-drag-shadow: 4px 8px 16px rgba(0, 0, 0, 0.5);
+  /* How far each card of a carried stack stands out from the one in front of it. */
+  --board-drag-stack-offset: 4px;
+  /* The ring a carried card wears, which the stack behind it starts clear of. */
+  --board-drag-ring-width: 3px;
   /* The ring a picked-out card carries. */
   --board-selected-ring-color: var(--link-color);
 
@@ -467,14 +473,6 @@ body.mobile .board-view-container .board-add-column {
   opacity: 0.4;
 }
 
-/* What a carried selection is drawn as: one card-shaped block holding how many are on the move. */
-.board-view-container .board-note.board-drag-count {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.6em;
-  font-weight: 600;
-}
 
 .board-view-container .board-note:hover > .edit-icon {
   position: absolute;
@@ -531,7 +529,8 @@ body.mobile .board-view-container .board-add-column {
 /* The card is focused by the press that picks it up and then taken out of the page, which drops the
    focus; the copy carries the ring on so what is being moved still reads as what is focused. */
 .board-view-container .board-note.board-drag-preview {
-  outline: 3px solid var(--board-focus-outline-color, var(--board-focus-outline-plain-color));
+  outline: var(--board-drag-ring-width) solid
+    var(--board-focus-outline-color, var(--board-focus-outline-plain-color));
   outline-offset: 0;
 }
 
@@ -546,7 +545,64 @@ body.mobile .board-view-container .board-add-column {
   pointer-events: none;
   cursor: move;
   opacity: 0.85;
-  box-shadow: 4px 8px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--board-drag-shadow);
+}
+
+/* What a carried selection is drawn as: one card-shaped block holding how many are on the move. */
+.board-view-container .board-note.board-drag-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6em;
+  font-weight: 600;
+
+  /* The card's own colour, which the stack behind it is drawn in at lower opacity. */
+  --board-drag-stack-card:
+    var(--board-item-hue)
+    var(--board-item-saturation)
+    var(--board-item-background-lightness);
+}
+
+/* The cards behind the one carried, drawn as copies of its shape rather than as elements: only the
+   sliver past the front card shows, and a real card would repeat the ring the front one carries.
+   Each is a fill with a copy one pixel wider behind it, which is what draws its edge.
+
+   Every offset starts past the ring, which is drawn over the shapes below and would otherwise take
+   its own width out of the first card alone, leaving that one standing out less than the rest. */
+.board-view-container .board-note.board-drag-count {
+  --board-drag-stack-1:
+    calc(var(--board-drag-ring-width) + var(--board-drag-stack-offset));
+  --board-drag-stack-2:
+    calc(var(--board-drag-ring-width) + var(--board-drag-stack-offset) * 2 + 1px);
+
+  /* Each card behind stands back a little further than the one in front of it. */
+  --board-drag-stack-fade-1: 85%;
+  --board-drag-stack-fade-2: 75%;
+}
+
+.board-view-container .board-note.board-drag-count[data-layers="2"] {
+  box-shadow:
+    var(--board-drag-stack-1) var(--board-drag-stack-1) 0 0
+      hsl(var(--board-drag-stack-card) / var(--board-drag-stack-fade-1)),
+    var(--board-drag-stack-1) var(--board-drag-stack-1) 0 1px
+      color-mix(in srgb, var(--board-selected-ring-color)
+        var(--board-drag-stack-fade-1), transparent),
+    var(--board-drag-shadow);
+}
+
+.board-view-container .board-note.board-drag-count[data-layers="3"] {
+  box-shadow:
+    var(--board-drag-stack-1) var(--board-drag-stack-1) 0 0
+      hsl(var(--board-drag-stack-card) / var(--board-drag-stack-fade-1)),
+    var(--board-drag-stack-1) var(--board-drag-stack-1) 0 1px
+      color-mix(in srgb, var(--board-selected-ring-color)
+        var(--board-drag-stack-fade-1), transparent),
+    var(--board-drag-stack-2) var(--board-drag-stack-2) 0 0
+      hsl(var(--board-drag-stack-card) / var(--board-drag-stack-fade-2)),
+    var(--board-drag-stack-2) var(--board-drag-stack-2) 0 1px
+      color-mix(in srgb, var(--board-selected-ring-color)
+        var(--board-drag-stack-fade-2), transparent),
+    var(--board-drag-shadow);
 }
 
 /* Reaching the end of the board scrolls neither the page nor anything else. */

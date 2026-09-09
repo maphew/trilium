@@ -66,6 +66,31 @@ describe("useBoardDrag, carrying a card", () => {
         expect(copy?.querySelector(".title")).toBeNull();
     });
 
+    /** Two cards on the move leave one card behind the copy. */
+    it("stacks one card behind a pair", () => {
+        setup({ carried: [ "n1", "n2" ] });
+
+        press(card("n1"), 50, 60);
+        move(90, 90);
+
+        expect(preview()?.dataset.layers).toBe("2");
+        expect(preview()?.textContent).toBe("2");
+    });
+
+    /**
+     * The stack says a set is on the move and the number says how big it is, so the stack stops at
+     * the depth the stylesheet draws however many cards are carried.
+     */
+    it("stacks no deeper than three, whatever the selection holds", () => {
+        setup({ carried: [ "n1", "n2", "n3", "n4", "n5" ] });
+
+        press(card("n1"), 50, 60);
+        move(90, 90);
+
+        expect(preview()?.dataset.layers).toBe("3");
+        expect(preview()?.textContent).toBe("5");
+    });
+
     it("carries a copy under the pointer without redrawing the board", () => {
         setup();
         const element = card("n1");

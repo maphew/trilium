@@ -20,6 +20,12 @@ const TOUCH_TOLERANCE = 8;
 /** How much a carried card shrinks. Written with the movement, a class could not add to it. */
 const DRAG_SCALE = 0.9;
 
+/**
+ * How many cards a carried selection is drawn as, however many are on the move: the one holding the
+ * count and the two behind it. `index.css` draws the ones behind from `data-layers`.
+ */
+const STACK_LAYERS = 3;
+
 /** How tall a carried column is allowed to stand, so a full one can be seen past. */
 const COLUMN_DRAG_MAX_HEIGHT = 150;
 
@@ -627,10 +633,17 @@ function lift(held: Gesture, container: HTMLElement) {
     };
 }
 
-/** A card-shaped copy standing for the cards being carried, with their number in the middle. */
+/**
+ * A card-shaped copy standing for the cards being carried, with their number in the middle and a
+ * stack drawn behind it.
+ *
+ * `data-layers` counts the copy itself, so two cards on the move leave one card behind it and any
+ * more leave two. The number in the middle is what says how many there really are.
+ */
 function countPreview(count: number) {
     const preview = document.createElement("div");
     preview.className = "board-note board-drag-count";
+    preview.dataset.layers = String(Math.min(count, STACK_LAYERS));
     preview.textContent = String(count);
     return preview;
 }
