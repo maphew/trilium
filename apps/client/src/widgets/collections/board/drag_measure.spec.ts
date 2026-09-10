@@ -285,3 +285,85 @@ describe("placeInModel", () => {
         expect(placeInModel({ heights: [], spacing: 9 }, 40, undefined)).toBe(0);
     });
 });
+
+describe("measuring a windowed column", () => {
+    /**
+     * A column that draws a slice of its cards states what it holds and where the slice begins, and
+     * stands a spacer at either end for the rest. The measurement counts those in, so an index it
+     * leads to names a place in the column rather than a place among the cards on screen.
+     */
+    function buildWindowed({ total = 100, from = 40, above = 2400, below = 3300 } = {}) {
+        const board = buildBoard({ cardCounts: [ 2 ], areaScrollTop: 0 });
+        const area = board.querySelector<HTMLElement>(".board-column-content");
+        if (!area) throw new Error("expected a card area");
+
+        area.dataset.windowCount = String(total);
+        area.dataset.windowFrom = String(from);
+
+        // The drawn cards stand below the spacer, which is where a windowed column draws them.
+        for (const [ index, card ] of [ ...area.querySelectorAll<HTMLElement>(".board-note") ].entries()) {
+            place(card, { left: 0, top: 40 + above + 10 + index * 60, width: 100, height: 50 });
+        }
+        for (const [ index, height ] of [ above, below ].entries()) {
+            const spacer = document.createElement("div");
+            spacer.className = "board-window-spacer";
+            Object.defineProperty(spacer, "offsetHeight", { value: height, configurable: true });
+            // The one above stands before the cards, the one below after them.
+            if (index === 0) {
+                area.insertBefore(spacer, area.firstChild);
+            } else {
+                area.appendChild(spacer);
+            }
+        }
+
+        return board;
+    }
+
+    it("counts the cards the column is not drawing, so an index names a place in the column", () => {
+        const board = buildWindowed();
+
+        const [ column ] = measureBoard(board).columns;
+
+        // Two drawn cards, and the rest of the hundred stood for by the spacers.
+        expect(column.cards).toHaveLength(100);
+        expect(column.cards[40].height).toBe(50);
+        expect(column.cards[41].height).toBe(50);
+    });
+
+    it("stands the undrawn cards in order, above the drawn ones and below them", () => {
+        const board = buildWindowed();
+
+        const [ column ] = measureBoard(board).columns;
+        const tops = column.cards.map((card) => card.top);
+
+        expect(tops).toHaveLength(100);
+        // Never doubles back: a drop read against these has to walk them in order.
+        for (const [ index, top ] of tops.entries()) {
+            if (index > 0) {
+                expect(top).toBeGreaterThanOrEqual(tops[index - 1]);
+            }
+        }
+        expect(tops[0]).toBe(0);
+        expect(tops[39]).toBeLessThan(tops[40]);
+    });
+
+    it("measures a column drawing all of itself exactly as it always did", () => {
+        const board = buildBoard({ cardCounts: [ 2 ], areaScrollTop: 0 });
+
+        const [ column ] = measureBoard(board).columns;
+
+        expect(column.cards).toHaveLength(2);
+    });
+
+    it("counts a column that states a window but is drawing none of it", () => {
+        const board = buildWindowed({ total: 60, from: 60, above: 3600, below: 0 });
+        const area = board.querySelector<HTMLElement>(".board-column-content");
+        for (const card of area?.querySelectorAll(".board-note") ?? []) {
+            card.remove();
+        }
+
+        const [ column ] = measureBoard(board).columns;
+
+        expect(column.cards).toHaveLength(60);
+    });
+});

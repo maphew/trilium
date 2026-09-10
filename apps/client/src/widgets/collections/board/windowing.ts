@@ -316,10 +316,15 @@ export function useColumnWindow(
         // Placed a little above the foot of the area, so the card is not left under its own edge.
         area.scrollTop = Math.max(0, offset - area.clientHeight / 2);
 
+        // Moved here rather than left to the scroll event the write raises: that event arrives a
+        // frame later, and the card has to be drawn for the ask to have been worth making.
+        const moved = { top: area.scrollTop, viewport: area.clientHeight };
         if (immediate) {
-            // The scroll event that would move the window arrives a frame later, so the window is
-            // moved here instead and the card is in the page before this returns.
-            flushSync(() => setScroll({ top: area.scrollTop, viewport: area.clientHeight }));
+            // Drawn before this returns, for a keyboard walk that focuses the card in the same
+            // keystroke.
+            flushSync(() => setScroll(moved));
+        } else {
+            setScroll(moved);
         }
     }, [ areaRef, enabled, heights, spacing ]);
 
