@@ -1,8 +1,8 @@
 import type { EntityChange, SyncConfigResponse } from "@triliumnext/commons";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import consistencyChecksService from "../../services/consistency_checks";
 import { getConfig, initConfig } from "../../services/config";
+import consistencyChecksService from "../../services/consistency_checks";
 import entityChangesService from "../../services/entity_changes";
 import optionService from "../../services/options";
 import { getSql } from "../../services/sql/index";
