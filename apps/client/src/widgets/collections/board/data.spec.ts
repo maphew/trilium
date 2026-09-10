@@ -7,12 +7,13 @@ import type { EntityChange } from "../../../server_types";
 import { buildNote } from "../../../test/easy-froca";
 import type { PromotedAttribute } from "../promoted_attributes";
 import type { SortContext, SortKey } from "../sorting";
+import { INBOX_COLUMN } from "./columns";
 import {
-    affectsSortOrder, applyCardMove, type ColumnMap, type ColumnSort, filterColumnMap,
+    affectsSortOrder, applyCardMoves, type ColumnMap, type ColumnSort, filterColumnMap,
     getBoardData, resolveColumnSorts, resolveSortWatch, sortColumnMap, unfilteredCardIndex
 } from "./data";
 
-describe("applyCardMove", () => {
+describe("applyCardMoves", () => {
     /** Cards named by their note id, which is all this reads them for. */
     function board(columns: Record<string, string[]>): ColumnMap {
         return new Map(Object.entries(columns).map(([ column, ids ]) => [
@@ -25,23 +26,23 @@ describe("applyCardMove", () => {
         (map.get(column) ?? []).map((item) => item.note.noteId);
 
     it("takes a card out of one column and puts it in another", () => {
-        const next = applyCardMove(board({ A: [ "a1", "a2", "a3" ], B: [ "b1", "b2" ] }),
-            "a2", "A", "B", 1);
+        const next = applyCardMoves(board({ A: [ "a1", "a2", "a3" ], B: [ "b1", "b2" ] }),
+            [ "a2" ], "B", 1);
 
         expect(names(next, "A")).toEqual([ "a1", "a3" ]);
         expect(names(next, "B")).toEqual([ "b1", "a2", "b2" ]);
     });
 
     it("puts it at either end of the column it lands in", () => {
-        const start = applyCardMove(board({ A: [ "a1" ], B: [ "b1", "b2" ] }), "a1", "A", "B", 0);
+        const start = applyCardMoves(board({ A: [ "a1" ], B: [ "b1", "b2" ] }), [ "a1" ], "B", 0);
         expect(names(start, "B")).toEqual([ "a1", "b1", "b2" ]);
 
-        const end = applyCardMove(board({ A: [ "a1" ], B: [ "b1", "b2" ] }), "a1", "A", "B", 2);
+        const end = applyCardMoves(board({ A: [ "a1" ], B: [ "b1", "b2" ] }), [ "a1" ], "B", 2);
         expect(names(end, "B")).toEqual([ "b1", "b2", "a1" ]);
     });
 
     it("puts it in a column holding none", () => {
-        const next = applyCardMove(board({ A: [ "a1" ], B: [] }), "a1", "A", "B", 0);
+        const next = applyCardMoves(board({ A: [ "a1" ], B: [] }), [ "a1" ], "B", 0);
 
         expect(names(next, "A")).toEqual([]);
         expect(names(next, "B")).toEqual([ "a1" ]);
@@ -54,16 +55,35 @@ describe("applyCardMove", () => {
     it("counts a move down its own column against the list it came from", () => {
         const start = board({ A: [ "a1", "a2", "a3" ] });
 
-        expect(names(applyCardMove(start, "a1", "A", "A", 3), "A")).toEqual([ "a2", "a3", "a1" ]);
-        expect(names(applyCardMove(start, "a1", "A", "A", 2), "A")).toEqual([ "a2", "a1", "a3" ]);
-        expect(names(applyCardMove(start, "a3", "A", "A", 0), "A")).toEqual([ "a3", "a1", "a2" ]);
-        expect(names(applyCardMove(start, "a3", "A", "A", 1), "A")).toEqual([ "a1", "a3", "a2" ]);
+        expect(names(applyCardMoves(start, [ "a1" ], "A", 3), "A")).toEqual([ "a2", "a3", "a1" ]);
+        expect(names(applyCardMoves(start, [ "a1" ], "A", 2), "A")).toEqual([ "a2", "a1", "a3" ]);
+        expect(names(applyCardMoves(start, [ "a3" ], "A", 0), "A")).toEqual([ "a3", "a1", "a2" ]);
+        expect(names(applyCardMoves(start, [ "a3" ], "A", 1), "A")).toEqual([ "a1", "a3", "a2" ]);
+    });
+
+    it("moves several cards from several columns, keeping the order they are given in", () => {
+        const next = applyCardMoves(
+            board({ A: [ "a1", "a2", "a3" ], B: [ "b1", "b2" ], C: [] }),
+            [ "a1", "b2", "a3" ], "C", 0);
+
+        expect(names(next, "A")).toEqual([ "a2" ]);
+        expect(names(next, "B")).toEqual([ "b1" ]);
+        expect(names(next, "C")).toEqual([ "a1", "b2", "a3" ]);
+    });
+
+    it("counts a move of several down their own column against the cards staying put", () => {
+        const start = board({ A: [ "a1", "a2", "a3", "a4" ] });
+
+        expect(names(applyCardMoves(start, [ "a1", "a2" ], "A", 4), "A"))
+            .toEqual([ "a3", "a4", "a1", "a2" ]);
+        expect(names(applyCardMoves(start, [ "a1", "a4" ], "A", 2), "A"))
+            .toEqual([ "a2", "a1", "a4", "a3" ]);
     });
 
     it("leaves the board alone for a card it does not hold", () => {
         const start = board({ A: [ "a1" ], B: [] });
 
-        expect(applyCardMove(start, "nope", "A", "B", 0)).toBe(start);
+        expect(applyCardMoves(start, [ "nope" ], "B", 0)).toBe(start);
     });
 
     describe("filterColumnMap", () => {
@@ -653,6 +673,89 @@ function context(): SortContext {
 function titles(map: ColumnMap, column: string) {
     return (map.get(column) ?? []).map(({ note }) => note.title);
 }
+
+describe("getBoardData column storage", () => {
+    /** A board whose cards carry both a `status` and a `priority`. */
+    function twoGroupings() {
+        return buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { title: "First", "#status": "To Do", "#priority": "High", "#severity": "Minor" },
+                { title: "Second", "#status": "Done", "#priority": "Low", "#severity": "Major" }
+            ]
+        });
+    }
+
+    const config = {
+        columns: [ { value: "Done" }, { value: "To Do" } ],
+        priorityViewColumns: [ { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" } ]
+    };
+
+    it("takes the order and the icons of the grouping it is reading", async () => {
+        const board = twoGroupings();
+
+        const byStatus = await getBoardData(board, "status", config, false);
+        const byPriority = await getBoardData(board, "priority", config, false);
+
+        expect(byStatus.columns).toEqual([ "Done", "To Do" ]);
+        expect(byPriority.columns).toEqual([ "Low", "High" ]);
+    });
+
+    it("writes a resolved list under its key, keeping the other grouping's", async () => {
+        const board = twoGroupings();
+
+        // Nothing is stored for `severity`, so the values the cards carry make the columns.
+        const { newPersistedData } = await getBoardData(
+            board, "severity", config, false);
+
+        expect(newPersistedData?.severityViewColumns)
+            .toEqual([ { value: "Minor" }, { value: "Major" } ]);
+        expect(newPersistedData?.columns).toEqual(config.columns);
+        expect(newPersistedData?.priorityViewColumns).toEqual(config.priorityViewColumns);
+    });
+
+    /**
+     * The inbox collects the cards carrying no value, which is a different set under every
+     * grouping. Only the board's own list can name it, so a grouping the definition leads would
+     * put it behind every option that definition offers.
+     */
+    it("puts the inbox first under a grouping the board has never been on", async () => {
+        const board = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            "#label:priority(inheritable)": "promoted,single,select,options=High;Low",
+            children: [
+                { title: "First", "#priority": "High" },
+                { title: "Unassigned" }
+            ]
+        });
+
+        const { columns, byColumn } = await getBoardData(
+            board, "priority", {}, false, [ "High", "Low" ], new Map(), true);
+
+        expect(columns).toEqual([ INBOX_COLUMN, "High", "Low" ]);
+        expect((byColumn.get(INBOX_COLUMN) ?? []).map(({ note }) => note.title))
+            .toEqual([ "Unassigned" ]);
+    });
+
+    it("keeps a column's icon across a rewrite of its own grouping", async () => {
+        const board = twoGroupings();
+
+        const { newPersistedData } = await getBoardData(
+            board,
+            "priority",
+            { ...config, priorityViewColumns: [ { value: "Low", icon: "bx bx-down-arrow" } ] },
+            false,
+            [ "Low", "High" ]);
+
+        expect(newPersistedData?.priorityViewColumns).toEqual([
+            { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" }
+        ]);
+    });
+});
 
 function noteIdsOf(map: ColumnMap, column: string) {
     return (map.get(column) ?? []).map(({ note }) => note.noteId);

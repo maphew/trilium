@@ -6,6 +6,7 @@ import {
     DEFAULT_SORT, parseStoredSortKey, sortedAttributeName, sortItems, type SortContext,
     type SortKey
 } from "../sorting";
+import { readColumns, writeColumns } from "./column_storage";
 import { INBOX_COLUMN, resolveBoardColumns } from "./columns";
 import { BoardColumnData, BoardViewData } from "./index";
 
@@ -17,32 +18,50 @@ export interface ColumnItem {
 export type ColumnMap = Map<string, ColumnItem[]>;
 
 /**
- * The columns as they stand once a card has moved, for drawing the outcome before the writes land.
+ * The columns as they stand once cards have moved, for drawing the outcome before the writes land.
  *
  * A card crossing columns is written twice, the value first and the branch after, and each lands a
  * redraw of its own. The first shows the card in its new column at whatever place its old branch
  * gives it, which is above every card already there.
  *
- * @param index where the card goes, counting the target column as it stands at the moment of the
- *              drop, the card itself included where it does not leave its column.
+ * The cards keep the order `noteIds` lists them in, wherever they came from, and land together.
+ * A card the board does not hold is left out; where that is all of them, the map is handed back as
+ * it stands.
+ *
+ * @param index where the cards go, counting the target column as it stands at the moment of the
+ *              drop, the cards being moved included where they do not leave that column.
  */
-export function applyCardMove(
-    byColumn: ColumnMap, noteId: string, from: string, to: string, index: number
+export function applyCardMoves(
+    byColumn: ColumnMap, noteIds: string[], to: string, index: number
 ): ColumnMap {
-    const source = [ ...(byColumn.get(from) ?? []) ];
-    const at = source.findIndex((item) => item.note.noteId === noteId);
-    if (at < 0) {
+    const moving = new Set(noteIds);
+    const next: ColumnMap = new Map();
+    const picked = new Map<string, ColumnItem>();
+
+    for (const [ column, items ] of byColumn) {
+        const kept: ColumnItem[] = [];
+        for (const item of items) {
+            if (moving.has(item.note.noteId)) {
+                picked.set(item.note.noteId, item);
+            } else {
+                kept.push(item);
+            }
+        }
+
+        next.set(column, kept);
+    }
+
+    if (!picked.size) {
         return byColumn;
     }
 
-    const [ moved ] = source.splice(at, 1);
-    const next = new Map(byColumn);
-    next.set(from, source);
-
-    const target = from === to ? source : [ ...(byColumn.get(to) ?? []) ];
-    // Taking the card out shifts everything after it up one, so a place beyond where it stood
-    // names one card earlier in the list left behind.
-    target.splice(from === to && index > at ? index - 1 : index, 0, moved);
+    // Taking the cards out shifts everything below them up, so a place counted with them still in
+    // the column names one card earlier for each of them standing above it.
+    const above = (byColumn.get(to) ?? []).slice(0, index)
+        .filter((item) => moving.has(item.note.noteId)).length;
+    const target = next.get(to) ?? [];
+    target.splice(index - above, 0,
+        ...noteIds.flatMap((noteId) => picked.get(noteId) ?? []));
     next.set(to, target);
 
     return next;
@@ -237,7 +256,8 @@ export async function getBoardData(
     inboxEnabled = false
 ) {
     const byColumn: ColumnMap = new Map();
-    const storedColumnValues = (persistedData.columns ?? []).map(c => c.value);
+    const storedColumns = readColumns(persistedData, groupByColumn) ?? [];
+    const storedColumnValues = storedColumns.map(c => c.value);
     // Turning the inbox on adds it to the board, at the front. After that the entry belongs to
     // the config: it keeps its icon, colour and position, and turning the inbox off leaves it in
     // place.
@@ -248,7 +268,7 @@ export async function getBoardData(
     // Only a board with an inbox has somewhere to put an unassigned note; on any other board such
     // a note is not shown at all, as before.
     const inbox = inboxEnabled
-        ? { nested: !!persistedData.columns?.find(col => col.value === INBOX_COLUMN)?.nested }
+        ? { nested: !!storedColumns.find(col => col.value === INBOX_COLUMN)?.nested }
         : undefined;
 
     // First, scan all notes to find what columns actually exist
@@ -282,17 +302,15 @@ export async function getBoardData(
     // or every refresh would save.
     const hasChanges = storedColumnValues.length !== columns.length
         || storedColumnValues.some((value, index) => columns[index] !== value);
-    const storedColumns = indexColumnsByResolvedName(persistedData, pendingRenames);
+    const byResolvedName = indexColumnsByResolvedName(storedColumns, pendingRenames);
 
     return {
         byColumn,
         columns,
         settledRenames,
         newPersistedData: hasChanges
-            ? {
-                ...persistedData,
-                columns: columns.map(value => storedColumns.get(value) ?? { value })
-            }
+            ? writeColumns(persistedData, groupByColumn,
+                columns.map(value => byResolvedName.get(value) ?? { value }))
             : undefined,
         isInRelationMode: groupByColumn.startsWith("~")
     };
@@ -306,12 +324,12 @@ export async function getBoardData(
  * to the new name, the same substitution {@link resolveBoardColumns} makes.
  */
 function indexColumnsByResolvedName(
-    persistedData: BoardViewData,
+    storedColumns: BoardColumnData[],
     pendingRenames: ReadonlyMap<string, string | undefined>
 ) {
     const byName = new Map<string, BoardColumnData>();
 
-    for (const column of persistedData.columns ?? []) {
+    for (const column of storedColumns) {
         const { value } = column;
         const name = pendingRenames.has(value) ? pendingRenames.get(value) : value;
         if (name !== undefined) {
