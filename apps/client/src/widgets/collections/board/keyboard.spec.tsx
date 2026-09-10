@@ -1274,3 +1274,171 @@ describe("Board keyboard", () => {
     }
 
 });
+
+/**
+ * A column of thousands draws only a slice of its cards, so walking it steps onto cards that are
+ * not in the page. The keyboard names a card by the place it holds in the column and asks the
+ * column to draw it, rather than counting the ones on screen.
+ */
+describe("Board keyboard over a windowed column", () => {
+    let container: HTMLElement | undefined;
+    const CARDS = 400;
+
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        vi.spyOn(server, "put").mockResolvedValue(undefined);
+        vi.spyOn(server, "post").mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws fewer cards than it holds, and states what it holds", async () => {
+        const board = await renderBig();
+        const area = board.querySelector<HTMLElement>(".board-column-content");
+
+        expect(area?.dataset.windowCount).toBe(String(CARDS));
+        expect(area?.querySelectorAll(".board-note").length).toBeLessThan(CARDS);
+    });
+
+    it("walks onto a card the column is not drawing, and focuses it", async () => {
+        const board = await renderBig();
+        const column = board.querySelector<HTMLElement>(".board-column");
+        const drawn = [ ...(column?.querySelectorAll<HTMLElement>(".board-note") ?? []) ];
+        const last = drawn[drawn.length - 1];
+        if (!column || !last) throw new Error("expected the column to draw some cards");
+
+        const beyond = Number(last.dataset.index) + 1;
+        expect(column.querySelector(`.board-note[data-index="${beyond}"]`)).toBeNull();
+
+        last.focus();
+        await act(async () => {
+            last.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+            await flush();
+        });
+
+        const arrived = column.querySelector<HTMLElement>(`.board-note[data-index="${beyond}"]`);
+        expect(arrived).not.toBeNull();
+        expect(document.activeElement).toBe(arrived);
+    });
+
+    it("takes End to the last card of the column, not the last one drawn", async () => {
+        const board = await renderBig();
+        const first = board.querySelector<HTMLElement>(".board-note");
+        if (!first) throw new Error("expected a card");
+
+        first.focus();
+        await act(async () => {
+            first.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+            await flush();
+        });
+
+        const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".board-note");
+        expect(focused?.dataset.index).toBe(String(CARDS - 1));
+    });
+
+    it("walks back up out of the window it moved to", async () => {
+        const board = await renderBig();
+        const first = board.querySelector<HTMLElement>(".board-note");
+        if (!first) throw new Error("expected a card");
+
+        first.focus();
+        await act(async () => {
+            first.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+            await flush();
+        });
+
+        const atEnd = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".board-note");
+        if (!atEnd) throw new Error("expected End to land on a card");
+
+        await act(async () => {
+            atEnd.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+            await flush();
+        });
+
+        const home = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".board-note");
+        expect(home?.dataset.index).toBe("0");
+    });
+
+    /**
+     * The card lands at the end of a column that is not drawing its end, so there is nothing in the
+     * page to focus. The board asks that column for it and focuses it once it has been drawn.
+     */
+    it("focuses a card sent into a column that is not drawing where it lands", async () => {
+        const board = await renderBig();
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const sent = columns[1]?.querySelector<HTMLElement>(".board-note");
+        if (!sent) throw new Error("expected a card in the small column");
+
+        const noteId = sent.dataset.noteId;
+        sent.focus();
+        await act(async () => {
+            sent.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "ArrowLeft", ctrlKey: true, bubbles: true, cancelable: true
+            }));
+            await flush();
+        });
+        // The reveal waits for the column to draw the card, which takes a frame.
+        await act(async () => { await frame(); await flush(); });
+        await act(async () => { await frame(); await flush(); });
+
+        const arrived = board.querySelector<HTMLElement>(`.board-note[data-note-id="${noteId}"]`);
+        expect(arrived).not.toBeNull();
+        expect(arrived?.closest(".board-column")).toBe(columns[0]);
+        expect(document.activeElement).toBe(arrived);
+    });
+
+    function frame() {
+        return new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    }
+
+    async function renderBig() {
+        const note = buildNote({
+            title: "Big board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                ...Array.from({ length: CARDS }, (_, i) => ({
+                    title: `Card ${i}`, "#status": "To Do"
+                })),
+                { title: "Only", "#status": "Doing" }
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <BoardView
+                        note={note}
+                        notePath={`root/${note.noteId}`}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        highlightedTokens={null}
+                        viewConfig={{
+                            columns: [ { value: "To Do" }, { value: "Doing" } ]
+                        }}
+                        saveConfig={() => {}}
+                        media="screen"
+                        onReady={() => {}}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+
+        return mountPoint;
+    }
+
+    function flush() {
+        return new Promise((resolve) => setTimeout(resolve));
+    }
+});

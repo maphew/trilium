@@ -1,3 +1,4 @@
+import { askForCard } from "./windowing";
 import { cardFollows } from "./columns";
 import { RefObject } from "preact";
 import { useCallback, useLayoutEffect, useRef } from "preact/hooks";
@@ -106,6 +107,10 @@ export function useBoardKeyboard({
     sendCardsToColumn, moveCardsWithin
 }: BoardKeyboardOptions) {
     const pendingFocus = useRef<PendingFocus | null>(null);
+    /** The card `askForCard` has already run for, so it does not run again on every render. */
+    const asked = useRef<string | null>(null);
+    /** The last spot walked to, for a key pressed while focus is between two renders. */
+    const lastSpot = useRef<Spot | null>(null);
 
     // Every render, since a redraw is the only thing that takes focus away here and more than one
     // of them follows a move.
@@ -136,7 +141,28 @@ export function useBoardKeyboard({
 
         if (element) {
             reveal(element);
+            return;
         }
+
+        // The card has landed in a windowed column that is not drawing it, so there is nothing to
+        // focus yet. `askForCard` scrolls that column, which draws the card.
+        //
+        // Waited for here rather than left to this effect running again: the scroll re-renders the
+        // column alone, and the board this effect belongs to is not drawn again by it.
+        const { noteId } = pending.intent;
+        if (asked.current === noteId) return;
+
+        const place = placeOf(byColumn, noteId);
+        if (!place) return;
+
+        asked.current = noteId;
+        askForCard(container, place.column, place.index);
+        waitForCard(container, noteId, (card) => {
+            asked.current = null;
+            if (pendingFocus.current === pending && document.activeElement === document.body) {
+                reveal(card);
+            }
+        });
     });
 
     /**
@@ -173,7 +199,11 @@ export function useBoardKeyboard({
         // work over a board as over anything else.
         if (e.altKey && !e.ctrlKey) return;
 
-        const spot = spotOf(container, document.activeElement);
+        const spot = spotOf(container, document.activeElement)
+            // Focus can be left on nothing by a redraw that took the card it was on out of the
+            // page. Fall back to the previous spot rather than letting the key through, which
+            // would scroll the board instead of moving along it.
+            ?? (NAVIGATION_KEYS.includes(e.key) ? lastSpot.current : null);
         if (!spot) return;
 
         if (e.ctrlKey) {
@@ -250,7 +280,7 @@ export function useBoardKeyboard({
         if (NAVIGATION_KEYS.includes(e.key)) {
             // The plain arrows would otherwise scroll the page past the end of a column.
             take(e);
-            walk(container, spot, e.key);
+            lastSpot.current = walk(container, spot, e.key) ?? spot;
             return;
         }
 
@@ -419,7 +449,7 @@ function spotOf(container: HTMLElement, element: Element | null): Spot | null {
     const card = element.closest(".board-note");
     if (!card) return null;
 
-    return { kind: "item", column, item: cardsOf(columnElement).indexOf(card as HTMLElement) };
+    return { kind: "item", column, item: indexOfCard(card as HTMLElement, columnElement) };
 }
 
 /**
@@ -429,15 +459,36 @@ function spotOf(container: HTMLElement, element: Element | null): Spot | null {
  * right cross to the next column's first card, or to its button where it holds none: its header is
  * reached by pressing up from there, which is the only way a header is reached at all.
  */
-function walk(container: HTMLElement, from: Spot, key: string) {
+function walk(container: HTMLElement, from: Spot, key: string): Spot | null {
     const next = destination(container, from, key);
-    if (!next) return false;
+    if (!next) return null;
 
     const element = elementAt(container, next);
-    if (!element) return false;
+    if (element) {
+        reveal(element);
+        return next;
+    }
 
-    reveal(element);
-    return true;
+    // A windowed column draws a slice of its cards, and the walk has stepped onto one outside it.
+    // `askForCard` scrolls that column, which puts the card in the page so it can be focused.
+    if (next.kind === "item") {
+        const column = columnsOf(container)[next.column];
+        const value = column?.dataset.column;
+        if (!column || value === undefined) return null;
+
+        // `immediate` draws the card before this returns, so it is focused in this keystroke.
+        // Deferred to a later frame, the scroll can unmount the card being walked from, leaving
+        // `document.activeElement` on the body: `spotOf` then finds no spot and the browser
+        // scrolls the board instead.
+        askForCard(container, value, next.item, true);
+        const arrived = cardAt(column, next.item);
+        if (arrived) {
+            reveal(arrived);
+            return next;
+        }
+    }
+
+    return null;
 }
 
 function destination(container: HTMLElement, from: Spot, key: string): Spot | null {
@@ -456,7 +507,7 @@ function destination(container: HTMLElement, from: Spot, key: string): Spot | nu
 
     if (from.kind === "add-column") return null;
 
-    const items = cardsOf(columnsOf(container)[from.column]).length;
+    const items = cardCountOf(columnsOf(container)[from.column]);
     if (key === "Home") return entryOf(container, from.column);
     if (key === "End") {
         return items
@@ -483,7 +534,7 @@ function entryOf(container: HTMLElement, column: number): Spot {
         return { kind: "header", column };
     }
 
-    return cardsOf(element).length
+    return cardCountOf(element)
         ? { kind: "item", column, item: 0 }
         : { kind: "add-item", column };
 }
@@ -655,7 +706,41 @@ function elementAt(container: HTMLElement, spot: Spot): HTMLElement | null {
 
     if (spot.kind === "header") return column.querySelector("h3");
     if (spot.kind === "add-item") return column.querySelector(".board-new-item");
-    return cardsOf(column)[spot.item] ?? null;
+    return cardAt(column, spot.item);
+}
+
+/**
+ * Watches for a card to be drawn, for the few frames a column takes to scroll to it.
+ *
+ * Given up on rather than waited for indefinitely: a card that never arrives means the move did not
+ * land where it was expected, and focus is better left alone than chased.
+ */
+function waitForCard(
+    container: HTMLElement, noteId: string, then: (card: HTMLElement) => void, tries = 8
+) {
+    const card = findCard(container, noteId);
+    if (card) {
+        then(card);
+        return;
+    }
+
+    if (tries > 0) {
+        requestAnimationFrame(() => waitForCard(container, noteId, then, tries - 1));
+    }
+}
+
+/** Which column holds a note and where in it, for a card the board is not drawing. */
+function placeOf(byColumn: ColumnMap | undefined, noteId: string) {
+    if (!byColumn) return undefined;
+
+    for (const [ column, items ] of byColumn) {
+        const index = items.findIndex((item) => item.note.noteId === noteId);
+        if (index >= 0) {
+            return { column, index };
+        }
+    }
+
+    return undefined;
 }
 
 /** Found by what it stands for rather than by where it sits, which a move is about to change. */
@@ -680,4 +765,32 @@ function cardsOf(column: Element | undefined) {
     }
 
     return [ ...column.querySelectorAll<HTMLElement>(".board-note") ];
+}
+
+/**
+ * How many cards a column holds, which a windowed one draws only part of.
+ *
+ * Read from what the column states rather than counted off the page, or walking one would stop at
+ * the edge of what happens to be drawn.
+ */
+function cardCountOf(column: Element | undefined) {
+    if (!column || column.classList.contains("collapsed")) {
+        return 0;
+    }
+
+    const stated = column.querySelector<HTMLElement>(".board-column-content")?.dataset.windowCount;
+    const count = stated === undefined ? Number.NaN : Number(stated);
+    return Number.isFinite(count) ? count : cardsOf(column).length;
+}
+
+/** The place a card holds in its column, which it states for a windowed one. */
+function indexOfCard(card: HTMLElement, column: Element | undefined) {
+    const stated = card.dataset.index;
+    const index = stated === undefined ? Number.NaN : Number(stated);
+    return Number.isFinite(index) ? index : cardsOf(column).indexOf(card);
+}
+
+/** The card at a place in a column, or nothing where the column is not drawing it. */
+function cardAt(column: Element, index: number) {
+    return column.querySelector<HTMLElement>(`.board-note[data-index="${index}"]`);
 }

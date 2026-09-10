@@ -3,10 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import { useTrackedElement } from "../../react/hooks";
 import {
-    type CardBox, cardInsertionIndex, columnAt, columnCovers, columnInsertionIndex
+    type CardBox, cardInsertionIndex, columnAt, type ColumnBox, columnCovers, columnInsertionIndex
 } from "./drag_geometry";
-import { type BoardMeasurement, measureBoard, toAreaY, toBoardX } from "./drag_measure";
+import {
+    type BoardMeasurement, measureBoard, placeInModel, toAreaY, toBoardX
+} from "./drag_measure";
 import { createEdgeScroller, type ScrollTarget } from "../../react/edge_scroll";
+import { getColumnModel } from "./windowing";
 
 /** How far a pointer travels before a press with a button held is taken for a drag. */
 const MOUSE_THRESHOLD = 4;
@@ -247,7 +250,7 @@ export function useBoardDrag(
                 ? {
                     column: column.value,
                     index: area
-                        ? placeIn(column.cards, toAreaY(area, topY), held.card, column.value)
+                        ? placeAt(area, toAreaY(area, topY), held.card, column)
                         : 0
                 }
                 : null;
@@ -542,6 +545,23 @@ function row(held: Gesture & { kind: "column" }) {
 }
 
 /**
+ * The place a carried card would take in a column.
+ *
+ * For a windowed column this reads the column's current `ColumnModel`: the boxes `measureBoard`
+ * takes at the start of a gesture only estimate the cards that were not drawn then, and an
+ * auto-scroll goes on to draw them at their own heights.
+ */
+function placeAt(area: HTMLElement, y: number, card: DraggedCard, column: ColumnBox): number {
+    const model = getColumnModel(area);
+    if (!model) {
+        return placeIn(column.cards, y, card, column.value);
+    }
+
+    return placeInModel(
+        model, y - column.origin, column.value === card.fromColumn ? card.index : undefined);
+}
+
+/**
  * The place a carried card would take in a column, counting that column as the board holds it.
  *
  * The cards were measured with the carried one among them, and it leaves the flow the moment it is
@@ -583,7 +603,13 @@ function startCard(
     const noteId = element?.dataset.noteId;
     if (!element || !columnElement || !noteId) return null;
 
-    const cards = [ ...columnElement.querySelectorAll(".board-note") ];
+    // A windowed column draws a slice of its cards, so the index comes from `data-index` rather
+    // than from the card's position among the ones on screen.
+    const stated = element.dataset.index;
+    const place = stated === undefined ? Number.NaN : Number(stated);
+    const index = Number.isFinite(place)
+        ? place
+        : [ ...columnElement.querySelectorAll(".board-note") ].indexOf(element);
     const noteIds = carriedWith(noteId);
     return {
         kind: "card",
@@ -593,7 +619,7 @@ function startCard(
             noteId,
             noteIds,
             fromColumn: columnElement.dataset.column ?? "",
-            index: cards.indexOf(element),
+            index,
             height: carriedHeight(element, noteIds)
         },
         position: null,

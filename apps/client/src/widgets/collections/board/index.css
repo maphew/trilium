@@ -625,6 +625,19 @@ body.mobile .board-view-container .board-add-column {
 /* A column contains only what it can scroll itself. `contain` on both axes would also hold a
    sideways swipe that starts on a card, which the column cannot scroll and the board can: Chrome
    stops it at the column instead of passing it on, and the board never moves. */
+/* Stands for the cards a windowed column is not drawing, so the column is the height it would be
+   were it drawing them. */
+.board-view-container .board-window-spacer {
+  margin: 0;
+}
+
+/* A measurement that corrects the spacer above moves everything below it, and the column moves its
+   own scroll position by as much to hold the reader still. The browser must not do so as well: the
+   two chase each other and never settle. */
+.board-view-container .board-column.windowed > .board-column-content {
+  overflow-anchor: none;
+}
+
 .board-view-container .board-column-content {
   overscroll-behavior-y: contain;
   /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
@@ -678,10 +691,9 @@ body.mobile .board-view-container .board-add-column {
   transition: opacity 0.3s ease;
 }
 
-/* Matched on the field rather than on state in `index.tsx`: each column holds its own editing
-   state. `inserting` marks only the field that opens between two cards, so the one at the foot of
-   a column leaves the backdrop down. */
-.board-view:has(.board-note.editing, .board-new-item.inserting) .board-edit-backdrop {
+/* `editing-open` is set by `index.tsx` for a card being renamed or a field open between two cards;
+   the field at the foot of a column leaves the backdrop down. */
+.board-view.editing-open .board-edit-backdrop {
   opacity: 1;
 }
 
@@ -710,8 +722,7 @@ body.mobile .board-view-container .board-add-column {
 /* `motion-disabled` sets `transition: none !important` on everything, so `.board-edit-backdrop`
    fires no `transitionend` and `frozen` is never set. There is no fade to protect either, so the
    same fields freeze the board as soon as they open. */
-body#trilium-app.motion-disabled
-  .board-view:has(.board-note.editing, .board-new-item.inserting) :is(
+body#trilium-app.motion-disabled .board-view.editing-open :is(
   .board-column > h3,
   .board-column > .board-new-item,
   .board-column-content > *:not(.editing)
@@ -723,8 +734,7 @@ body#trilium-app.motion-disabled
    layer of its own, which the field being typed into could not rise out of. Taken off the one
    column that holds it, for as long as it stands. `!important` because `useScrollFade` writes the
    mask on the element itself. */
-.board-view-container .board-column:has(.board-note.editing, .board-new-item.inserting)
-    .board-column-content {
+.board-view-container .board-column.editing-open .board-column-content {
   mask: none !important;
 }
 
