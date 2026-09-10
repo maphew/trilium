@@ -9,9 +9,8 @@
     "test": "vitest"
   },
   "devDependencies": {
-    "@vitest/browser": "4.1.11",
-    "vitest": "4.1.11",
-    "webdriverio": "9.31.5"
+    "@vitest/browser": "5.0.0",
+    "vitest": "5.0.0"
   },
   "dependencies": {
     "@triliumnext/commons": "workspace:*",

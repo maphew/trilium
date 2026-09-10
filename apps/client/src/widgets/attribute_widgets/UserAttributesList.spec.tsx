@@ -1,4 +1,4 @@
-import { render } from "preact";
+import { ComponentChildren, render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -53,6 +53,16 @@ describe("UserAttributesDisplay", () => {
         expect(container.querySelector(".user-attributes")).toBeNull();
     });
 
+    it("draws a caller's badges before the attributes, and without them", () => {
+        draw({ shownAttributes: [ "stage" ], badges: <span className="marker">!</span> });
+        expect([ ...(container.querySelector(".user-attributes")?.children ?? []) ]
+            .map(child => child.className)).toEqual([ "marker", "user-attribute type-label text" ]);
+
+        // The row is what carries a badge, so it stands even where no attribute would raise it.
+        draw({ shownAttributes: [], badges: <span className="marker">!</span> });
+        expect(container.querySelector(".user-attributes .marker")).not.toBeNull();
+    });
+
     /** The values of one attribute belong together wherever the attribute is placed. */
     it("keeps the values of one attribute together", () => {
         const note = noteWith({ tag: [ "red", "green" ], owner: [ "Ada" ] });
@@ -78,8 +88,9 @@ describe("UserAttributesDisplay", () => {
         expect(values()).toEqual([ "Doing", "Ada" ]);
     });
 
-    function draw({ note = NOTE, ignoredAttributes, shownAttributes }: {
-        note?: FNote, ignoredAttributes?: string[], shownAttributes?: string[]
+    function draw({ note = NOTE, ignoredAttributes, shownAttributes, badges }: {
+        note?: FNote, ignoredAttributes?: string[], shownAttributes?: string[],
+        badges?: ComponentChildren
     } = {}) {
         act(() => {
             render(
@@ -87,6 +98,7 @@ describe("UserAttributesDisplay", () => {
                     note={note}
                     ignoredAttributes={ignoredAttributes}
                     shownAttributes={shownAttributes}
+                    badges={badges}
                 />,
                 container);
         });

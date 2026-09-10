@@ -1,12 +1,11 @@
 import type { HighlightedTokenInfo, SearchResultDetails } from "@triliumnext/commons";
-import { useEffect, useRef } from "preact/hooks";
 
 import { t } from "../../../services/i18n";
 import { calculateHash, type ViewScope } from "../../../services/link";
 import { Badge } from "../../react/Badge";
-import { useImperativeSearchHighlighlighting, useNote, useNoteTitle } from "../../react/hooks";
+import { useNote, useNoteTitle } from "../../react/hooks";
 import Icon from "../../react/Icon";
-import RawHtml, { RawHtmlBlock } from "../../react/RawHtml";
+import RawHtml, { HighlightedText, RawHtmlBlock } from "../../react/RawHtml";
 
 interface SearchResultCardProps {
     noteId: string;
@@ -33,26 +32,15 @@ export default function SearchResultCard({ noteId, details, loading, highlighted
     const viewScope: ViewScope = { searchTerms };
     const href = calculateHash({ notePath: noteId, viewScope });
 
-    // Set the title text imperatively so mark.js, which injects `.ck-find-result` spans into the
-    // DOM, does not fight Preact's reconciliation of a controlled text child. NoteLink renders its
-    // title imperatively for the same reason.
-    const titleRef = useRef<HTMLSpanElement>(null);
-    const highlightTitle = useImperativeSearchHighlighlighting(highlightedTokens);
-    useEffect(() => {
-        if (titleRef.current) {
-            titleRef.current.textContent = title;
-            highlightTitle(titleRef.current);
-        }
-        // highlightTitle is a fresh closure each render; keying on the token list (as the legacy
-        // cards do) avoids re-running on every render.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ title, highlightedTokens ]);
-
     return (
         <a className="search-result-card" href={href}>
             <div className="search-result-card-header">
                 <Icon className="search-result-card-icon" icon={icon} />
-                <span className="search-result-card-title" ref={titleRef} />
+                <HighlightedText
+                    className="search-result-card-title"
+                    text={title}
+                    highlightedTokens={highlightedTokens}
+                />
                 {breadcrumb && <span className="search-result-card-path">{breadcrumb}</span>}
             </div>
             <SearchResultSnippet details={details} loading={loading} />

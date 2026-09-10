@@ -10,6 +10,10 @@ function getInboxNote(req: Request<{ date: string }>) {
     return specialNotesService.getInboxNote(req.params.date);
 }
 
+function getInboxTarget() {
+    return specialNotesService.getInboxTarget();
+}
+
 function getDayNote(req: Request<{ date: string }>) {
     const calendarRootId = req.query.calendarRootId;
     const calendarRoot = typeof calendarRootId === "string" ? becca.getNoteOrThrow(calendarRootId) : null;
@@ -132,6 +136,7 @@ function saveLlmChat(req: Request<{ llmChatNoteId: string }>) {
 
 export default {
     getInboxNote,
+    getInboxTarget,
     getDayNote,
     getWeekFirstDayNote,
     getWeekNote,

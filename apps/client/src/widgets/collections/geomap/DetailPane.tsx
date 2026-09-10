@@ -637,7 +637,7 @@ export function LocationButton({ coordinates }: { coordinates: [number, number] 
             className="geo-detail-pane-location"
             onClick={() => copyTextWithToast(formatLocation(coordinates, FULL_PRECISION))}
         >
-            <span className="bx bx-current-location" />
+            <span className="bx bx-crosshair" />
             {formatLocation(coordinates)}
         </button>
     );

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Modal as BootstrapModal } from "bootstrap";
 
+import appContext from "../../../components/app_context";
 import Component from "../../../components/component";
 import contextMenu from "../../../menus/context_menu";
 import dialog from "../../../services/dialog";
@@ -20,6 +21,8 @@ import froca from "../../../services/froca";
 import attributes from "../../../services/attributes";
 import { executeBulkActions } from "../../../services/bulk_action";
 import LoadResults from "../../../services/load_results";
+import noteAttributeCache from "../../../services/note_attribute_cache";
+import searchService from "../../../services/search";
 import { buildNote } from "../../../test/easy-froca";
 import { ParentComponent } from "../../react/react_utils";
 import BoardView, { BoardViewData } from ".";
@@ -106,6 +109,16 @@ vi.mock("../../../services/bulk_action", () => ({
         }
     })
 }));
+
+vi.mock("../../../services/search", () => ({
+    default: {
+        searchInSubtree: vi.fn(),
+        searchForNoteIds: vi.fn(async () => []),
+        searchForNotes: vi.fn(async () => [])
+    }
+}));
+
+const searchInSubtree = vi.mocked(searchService.searchInSubtree);
 
 /** What a card is made from until another template is picked: the first the board offers. */
 function textTemplate() {
@@ -260,8 +273,12 @@ describe("Collapsed board columns", () => {
     const isCollapsed = (container: HTMLElement, index: number) =>
         columnAt(container, index).classList.contains("collapsed");
 
+    // How many cards the column draws. A strip holds its own in the page without drawing them,
+    // which is what the reader sees and what the keyboard and a drag both go by.
     const cardCount = (container: HTMLElement, index: number) =>
-        columnAt(container, index).querySelectorAll(".board-note").length;
+        isCollapsed(container, index)
+            ? 0
+            : columnAt(container, index).querySelectorAll(".board-note").length;
 
     /** Selects a column the way a click on it does, press and release included. */
     async function select(container: HTMLElement, index: number) {
@@ -290,6 +307,8 @@ describe("Collapsed board columns", () => {
         expect(cardCount(mountPoint, 0)).toBe(0);
         // The count is what the strip reports in place of the cards.
         expect(columnAt(mountPoint, 0).querySelector(".counter-badge")?.textContent).toBe("2");
+        // Never drawn at all, so a reader who keeps a long column closed pays nothing for it.
+        expect(columnAt(mountPoint, 0).querySelector(".board-column-content")).toBeNull();
 
         // Every other column is untouched.
         expect(isCollapsed(mountPoint, 1)).toBe(false);
@@ -306,6 +325,10 @@ describe("Collapsed board columns", () => {
         await select(mountPoint, 1);
         expect(isCollapsed(mountPoint, 0)).toBe(true);
         expect(cardCount(mountPoint, 0)).toBe(0);
+        // Held in the page once they have been drawn once, the stylesheet keeping them off the
+        // screen: taking them out again is what makes a column of thousands close in three frames.
+        expect(columnAt(mountPoint, 0)
+            .querySelectorAll(":scope > .board-column-content > .board-note")).toHaveLength(2);
     });
 
     /**
@@ -766,10 +789,15 @@ describe("A board in a tab the reader is not looking at", () => {
         });
 
         // The context the board belongs to, reached the way `useNoteContext` reaches it: from the
-        // nearest ancestor carrying one.
-        let active = true;
+        // nearest ancestor carrying one. The board compares main contexts, so the tab is what the
+        // stub stands for and a split pane of it would answer with the same one.
+        const tab = {};
+        const otherTab = {};
+        let shown: object = tab;
         const host = new Component();
-        Object.assign(host, { noteContext: { isActive: () => active } });
+        Object.assign(host, { noteContext: { getMainContext: () => tab } });
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveMainContext: () => shown } as never;
 
         const mountPoint = document.createElement("div");
         container = mountPoint;
@@ -799,8 +827,8 @@ describe("A board in a tab the reader is not looking at", () => {
         await draw();
         expect(columnOf("First")).toBe("To Do");
 
-        // The card moves column while the tab is in the background.
-        active = false;
+        // The card moves column while another tab is the one being looked at.
+        shown = otherTab;
         for (const attribute of froca.getNoteFromCache("one")?.getAttributes() ?? []) {
             if (attribute.name === "status") attribute.value = "Done";
         }
@@ -808,9 +836,71 @@ describe("A board in a tab the reader is not looking at", () => {
         expect(columnOf("First")).toBe("To Do");
 
         // Looked at again, it catches up with what it missed.
-        active = true;
+        shown = tab;
         await draw();
         expect(columnOf("First")).toBe("Done");
+
+        appContext.tabManager = previousTabManager;
+    });
+
+    /**
+     * `getActiveMainContext` names one pane across the whole app, so a board sharing a tab with the
+     * focused pane is on screen and redraws: a card dropped onto it from another split appears at
+     * once rather than waiting for something to force a refresh.
+     */
+    it("redraws for a change while it is the split the reader is not focused on", async () => {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { id: "split1", title: "First", "#status": "To Do" },
+                { id: "split2", title: "Second", "#status": "Done" }
+            ]
+        });
+
+        // One tab, and the board is in a pane of it that does not hold the focus.
+        const tab = {};
+        const host = new Component();
+        Object.assign(host, { noteContext: { getMainContext: () => tab } });
+        const previousTabManager = appContext.tabManager;
+        appContext.tabManager = { getActiveMainContext: () => tab } as never;
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        const draw = async () => {
+            await act(async () => {
+                render(
+                    <ParentComponent.Provider value={host}>
+                        <Harness
+                            note={note}
+                            noteIds={[ ...note.getChildNoteIds() ]}
+                            initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                        />
+                    </ParentComponent.Provider>,
+                    mountPoint
+                );
+            });
+            await act(async () => { await flush(); });
+        };
+
+        const columnOf = (title: string) => [ ...mountPoint.querySelectorAll(".board-column") ]
+            .find(column => [ ...column.querySelectorAll(".board-note") ]
+                .some(card => card.textContent?.includes(title)))
+            ?.getAttribute("data-column");
+
+        await draw();
+        expect(columnOf("First")).toBe("To Do");
+
+        for (const attribute of froca.getNoteFromCache("split1")?.getAttributes() ?? []) {
+            if (attribute.name === "status") attribute.value = "Done";
+        }
+        await draw();
+        expect(columnOf("First")).toBe("Done");
+
+        appContext.tabManager = previousTabManager;
     });
 });
 
@@ -1102,7 +1192,8 @@ describe("Board column rename", () => {
         expect(sections.map(section => section.titleKey)).toEqual([
             "board_view.hints.navigation",
             "board_view.hints.editing",
-            "board_view.hints.moving"
+            "board_view.hints.moving",
+            "board_view.hints.selection"
         ]);
         // Every key the board answers for is spoken for, and none it does not.
         expect(sections.flatMap(section => section.hints)).toEqual([
@@ -1133,7 +1224,9 @@ describe("Board column rename", () => {
             {
                 keys: [ "Ctrl+Alt+Home", "Ctrl+Alt+End" ],
                 labelKey: "board_view.hints.move_column_to_edge"
-            }
+            },
+            { keys: [ "Ctrl+A" ], labelKey: "board_view.hints.select_column" },
+            { keys: [ "Escape" ], labelKey: "board_view.hints.clear_selection" }
         ]);
     });
 
@@ -2263,7 +2356,15 @@ describe("Board column rename", () => {
 
         // Stored on the board, so the next editor opens on it as well.
         expect(saved.at(-1)?.template).toBe("type:canvas:application/json");
-        expect([ ...(menu?.querySelectorAll(".dropdown-item") ?? []) ]
+
+        // Picking closes the menu, as any dropdown item click does; open it again to read the tick.
+        await act(async () => {
+            pill.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+            $(pill.closest(".dropdown") as HTMLElement).trigger("show.bs.dropdown");
+            await flush();
+        });
+        const reopened = [ ...document.querySelectorAll<HTMLElement>(".card-template-pill") ].at(-1);
+        expect([ ...(reopened?.querySelectorAll(".dropdown-item") ?? []) ]
             .map(item => !!item.querySelector(".card-template-current")))
             .toEqual([ false, false, true, false, false ]);
 
@@ -3122,6 +3223,83 @@ describe("Board editors and menus", () => {
         await act(async () => { await flush(); });
     }
 
+    /**
+     * The backdrop and the frozen cards are driven by classes rather than by `:has()`: a `:has()`
+     * naming a descendant makes every card insertion invalidate the whole board.
+     */
+    it("marks the board and the one column while a card title is being edited", async () => {
+        const board = await renderBoard();
+        const view = board.querySelector<HTMLElement>(".board-view");
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const card = columns[0]?.querySelector<HTMLElement>(".board-note");
+        if (!view || !card || columns.length < 2) throw new Error("expected a card in two columns");
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "F2", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(true);
+        expect(columns[0].classList.contains("editing-open")).toBe(true);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+
+        const editor = card.querySelector<HTMLTextAreaElement>("textarea");
+        if (!editor) throw new Error("expected the card editor to be open");
+
+        await act(async () => {
+            editor.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+        expect(columns[0].classList.contains("editing-open")).toBe(false);
+    });
+
+    it("marks a field opened between cards, and leaves the one at a column's foot unmarked", async () => {
+        const board = await renderBoard();
+        const view = board.querySelector<HTMLElement>(".board-view");
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const card = columns[0]?.querySelector<HTMLElement>(".board-note");
+        if (!view || !card || columns.length < 2) throw new Error("expected a card in two columns");
+
+        await act(async () => {
+            card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+            await flush();
+        });
+
+        expect(board.querySelector(".board-new-item.inserting")).toBeTruthy();
+        expect(view.classList.contains("editing-open")).toBe(true);
+        expect(columns[0].classList.contains("editing-open")).toBe(true);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+
+        const field = columns[0].querySelector<HTMLTextAreaElement>(
+            ".board-new-item.inserting textarea");
+        if (!field) throw new Error("expected the insert field to be open");
+
+        await act(async () => {
+            field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            await flush();
+        });
+
+        expect(view.classList.contains("editing-open")).toBe(false);
+
+        // The field below a column makes a card the same way but leaves the board undimmed.
+        const footer = columns[1].querySelector<HTMLElement>(".board-new-item");
+        if (!footer) throw new Error("expected the column footer");
+
+        await act(async () => {
+            footer.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            await flush();
+        });
+
+        expect(footer.classList.contains("editing")).toBe(true);
+        expect(footer.classList.contains("inserting")).toBe(false);
+        expect(view.classList.contains("editing-open")).toBe(false);
+        expect(columns[1].classList.contains("editing-open")).toBe(false);
+    });
+
     async function renderBoard() {
         const note = buildNote({
             title: "Board",
@@ -3290,5 +3468,867 @@ describe("the promoted attributes a card shows", () => {
     function pills() {
         return [ ...container.querySelectorAll(".board-note .user-attribute") ]
             .map(element => element.textContent);
+    }
+});
+
+describe("Board filtering", () => {
+    let container: HTMLElement;
+    let host: Component;
+
+    afterEach(() => {
+        vi.useRealTimers();
+        saved.length = 0;
+        render(null, container);
+        container.remove();
+    });
+
+    /** A board of four cards over two columns, opened with a stored filter query. */
+    async function setup({ matched, tokens = [], limit }: {
+        matched: string[];
+        tokens?: { token: string; type: "plain" }[];
+        limit?: number;
+    }) {
+        searchInSubtree.mockReset();
+        searchInSubtree.mockResolvedValue({
+            searchResultNoteIds: matched,
+            highlightedTokens: tokens,
+            error: null
+        });
+
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { id: "filtered1", title: "First", "#status": "To Do" },
+                { id: "filtered2", title: "Second", "#status": "To Do" },
+                { id: "filtered3", title: "Third", "#status": "To Do" },
+                { id: "filtered4", title: "Fourth", "#status": "Done" }
+            ]
+        });
+
+        host = new Component();
+        container = document.body.appendChild(document.createElement("div"));
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [ { value: "To Do", ...(limit ? { limit } : {}) },
+                                { value: "Done" } ],
+                            filterQuery: "#urgent"
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                container
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        return note;
+    }
+
+    function cardTitles(column: number) {
+        const columns = [ ...container.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(el => el.textContent);
+    }
+
+    /** A branch change under the board, which is what re-runs an active filter. */
+    function branchChange(parentNoteId: string, noteId: string) {
+        const results = new LoadResults([ {
+            entityName: "branches",
+            entityId: "branch1",
+            entity: { branchId: "branch1", parentNoteId, noteId }
+        } as never ]);
+        results.addBranch("branch1", "other");
+        return results;
+    }
+
+    /**
+     * The move is drawn at once, into the unfiltered map. Counting the place among the shown cards
+     * instead puts the card partway up the column, and it jumps to the end when the write lands.
+     */
+    it("sends a card to the end of the column, not to the end of what the filter shows", async () => {
+        // "To Do" holds three cards and shows one, so the two counts are far enough apart to tell
+        // which of them the move used.
+        await setup({ matched: [ "filtered3", "filtered4" ] });
+        expect(cardTitles(0)).toEqual([ "Third" ]);
+        expect(cardTitles(1)).toEqual([ "Fourth" ]);
+
+        const carried = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            ?.querySelector<HTMLElement>(".board-note");
+        if (!carried) throw new Error("expected a card in the second column");
+
+        carried.focus();
+        await act(async () => {
+            carried.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "ArrowLeft", ctrlKey: true, bubbles: true, cancelable: true
+            }));
+            await flush();
+        });
+
+        // Drawn behind the card already shown, which is where the end of the column is.
+        expect(cardTitles(0)).toEqual([ "Third", "Fourth" ]);
+    });
+
+    it("shows only the matched cards, in their own order, keeping every column", async () => {
+        // The matches arrive in score order; the board must keep branch order regardless.
+        const note = await setup({ matched: [ "filtered3", "filtered1" ] });
+
+        expect(searchInSubtree).toHaveBeenCalledWith("#urgent", note.noteId);
+        expect(cardTitles(0)).toEqual([ "First", "Third" ]);
+        expect(cardTitles(1)).toEqual([]);
+        expect(container.querySelectorAll(".board-column")).toHaveLength(2);
+    });
+
+    it("counts the visible cards in the badge while the limit reads the real column", async () => {
+        await setup({ matched: [ "filtered1" ], limit: 2 });
+
+        const column = container.querySelector(".board-column");
+        // One of three cards is shown, and three stand against the limit of two.
+        expect(column?.querySelector(".counter-badge")?.textContent).toBe("1/2");
+        expect(column?.classList.contains("over-limit")).toBe(true);
+    });
+
+    /**
+     * The cards drawn are derived from what the filter matches rather than held beside it, so a
+     * re-run's answer cannot be left unapplied by whatever else the board is doing at the time.
+     */
+    it("draws what a re-run matches", async () => {
+        const note = await setup({ matched: [ "filtered1" ] });
+        expect(cardTitles(0)).toEqual([ "First" ]);
+
+        searchInSubtree.mockResolvedValue({
+            searchResultNoteIds: [ "filtered2", "filtered3" ],
+            highlightedTokens: [],
+            error: null
+        });
+
+        // A change under the board re-runs the filter, after the wait that collects a run of them.
+        vi.useFakeTimers();
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded", {
+                loadResults: branchChange(note.noteId, "filtered2")
+            });
+            await vi.advanceTimersByTimeAsync(400);
+        });
+
+        expect(cardTitles(0)).toEqual([ "Second", "Third" ]);
+    });
+
+    /**
+     * A board opened onto a stored query draws nothing until the query has said what it matches,
+     * rather than drawing every card and then taking most of them away.
+     */
+    it("draws no cards until the stored query has resolved", async () => {
+        let resolveSearch: (response: unknown) => void = () => {};
+        searchInSubtree.mockReset();
+        searchInSubtree.mockReturnValue(
+            new Promise(resolve => { resolveSearch = resolve; }) as never);
+
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { id: "held1", title: "First", "#status": "To Do" },
+                { id: "held2", title: "Second", "#status": "To Do" }
+            ]
+        });
+
+        host = new Component();
+        container = document.body.appendChild(document.createElement("div"));
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [ { value: "To Do" } ],
+                            filterQuery: "#urgent"
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                container
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        expect(container.querySelectorAll(".board-column")).toHaveLength(0);
+        expect(container.querySelectorAll(".board-note")).toHaveLength(0);
+
+        await act(async () => {
+            resolveSearch({
+                searchResultNoteIds: [ "held2" ],
+                highlightedTokens: [],
+                error: null
+            });
+            await flush();
+        });
+        await act(async () => { await flush(); });
+
+        expect(cardTitles(0)).toEqual([ "Second" ]);
+    });
+
+    it("marks the matched tokens in the card titles", async () => {
+        await setup({
+            matched: [ "filtered1" ],
+            tokens: [ { token: "First", type: "plain" } ]
+        });
+
+        const marks = [ ...container.querySelectorAll(".board-note .title .ck-find-result") ];
+        expect(marks.map(el => el.textContent)).toEqual([ "First" ]);
+    });
+});
+
+describe("a column that sorts its cards", () => {
+    let container: HTMLElement | undefined;
+
+    beforeEach(() => {
+        vi.spyOn(server, "post").mockImplementation(async (url) =>
+            (url === "notes/metadata" ? {} : undefined));
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws the sorted column in its own order and the others in branch order", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+        expect(cardTitlesIn(board, 1)).toEqual([ "Zulu", "Yankee" ]);
+    });
+
+    it("draws it backwards when the column asks for that", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("leaves every column in branch order while none of them sorts", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("asks for no creation dates at all while no column sorts", async () => {
+        await renderSortedBoard({});
+
+        expect(server.post).not.toHaveBeenCalledWith("notes/metadata", expect.anything());
+    });
+
+    it("draws the column again when a title it sorts by changes", async () => {
+        const { board, host, cards } = await renderSortedBoard({ orderBy: "title" });
+
+        cards.beta.title = "Omega";
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded",
+                { loadResults: noteRenamed(cards.beta.noteId, "Omega") });
+            await flush();
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Delta", "Omega" ]);
+    });
+
+    it("sorts by a promoted attribute, keeping the cards that have no value last", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)": "promoted,single,number",
+            values: { Alpha: "3", Beta: "1" }
+        });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
+    it("sorts a select by the order its own definition offers the options in", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "attr:priority" }, {
+            "#label:priority(inheritable)":
+                "promoted,alias=Priority,single,select,options=Low;Medium;High;Urgent",
+            values: { Delta: "Urgent", Beta: "Low", Alpha: "High" }
+        });
+
+        // Alphabetically this would read High, Low, Urgent.
+        expect(cardTitlesIn(board, 0)).toEqual([ "Beta", "Alpha", "Delta" ]);
+    });
+
+    it("reorders the column as soon as the sort is picked from its menu", async () => {
+        const { board } = await renderSortedBoard({});
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-text");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+
+        await pickSort(board, "bx bx-sort-down");
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+
+        await pickSort(board, "bx bx-move-vertical");
+        expect(saved.at(-1)?.columns?.[0])
+            .toStrictEqual({ value: "To Do", orderBy: "manual", descendingOrder: true });
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+    });
+
+    it("shows no sort button while the column is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({});
+
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    it("shows the way the order runs, and turns the arrow over for a descending one", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+
+        // `ActionButton` puts the icon on the button itself.
+        expect(sortButton(board)?.classList.contains("bx-sort-up")).toBe(true);
+        // Only the sorted column carries one.
+        expect(board.querySelectorAll(".board-column h3 .column-sort")).toHaveLength(1);
+
+        const descending = await renderSortedBoard({ orderBy: "title", descendingOrder: true });
+        expect(sortButton(descending.board)?.classList.contains("bx-sort-down")).toBe(true);
+    });
+
+    it("draws a column stored as default in the board's own order, button and all", async () => {
+        const { board } = await renderSortedBoard(
+            { orderBy: "default" }, undefined, { orderBy: "title" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Alpha", "Beta", "Delta" ]);
+        // The button says the column is sorted, whichever order it took.
+        expect(sortButton(board)?.classList.contains("bx-sort-up")).toBe(true);
+
+        const backwards = await renderSortedBoard(
+            { orderBy: "default" }, undefined, { orderBy: "title", isDescending: true });
+        expect(cardTitlesIn(backwards.board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+        expect(sortButton(backwards.board)?.classList.contains("bx-sort-down")).toBe(true);
+    });
+
+    /** The board holding no order of its own leaves such a column as the reader arranged it. */
+    it("leaves a column stored as default alone while the board holds no order", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "default" });
+
+        expect(cardTitlesIn(board, 0)).toEqual([ "Delta", "Beta", "Alpha" ]);
+        expect(sortButton(board)).toBeNull();
+    });
+
+    it("opens the sort menu, and takes the column away once it is arranged by hand", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+
+        sortButton(board)?.click();
+        const items = show.mock.calls.at(-1)?.[0].items ?? [];
+        expect(items.map(item => (item && "uiIcon" in item ? item.uiIcon : "separator")))
+            .toEqual([
+                "bx bx-collection", "bx bx-move-vertical", "bx bx-text", "bx bx-calendar-plus",
+                "separator", "bx bx-sort-up", "bx bx-sort-down"
+            ]);
+        show.mockRestore();
+
+        // Picking the manual order is what takes the button away.
+        await pickSort(board, "bx bx-move-vertical");
+        expect(board.querySelector(".board-column h3 .column-sort")).toBeNull();
+    });
+
+    /** A keyboard press carries no pointer position, which would put the menu at the origin. */
+    it("opens the menu against the button when a keyboard presses it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title" });
+        const button = sortButton(board);
+        if (!button) throw new Error("expected a sort button");
+        button.getBoundingClientRect = () =>
+            ({ right: 320, bottom: 48 }) as DOMRect;
+
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        // `detail` is 0 for the click a keyboard synthesises, and the coordinates are 0 with it.
+        button.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+
+        expect(show.mock.calls.at(-1)?.[0]).toMatchObject({ x: 320, y: 48 });
+        show.mockRestore();
+    });
+
+    /** A strip is too narrow to work in, and the menu would stand where it is about to widen. */
+    it("shows the button on a strip, with nothing to be done to it", async () => {
+        const { board } = await renderSortedBoard({ orderBy: "title", collapsed: true });
+
+        expect(board.querySelector(".board-column.collapsed")).toBeTruthy();
+        expect(sortButton(board)?.hasAttribute("disabled")).toBe(true);
+    });
+
+    /** The button the first column shows, which is the only sorted one in these boards. */
+    function sortButton(board: HTMLElement) {
+        return board.querySelector<HTMLElement>(".board-column h3 .column-sort");
+    }
+
+    /** Opens the first column's menu and picks the sort entry carrying the given icon. */
+    async function pickSort(board: HTMLElement, icon: string) {
+        const show = vi.spyOn(contextMenu, "show").mockImplementation(async () => {});
+        board.querySelector(".board-column h3")
+            ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+        const sort = (show.mock.calls.at(-1)?.[0].items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === "bx bx-sort-alt-2");
+        if (!sort || !("items" in sort)) throw new Error("expected a sort entry");
+
+        const entry = (sort.items ?? []).find(item =>
+            item && "uiIcon" in item && item.uiIcon === icon);
+        if (!entry || !("handler" in entry)) throw new Error(`expected a ${icon} entry`);
+
+        await act(async () => {
+            entry.handler?.(entry, {} as never);
+            await flush();
+        });
+        show.mockRestore();
+    }
+
+    /** The note row a rename produces, which is what the card reads its new title from. */
+    function noteRenamed(noteId: string, title: string) {
+        const results = new LoadResults([ {
+            entityName: "notes",
+            entityId: noteId,
+            entity: { noteId, title }
+        } as never ]);
+        results.addNote(noteId, "other");
+        return results;
+    }
+
+    function cardTitlesIn(board: HTMLElement, column: number) {
+        const columns = [ ...board.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(el => el.textContent);
+    }
+
+    async function renderSortedBoard(
+        sort: { orderBy?: string, descendingOrder?: boolean, collapsed?: boolean },
+        promoted?: { "#label:priority(inheritable)": string, values: Record<string, string> },
+        /** The order the board holds, which a column stored as `default` takes. */
+        boardSort?: { orderBy: string, isDescending?: boolean }
+    ) {
+        const priorities = promoted?.values ?? {};
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            ...(boardSort
+                ? {
+                    "#sortColumns": boardSort.orderBy,
+                    ...(boardSort.isDescending ? { "#sortColumnsDescending": "" } : {})
+                }
+                : {}),
+            ...(promoted
+                ? { "#label:priority(inheritable)": promoted["#label:priority(inheritable)"] }
+                : {}),
+            children: [
+                { title: "Delta", "#status": "To Do", ...priorityOf("Delta") },
+                { title: "Beta", "#status": "To Do", ...priorityOf("Beta") },
+                { title: "Alpha", "#status": "To Do", ...priorityOf("Alpha") },
+                { title: "Zulu", "#status": "Done" },
+                { title: "Yankee", "#status": "Done" }
+            ]
+        });
+
+        function priorityOf(title: string): Record<string, string> {
+            return priorities[title] ? { "#priority": priorities[title] } : {};
+        }
+
+        const host = new Component();
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [ { value: "To Do", ...sort }, { value: "Done" } ]
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        const byTitle = Object.fromEntries([ ...note.getChildNoteIds() ]
+            .map(noteId => froca.notes[noteId])
+            .map(child => [ child.title.toLowerCase(), child ]));
+
+        return { board: mountPoint, host, cards: byTitle };
+    }
+});
+
+describe("Switchable board grouping", () => {
+    let container: HTMLElement | undefined;
+
+    afterEach(() => {
+        saved.length = 0;
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    /** Columns stored for the default grouping and for `priority`, each with its own icons. */
+    const CONFIG: BoardViewData = {
+        columns: [ { value: "To Do" }, { value: "Done", icon: "bx bx-check" } ],
+        priorityViewColumns: [ { value: "High", icon: "bx bx-up-arrow" }, { value: "Low" } ]
+    };
+
+    async function setup(config: BoardViewData = CONFIG) {
+        // `buildNote` appends to whatever the cache already holds for the id, so the previous
+        // test's definitions, and the grouping it switched to, would still be on the note.
+        delete noteAttributeCache.attributes["switchBoard"];
+
+        const note = buildNote({
+            id: "switchBoard",
+            title: "Board",
+            // The header the dropdown stands in is drawn for a collection note alone.
+            type: "book",
+            "#collection": "",
+            "#viewType": "board",
+            "#board:groupBy": "status",
+            "#label:status(inheritable)": "promoted,alias=Status,single,select,options=To Do;Done",
+            "#label:priority(inheritable)": "promoted,alias=Priority,single,select,options=High;Low",
+            children: [
+                { title: "First", "#status": "To Do", "#priority": "High" },
+                { title: "Second", "#status": "Done", "#priority": "Low" }
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        const host = new Component();
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={config}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        return { note, container: mountPoint, host };
+    }
+
+    /** Writes `#board:groupBy`, the way the dropdown does, and lets the board catch up. */
+    async function groupBy(note: ReturnType<typeof buildNote>, host: Component, value: string) {
+        const attribute = note.getAttributes().find(attr => attr.name === "board:groupBy");
+        if (!attribute) throw new Error("expected the board to carry #board:groupBy");
+        attribute.value = value;
+
+        const results = new LoadResults([ {
+            entityName: "attributes",
+            entityId: "groupByAttr",
+            entity: {
+                attributeId: "groupByAttr",
+                noteId: "switchBoard",
+                type: "label",
+                name: "board:groupBy",
+                value
+            }
+        } as never ]);
+        results.addAttribute("groupByAttr", "other");
+
+
+        await act(async () => {
+            await host.handleEvent("entitiesReloaded", { loadResults: results });
+            await flush();
+        });
+        // The switch is committed on one pass and stored on the next.
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+    }
+
+    function cardTitles(board: HTMLElement, column: number) {
+        const columns = [ ...board.querySelectorAll(".board-column") ];
+        return [ ...columns[column].querySelectorAll(".board-note .title") ]
+            .map(title => title.textContent);
+    }
+
+    it("names the grouping in force and re-groups the cards when it changes", async () => {
+        const { note, container, host } = await setup();
+
+        expect(container.querySelector(".board-group-by button")?.textContent).toContain("Status");
+        expect(columnTitles(container)).toEqual([ "To Do", "Done" ]);
+
+        await groupBy(note, host, "priority");
+
+        expect(container.querySelector(".board-group-by button")?.textContent)
+            .toContain("Priority");
+        expect(columnTitles(container)).toEqual([ "High", "Low" ]);
+        // Drawn from the new grouping's own entries, not from the ones it replaced.
+        expect(columnIcons(container)).toEqual([ "bx bx-up-arrow", DEFAULT_COLUMN_ICON ]);
+        expect(cardTitles(container, 0)).toEqual([ "First" ]);
+    });
+
+    /**
+     * The board reads the new grouping before it is pointed at it. A write made from that read
+     * would put the columns it is leaving under the key of the one it is arriving at.
+     */
+    it("stores the new grouping's columns under its own key and nowhere else", async () => {
+        // Nothing stored for `priority`, so the switch is what gives it a column list.
+        const { note, host } = await setup({ columns: CONFIG.columns });
+        saved.length = 0;
+
+        await groupBy(note, host, "priority");
+
+        expect(saved.length).toBeGreaterThan(0);
+        for (const config of saved) {
+            expect(config.priorityViewColumns?.map(col => col.value)).toEqual([ "High", "Low" ]);
+            expect(config.columns).toEqual(CONFIG.columns);
+        }
+    });
+
+    it("leaves the grouping it left exactly as it was", async () => {
+        const { note, container, host } = await setup();
+
+        await groupBy(note, host, "priority");
+        await groupBy(note, host, "status");
+
+        expect(columnTitles(container)).toEqual([ "To Do", "Done" ]);
+        expect(columnIcons(container)).toEqual([ DEFAULT_COLUMN_ICON, "bx bx-check" ]);
+        expect(saved.at(-1)?.columns ?? CONFIG.columns).toEqual(CONFIG.columns);
+    });
+
+    /**
+     * Before the grouping could be switched, every board stored its columns under `columns`. Read
+     * as the default grouping's, they would follow the board onto whatever it is switched to next.
+     */
+    it("moves a pre-switching column list under the grouping it belongs to", async () => {
+        const note = buildNote({
+            id: "legacyBoard",
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            "#board:groupBy": "priority",
+            children: [
+                { title: "First", "#priority": "High" },
+                { title: "Second", "#priority": "Low" }
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{
+                            columns: [
+                                { value: "Low", icon: "bx bx-down-arrow" }, { value: "High" }
+                            ]
+                        }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+        await act(async () => { await flush(); });
+
+        expect(saved.at(-1)?.priorityViewColumns?.map(col => col.value)).toEqual([ "Low", "High" ]);
+        expect(saved.at(-1)).not.toHaveProperty("columns");
+        expect(columnTitles(mountPoint)).toEqual([ "Low", "High" ]);
+        expect(columnIcons(mountPoint)).toEqual([ "bx bx-down-arrow", DEFAULT_COLUMN_ICON ]);
+    });
+});
+
+describe("Board properties from the note menu", () => {
+    let container: HTMLElement | undefined;
+
+    afterEach(() => {
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+
+        // A modal Bootstrap still believes is shown traps the focus of every later test, and its
+        // teardown waits on a transition happy-dom never runs.
+        const modal = document.querySelector<HTMLElement>(".board-properties-dialog");
+        if (modal) {
+            BootstrapModal.getInstance(modal)?.dispose();
+            modal.remove();
+        }
+        document.querySelector(".modal-backdrop")?.remove();
+        document.body.classList.remove("modal-open");
+    });
+
+    /**
+     * The menu is drawn outside the board, so it asks for the dialog by event. Each open board
+     * hears it, and only the one in the tab the menu was opened from answers.
+     */
+    it("opens the dialog for its own tab, and not for another one", async () => {
+        const host = await renderBoardInContext("ntx-1");
+        const isOpen = () => !!document.querySelector(".board-properties-dialog .modal-dialog");
+
+        expect(isOpen()).toBe(false);
+
+        await act(async () => {
+            await host.handleEvent("showBoardProperties", { ntxId: "ntx-2" });
+            await flush();
+        });
+        expect(isOpen()).toBe(false);
+
+        await act(async () => {
+            await host.handleEvent("showBoardProperties", { ntxId: "ntx-1" });
+            await flush();
+        });
+        expect(isOpen()).toBe(true);
+    });
+
+    /** Mounts a board belonging to the given tab, returning what events reach it through. */
+    async function renderBoardInContext(ntxId: string) {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                { title: "First", "#status": "To Do" },
+                { title: "Second", "#status": "Done" }
+            ]
+        });
+
+        const host = new Component();
+        Object.assign(host, { noteContext: { ntxId, isActive: () => true } });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={host}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+
+        return host;
+    }
+});
+
+describe("a column windowed for its size", () => {
+    let container: HTMLElement | undefined;
+
+    beforeEach(() => {
+        saved.length = 0;
+        vi.restoreAllMocks();
+        vi.spyOn(server, "put").mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws a slice of a big column and stands spacers for the rest", async () => {
+        const board = await renderSized(200, 3);
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const big = columns[0];
+        const small = columns[1];
+        if (!big || !small) throw new Error("expected two columns");
+
+        const drawn = big.querySelectorAll(".board-note");
+        expect(drawn.length).toBeGreaterThan(0);
+        expect(drawn.length).toBeLessThan(200);
+        expect(big.classList.contains("windowed")).toBe(true);
+
+        const area = big.querySelector<HTMLElement>(".board-column-content");
+        expect(area?.dataset.windowCount).toBe("200");
+        expect(area?.dataset.windowFrom).toBe("0");
+
+        // The cards it is not drawing are held by the spacer below them.
+        const spacers = big.querySelectorAll<HTMLElement>(".board-window-spacer");
+        expect(spacers).toHaveLength(2);
+        expect(spacers[0].style.height).toBe("0px");
+        expect(Number.parseFloat(spacers[1].style.height)).toBeGreaterThan(0);
+
+        // A column that fits keeps the path it has always had.
+        expect(small.classList.contains("windowed")).toBe(false);
+        expect(small.querySelectorAll(".board-note")).toHaveLength(3);
+        expect(small.querySelector<HTMLElement>(".board-column-content")?.dataset.windowCount)
+            .toBeUndefined();
+    });
+
+    /**
+     * The drag and the keyboard both name a card by the place it holds in its column. Counting
+     * drawn elements would name a place among whatever is on screen, which moves as it scrolls.
+     */
+    it("gives each card the place it holds in the column, not among the ones drawn", async () => {
+        const board = await renderSized(200, 3);
+        const drawn = [ ...board.querySelectorAll<HTMLElement>(".board-column-content .board-note") ];
+        const big = drawn.filter((card) => card.closest(".board-column")
+            === board.querySelector(".board-column"));
+
+        expect(big.map((card) => card.dataset.index))
+            .toEqual(big.map((_, index) => String(index)));
+    });
+
+    async function renderSized(big: number, small: number) {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                ...Array.from({ length: big }, (_, i) => ({
+                    title: `Big ${i}`, "#status": "To Do"
+                })),
+                ...Array.from({ length: small }, (_, i) => ({
+                    title: `Small ${i}`, "#status": "Done"
+                }))
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+
+        return mountPoint;
     }
 });

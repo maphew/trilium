@@ -1096,10 +1096,6 @@ table.promoted-attributes-in-tooltip th {
     color: orange;
 }
 
-.multiplicity {
-    font-size: 1.3em;
-}
-
 /* this is because bootstrap (?) sets code color to red for some reason */
 code {
     color: inherit !important;
@@ -1704,6 +1700,15 @@ body.mobile .dropdown-submenu > .dropdown-menu {
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
+}
+
+/* A name the user wrote, boxed by `menuName()`: clipped rather than widening the menu. */
+.dropdown-item .tn-menu-name {
+    display: block;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 body.desktop li.dropdown-submenu:hover > ul.dropdown-menu {

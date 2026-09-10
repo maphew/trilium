@@ -269,6 +269,11 @@ const BUILTIN_ATTRIBUTES = [
     { type: "label", name: "maxNestingDepth", valueType: "number", hasUserValue: true },
     { type: "label", name: "includeArchived", valueType: "boolean", hasUserValue: true },
     { type: "label", name: "enableInboxColumn", valueType: "boolean", hasUserValue: true },
+    // Carried by a card that stands in for another note: opening it navigates there instead.
+    { type: "relation", name: "boardCardRedirectTo" },
+    // The order a board offers for its columns, which its properties apply to every column at once.
+    { type: "label", name: "sortColumns", valueType: "text", hasUserValue: true },
+    { type: "label", name: "sortColumnsDescending", valueType: "boolean", hasUserValue: true },
     // FullCalendar's own view names, which is what the calendar hands back when the view is switched.
     { type: "label", name: "calendar:view", valueType: "select", hasUserValue: true, selectOptions: [
         "timeGridDay", "timeGridWeek", "dayGridMonth", "multiMonthYear", "listMonth"

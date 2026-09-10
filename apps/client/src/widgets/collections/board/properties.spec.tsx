@@ -4,7 +4,9 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type FNote from "../../../entities/fnote";
+import dialogService from "../../../services/dialog";
 import type { PromotedAttribute } from "../promoted_attributes";
+import type { SortKey } from "../sorting";
 import BoardApi from "./api";
 import BoardProperties from "./properties";
 
@@ -56,23 +58,28 @@ describe("Board properties", () => {
     let stored: string[][];
     let storedAttributes: PromotedAttribute[][];
     let toggled: [ string, boolean ][];
-    /** What the board shows, which the General card reads from the note's own labels. */
-    let shownOnBoard: Record<string, boolean>;
+    /** What the board's own labels say, which the General card reads. */
+    let labels: Record<string, string>;
+    /** What the board was asked to do with the order it holds. */
+    let sorting: string[];
+    /** Draws the dialog again, for a test that changed what the board says. */
+    let draw: () => void;
 
     beforeEach(() => {
         stored = [];
         storedAttributes = [];
         toggled = [];
-        shownOnBoard = { enableInboxColumn: false, includeArchived: true };
+        sorting = [];
+        labels = { includeArchived: "true" };
         container = document.createElement("div");
         document.body.appendChild(container);
 
         const board = {
             noteId: "board1",
-            isLabelTruthy: (name: string) => !!shownOnBoard[name],
-            getLabelValue: (name: string) => shownOnBoard[name] ? "true" : "false",
+            isLabelTruthy: (name: string) => !!labels[name] && labels[name] !== "false",
+            getLabelValue: (name: string) => labels[name] ?? null,
             getLabel: () => undefined,
-            hasLabel: (name: string) => name in shownOnBoard
+            hasLabel: (name: string) => name in labels
         } as unknown as FNote;
 
         const api = {
@@ -83,10 +90,22 @@ describe("Board properties", () => {
             getStoredPromotedAttributes: () => [ { name: "dueDate" }, { name: "owner" } ],
             setPromotedAttributes: async (attributes: PromotedAttribute[]) => {
                 storedAttributes.push(attributes);
-            }
+            },
+            getPromotedAttributes: () => [ { name: "dueDate", title: "Due" } ],
+            getDefaultSort: () => ({
+                orderBy: labels.sortColumns as SortKey | undefined,
+                isDescending: !!labels.sortColumnsDescending
+            }),
+            setDefaultSort: async (orderBy: SortKey | undefined) => {
+                sorting.push(`sort:${orderBy ?? "none"}`);
+            },
+            setDefaultSortDirection: async (isDescending: boolean) => {
+                sorting.push(`descending:${isDescending}`);
+            },
+            resetColumnSortsToDefault: async () => { sorting.push("reset"); }
         } as unknown as BoardApi;
 
-        act(() => {
+        draw = () => act(() => {
             render(
                 <BoardProperties
                     api={api}
@@ -96,6 +115,7 @@ describe("Board properties", () => {
                 />,
                 container);
         });
+        draw();
     });
 
     afterEach(() => {
@@ -131,9 +151,10 @@ describe("Board properties", () => {
     describe("what the board shows", () => {
         /** Both were on the board's own menu; the inbox column is now offered only here. */
         it("draws a segment for each, reading what the board's labels say", () => {
-            const rows = general()?.querySelectorAll(".tn-card-section") ?? [];
+            const rows = general()
+                ?.querySelectorAll(".tn-card-section:not(.tn-card-section-nested)") ?? [];
 
-            expect(rows.length).toBe(2);
+            expect(rows.length).toBe(3);
             expect(toggleAt(0)?.classList.contains("on")).toBe(false);
             expect(toggleAt(1)?.classList.contains("on")).toBe(true);
         });
@@ -145,12 +166,54 @@ describe("Board properties", () => {
             expect(toggled).toEqual([ [ "inbox", true ], [ "archived", false ] ]);
         });
 
-        function general() {
-            return dialog()?.querySelector<HTMLElement>(".board-properties-general");
-        }
-
         function toggleAt(index: number) {
             return general()?.querySelectorAll<HTMLElement>(".switch-button")[index];
+        }
+    });
+
+    describe("the order it offers its columns", () => {
+        it("names the order the board holds, and which way it runs", () => {
+            expect(picker()?.textContent).toContain("board_view.sort-manually");
+            expect(picker()?.querySelector(".bx-sort-up")).toBeTruthy();
+        });
+
+        it("names the attribute as the board names it, and turns the arrow over", () => {
+            labels = { sortColumns: "attr:dueDate", sortColumnsDescending: "true" };
+            // Drawn afresh: the labels are read as the card mounts, and a redraw of the same card
+            // would keep what it read the first time.
+            act(() => { render(null, container); });
+            draw();
+
+            expect(picker()?.textContent).toContain("Due");
+            expect(picker()?.querySelector(".bx-sort-down")).toBeTruthy();
+        });
+
+        it("carries a link under the picker for putting the columns back to it", async () => {
+            const confirm = vi.spyOn(dialogService, "confirm").mockResolvedValue(true);
+            const link = resetLink();
+
+            expect(link?.textContent).toContain("board_view.reset-column-sorting");
+
+            await act(async () => { link?.click(); });
+
+            expect(confirm).toHaveBeenCalledWith("board_view.reset-column-sorting-confirm");
+            expect(sorting).toEqual([ "reset" ]);
+        });
+
+        it("leaves the orders alone when the prompt is declined", async () => {
+            vi.spyOn(dialogService, "confirm").mockResolvedValue(false);
+
+            await act(async () => { resetLink()?.click(); });
+
+            expect(sorting).toEqual([]);
+        });
+
+        function picker() {
+            return general()?.querySelector<HTMLElement>(".board-sort-picker");
+        }
+
+        function resetLink() {
+            return general()?.querySelector<HTMLElement>(".board-sort-reset");
         }
     });
 
@@ -177,5 +240,9 @@ describe("Board properties", () => {
 
     function dialog() {
         return document.querySelector<HTMLElement>(".board-properties-dialog");
+    }
+
+    function general() {
+        return dialog()?.querySelector<HTMLElement>(".board-properties-general");
     }
 });

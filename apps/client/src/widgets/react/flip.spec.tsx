@@ -110,13 +110,88 @@ describe("useFlip", () => {
         expect(second.style.transform).toBe("translateY(-45px)");
     });
 
-    it("says nothing while it is switched off", async () => {
-        const items = await draw([ "a", "b" ], { disabled: true });
+    it("says nothing while it is switched off, and reads no places either", async () => {
+        let reads = 0;
+        Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+            configurable: true,
+            get(this: HTMLElement) { reads++; return this.parentElement; }
+        });
+
+        const options = { disabled: true };
+        const items = await draw([ "a", "b" ], options);
+        reads = 0;
 
         place(items(), [ 0, 90 ]);
         await settle();
-
+        expect(reads).toBe(0);
         expect(items()[1].style.transform).toBe("");
+
+        // Switched back on, the first commit only records: where the children stood while nobody
+        // was watching is not where they came from.
+        options.disabled = false;
+        await settle();
+        expect(reads).toBeGreaterThan(0);
+        expect(items()[1].style.transform).toBe("");
+
+        place(items(), [ 0, 140 ]);
+        await settle();
+        expect(items()[1].style.transform).toBe("translateY(-50px)");
+    });
+
+    it("keeps the places it knows while it is paused, and slides from them when it resumes", async () => {
+        let reads = 0;
+        Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+            configurable: true,
+            get(this: HTMLElement) { reads++; return this.parentElement; }
+        });
+
+        const options: Partial<FlipOptions> = {};
+        const items = await draw([ "a", "b" ], options);
+
+        options.paused = true;
+        await settle();
+        reads = 0;
+
+        // Moved while nobody is measuring, then followed again: the place recorded before the
+        // pause is where the child came from, so the move it made is the one that is drawn.
+        place(items(), [ 0, 90 ]);
+        await settle();
+        expect(reads).toBe(0);
+        expect(items()[1].style.transform).toBe("");
+
+        options.paused = false;
+        await settle();
+        expect(items()[1].style.transform).toBe("translateY(-90px)");
+    });
+
+    it("calls off a growth it can no longer follow", async () => {
+        vi.useFakeTimers();
+        const options: Partial<FlipOptions> = { grow: true };
+        const items = await draw([ "a" ], options);
+
+        keys.push("b");
+        await settle();
+        expect(items()[1].style.height).toBe("0px");
+
+        // Switched off part-way through: the frame the growth ends on would otherwise measure the
+        // children, which is what being switched off is there to stop.
+        options.disabled = true;
+        await settle();
+        let reads = 0;
+        Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+            configurable: true,
+            get(this: HTMLElement) { reads++; return this.parentElement; }
+        });
+        vi.advanceTimersByTime(SETTLE_AFTER_MS);
+        expect(reads).toBe(0);
+
+        // The growth is over as far as the hook is concerned, so a move made once it is followed
+        // again is drawn rather than held back as part of a settling that never ends.
+        options.disabled = false;
+        await settle();
+        place(items(), [ 0, 60 ]);
+        await settle();
+        expect(items()[1].style.transform).toBe("translateY(-60px)");
     });
 
     describe("opening out what was not there", () => {

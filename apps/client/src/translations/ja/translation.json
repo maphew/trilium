@@ -730,7 +730,7 @@
     "limit-capacity": "列の容量超過時に警告する",
     "limit-count": "列内の最大ノート数",
     "collapse-column": "列を折りたたむ",
-    "edit-title": "タイトルを編集",
+    "edit-title": "タイトルとアイコンを編集",
     "move-to-top": "一番上へ移動",
     "create-new-note": "ノートを作成",
     "create-new-column": "列を作成",
@@ -740,7 +740,33 @@
     "create-column-at-start": "先頭に列を作成",
     "create-column-at-end": "末尾に列を作成",
     "keep-column-collapsed": "列を折りたたんだままにする",
-    "collapse-hint": "ダブルクリックで折りたたむ"
+    "collapse-hint": "ダブルクリックで折りたたむ",
+    "more-columns": "その他のステータス…",
+    "collapse-all-columns": "すべての列を折りたたむ",
+    "expand-all-columns": "すべての列を展開",
+    "show-inbox-column": "インボックス列を表示",
+    "show-archived-notes": "アーカイブされたカード / 列を表示",
+    "more-templates": "その他のテンプレート…",
+    "card-template": "カードテンプレートを選択",
+    "change-note-icon": "アイコンを変更",
+    "general": "一般",
+    "show-archived": "アーカイブされたカードと列を表示",
+    "properties": "ボードのプロパティ",
+    "properties-title": "ボードのプロパティ",
+    "card-templates": "カードテンプレート",
+    "card-templates-hint": "新しいボードカードを作成する際に使用するノートタイプとノートテンプレートを選択してください。",
+    "promoted-attributes": "カードの属性",
+    "promoted-attributes-hint": "カードに表示する属性を選択し、表示順序をドラッグして並べ替えます。",
+    "new-template-name": "新しいカードテンプレート",
+    "filter-placeholder": "ボードをフィルター…",
+    "card-outside-filter": "このカードは現在のフィルタリング範囲外です",
+    "sort": "並べ替え",
+    "sort-manually": "手動",
+    "sorted-no-reorder": "並べ替えが適用されている列のため、カードの順序を変更することはできません。",
+    "insert-new": "新しく追加",
+    "group-by": "カードのグループ化",
+    "grouping-already-defined": "\"{{- name}}\" はこのボード上で既に定義されています。リストから選択してグループ化してください。",
+    "sort-board-default": "ボードのデフォルト"
   },
   "code_buttons": {
     "execute_button_title": "スクリプトを実行",
@@ -823,7 +849,9 @@
     "ai-chat": "AI チャット",
     "spreadsheet": "スプレッドシート",
     "llm-chat": "AI チャット",
-    "markdown": "マークダウン"
+    "markdown": "マークダウン",
+    "note-types": "ノートタイプ",
+    "built-in-templates": "組み込みテンプレート"
   },
   "edited_notes": {
     "no_edited_notes_found": "この日の編集されたノートはまだありません...",
@@ -1620,14 +1648,17 @@
     "ai_quick_action": "このノートをテキストエディタの AI アシスタントメニューの指示として表示されます。タイトルがアクション名になり、内容がプロンプトになります。",
     "template_new_note_default_parent": "テンプレートノートに設定した場合: テンプレートから作成されたノート（例: @補完機能によるもの）は、明示的に別の場所が選択されない限り、対象のノートの配下に配置されます。",
     "custom_font": "Trilium のオプションにあるフォント選択画面で、ノートのタイトルの下に表示されるフォントファイルを指定します。",
-    "enable_inbox_column": "ボードコレクションの場合、インボックス列が表示され、ボード列に割り当てられていないすべての子ノートが一覧表示されます。"
+    "enable_inbox_column": "ボードコレクションの場合、インボックス列が表示され、ボード列に割り当てられていないすべての子ノートが一覧表示されます。",
+    "sort_columns": "ボードコレクションにおいて、列がカードを並べ替える際の基準となる順序です。列に独自の並べ替え順序が指定されていない限り、この順序が適用されます。<code>title</code>、<code>creationDate</code>、または <code>attr:</code> に続けて昇格(プロモート)された属性名を指定します。",
+    "sort_columns_descending": "ボードコレクションの場合、<code>#sortColumns</code> で指定された順序を逆順にします。"
   },
   "link_context_menu": {
     "open_note_in_popup": "クイック編集",
     "open_note_in_new_tab": "新しいタブでノートを開く",
     "open_note_in_new_split": "新しく分割してノートを開く",
     "open_note_in_new_window": "新しいウィンドウでノートを開く",
-    "open_note_in_other_split": "他の分割画面でノートを開く"
+    "open_note_in_other_split": "他の分割画面でノートを開く",
+    "open_note": "ノートを開く"
   },
   "note_tooltip": {
     "quick-edit": "クイック編集",
@@ -1726,7 +1757,10 @@
   "search_result": {
     "no_notes_found": "指定された検索パラメータに該当するノートは見つかりませんでした。",
     "search_not_executed": "検索はまだ実行されていません。",
-    "search_now": "今すぐ検索"
+    "search_now": "今すぐ検索",
+    "result_count_other": "{{count}} 件の結果",
+    "page_size": "1 ページあたりの表示数",
+    "snippet_unavailable": "プレビューは利用できません。"
   },
   "sql_result": {
     "no_rows": "このクエリでは行が返されませんでした",
@@ -2009,7 +2043,15 @@
     "remove_value": "この値を削除",
     "select_values_placeholder": "オプションを選択、または作成",
     "values_placeholder": "値を入力して Enter キーを押してください",
-    "add_value": "この値を追加"
+    "add_value": "この値を追加",
+    "create_attribute": "新しい属性を作成",
+    "edit_attribute": "この属性を編集",
+    "delete_attribute": "この属性を削除",
+    "delete_confirmation": "このコレクション内のすべてのノートから <strong>{{name}}</strong> とその値を削除しますか？この操作は元に戻せません。",
+    "shown_on_items": "アイテムに表示",
+    "hidden_from_items": "アイテムから非表示",
+    "label_name": "ラベル: {{name}}",
+    "relation_name": "リレーション: {{name}}"
   },
   "relation_map": {
     "remove_note": "ノートを削除",
@@ -2367,11 +2409,15 @@
   },
   "note_autocomplete": {
     "search-for": "「{{term}}」を検索",
-    "create-note": "子ノート「{{term}}」を作成してリンクする",
+    "create-note": "ノート \"{{term}}\" を作成",
     "insert-external-link": "「{{term}}」への外部リンクを挿入",
     "clear-text-field": "テキストフィールドをクリア",
     "show-recent-notes": "最近のノートを表示",
-    "full-text-search": "全文検索"
+    "full-text-search": "全文検索",
+    "create-note-into": "{{parentTitle}} 内にノート \"{{term}}\" を作成",
+    "create-note-into-day-note": "今日の日ノート内にノート \"{{term}}\" を作成",
+    "create-note-into-root": "トップレベルにノート \"{{term}}\" を作成",
+    "create-child-note": "子ノート \"{{term}}\" を作成"
   },
   "geo-map": {
     "create-child-note-title": "新しい子ノートを作成し、マップに追加する",
@@ -2407,7 +2453,15 @@
     "next-result": "次の結果",
     "result-position": "{{total}} 件中 {{index}} 件目の結果、クリックして戻る",
     "results-on-map": "この地図上",
-    "go-to-coordinates": "{{- coordinates}} へ移動"
+    "go-to-coordinates": "{{- coordinates}} へ移動",
+    "locate": "現在地を表示",
+    "locate-waiting": "現在地を検索中…",
+    "locate-following": "現在地の追跡を停止",
+    "locate-return": "現在地に戻る",
+    "locate-error": "現在地が見つかりませんでした。もう一度押すと検索を停止します。",
+    "locate-unavailable": "現在地情報は利用できません",
+    "location-denied": "位置情報へのアクセスが拒否されました。マップ上に現在地を表示するには、ブラウザまたはシステムの設定で Trilium の位置情報へのアクセスを許可してください。",
+    "location-unavailable": "現在地を特定できませんでした。"
   },
   "geo-map-context": {
     "open-location": "現在位置を表示",
@@ -2445,7 +2499,8 @@
     "cluster-markers": "近くのマーカーをグループ化",
     "presentation-theme": "テーマ",
     "board-inbox-column": "インボックス列を表示",
-    "board-inbox-column-help": "インボックス列を表示します。この列には、どの列にも割り当てられていない子ノートが一覧表示されます。"
+    "board-inbox-column-help": "インボックス列を表示します。この列には、どの列にも割り当てられていない子ノートが一覧表示されます。",
+    "vector_auto": "Vector (自動)"
   },
   "call_to_action": {
     "next_theme_title": "新しいTriliumテーマをお試しください",
@@ -4084,5 +4139,39 @@
     "in_picker": "フォント選択画面に表示",
     "offer_in_picker": "外観設定でこのフォントを使用可能にする",
     "remove_from_picker": "外観設定でこのフォントを使用不可にする"
+  },
+  "template_selection": {
+    "add-existing": "既存のテンプレートを追加",
+    "add-title": "テンプレートを追加",
+    "create": "新しいテンプレートを作成",
+    "new-name": "新しいテンプレート",
+    "menu": "テンプレートメニュー",
+    "remove": "リストから削除"
+  },
+  "item_picker": {
+    "title": "アイテムを選択",
+    "search": "検索…",
+    "nothing-found": "入力した内容に一致する項目が見つかりませんでした。"
+  },
+  "sortable_card": {
+    "reorder": "ドラッグして並べ替え"
+  },
+  "collection_filter": {
+    "placeholder": "フィルター…",
+    "clear": "フィルターを解除",
+    "fetch-error": "フィルターを実行できませんでした。",
+    "submit": "フィルターを適用"
+  },
+  "sorting": {
+    "none": "なし",
+    "title": "タイトル",
+    "creation-date": "作成日時",
+    "ascending": "昇順",
+    "descending": "降順",
+    "default": "デフォルト"
+  },
+  "attribute_menu": {
+    "attributes": "属性",
+    "not-set": "未設定"
   }
 }

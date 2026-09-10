@@ -9,6 +9,7 @@ This note type displays the children notes on a geographical map, based on an at
 *   Search the notes already on the map, and look up places anywhere in the world.
 *   Turn a place the map already shows into a marker by clicking it.
 *   Display tracks on the map using `.gpx` files.
+*   Show your own location on the map and follow it as you move.
 *   3D view of the map, which displays buildings when using a vector map.
 
 ## System requirements
@@ -16,6 +17,8 @@ This note type displays the children notes on a geographical map, based on an at
 Starting with v0.105.0, the geomap uses MapLibre GL which requires WebGL v1 support. In general, most devices will support it because browsers/Electron can render it in software if needed.
 
 If the map could not be drawn because WebGL could not be initialized, an error message will appear instead of the map (_This map can't be drawn because WebGL isn't available…_).
+
+The button that shows your location is offered only when Trilium is reached over HTTPS, in the desktop application or in the mobile application. Browsers refuse to share the location of a device with a page served over plain HTTP, so on such a server the button does not appear.
 
 ## Interaction
 
@@ -25,6 +28,7 @@ If the map could not be drawn because WebGL could not be initialized, an error m
     *   Zoom in/out
         *   On mobile these are hidden, use pinch to zoom instead.
         *   On desktop, alternatively use the scroll wheel to adjust the zoom.
+    *   A button that shows your location on the map and follows it (see _Going to your location_ below).
     *   Full screen button which focuses the entire map onto the screen, while still allowing for edits.
 
 ## Creating a new geo map
@@ -43,6 +47,20 @@ The position on the map and the zoom are saved inside the map note and restored 
 A map that has no position saved yet is framed around the markers it contains when you open it, so they are all in view without having to go looking for them. A map that contains no markers shows the whole world instead.
 
 In practice this applies to maps whose markers were added externally, by a script or through <a class="reference-link" href="../Advanced%20Usage/ETAPI%20(REST%20API).md">ETAPI (REST API)</a>. When you add markers yourself you have already moved the map to reach the place you are marking, and that movement saves a position.
+
+## Going to your location
+
+Press the _Show your location_ button at the bottom-right of the map, beside the zoom buttons. The first time, the browser or the operating system asks whether Trilium may know where the device is. In the desktop application the operating system's location settings decide.
+
+The map then moves to where the device is and marks it with a blue dot. A lighter circle around the dot shows how accurate the position is: a phone with GPS gives a dot on the street, while a computer located through its network connection can give a circle that covers a neighbourhood. The map follows the dot as it moves, and the button stays pressed while it does.
+
+Dragging the map stops it from following. The dot stays and keeps moving, and pressing the button again brings the map back to it. Pressing the button while the map is following turns the dot off.
+
+Click the dot to see its coordinates in the panel a searched place is shown in. From there the position can be kept as a marker (see _Keeping a place as a marker_). Clicking the lighter circle around the dot is a click on the map.
+
+If the position cannot be found, a message says so and the button keeps waiting for one; press it again to stop. If you refuse the permission, the button is disabled until the map is opened again. To allow it after all, change the permission for Trilium in the browser or in the system's location settings.
+
+Your position is not stored in the note, and Trilium does not send it anywhere on its own. Moving the map there does what any other pan or zoom does: the tile provider behind the map's style sees the coordinates of the area now on screen. The map does remember where you left it, as it does after any other movement, so a map you have taken to your location opens there the next time.
 
 ## Searching the map
 

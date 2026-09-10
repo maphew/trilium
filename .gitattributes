@@ -10,6 +10,7 @@ apps/edit-docs/demo/** linguist-vendored=true
 docs/** linguist-vendored=true
 
 # Normalize line endings.
+patches/** eol=lf
 docs/**/*.md eol=lf
 docs/**/*.json eol=lf
 demo/**/*.html eol=lf

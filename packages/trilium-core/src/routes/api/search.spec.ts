@@ -1,4 +1,4 @@
-import { dayjs, type SearchResultDetailsResponse, type TemplatesResponse } from "@triliumnext/commons";
+import { dayjs, type SearchResultDetailsResponse, type SearchWithTokensResponse, type TemplatesResponse } from "@triliumnext/commons";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { createTextNote } from "../../test/api_fixtures";
@@ -28,6 +28,46 @@ describe("Search API (core)", () => {
         expect(res.status).toBe(200);
         expect(Array.isArray(res.body)).toBe(true);
         expect(res.body).toContain(createdNoteId);
+    });
+
+    it("restricts a full search to the given ancestor's subtree", async () => {
+        const token = "ZzScopedSearchQwerty";
+        const board = await createTextNote(api, { title: "Board" });
+        const inside = await createTextNote(api, { parentNoteId: board.noteId, title: `${token} inside` });
+        const outside = await createTextNote(api, { title: `${token} outside` });
+
+        const scoped = await api.get<string[]>(`/api/search/${token}`, {
+            query: { ancestorNoteId: board.noteId }
+        });
+        expect(scoped.status).toBe(200);
+        expect(scoped.body).toContain(inside.noteId);
+        expect(scoped.body).not.toContain(outside.noteId);
+
+        const unscoped = await api.get<string[]>(`/api/search/${token}`);
+        expect(unscoped.body).toContain(inside.noteId);
+        expect(unscoped.body).toContain(outside.noteId);
+    });
+
+    it("returns note ids with token infos and the error when includeTokens is set", async () => {
+        const withTokens = await api.get<SearchWithTokensResponse>(`/api/search/${UNIQUE_TOKEN}`, {
+            query: { includeTokens: "true" }
+        });
+        expect(withTokens.status).toBe(200);
+        expect(withTokens.body.searchResultNoteIds).toContain(createdNoteId);
+        expect(withTokens.body.highlightedTokens).toContainEqual({
+            token: UNIQUE_TOKEN.toLowerCase(),
+            type: "plain"
+        });
+        expect(withTokens.body.error).toBeNull();
+
+        // A query the parser rejects still answers 200, with the parse error in the body for the
+        // client to show inline.
+        const broken = await api.get<SearchWithTokensResponse>(
+            `/api/search/${encodeURIComponent("#label = ")}`,
+            { query: { includeTokens: "true" } }
+        );
+        expect(broken.status).toBe(200);
+        expect(broken.body.error).toBeTruthy();
     });
 
     it("returns structured quick-search results with snippets", async () => {

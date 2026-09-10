@@ -232,7 +232,8 @@
     "inPageSearch": "pesquisa na página",
     "title": "Folha de Dicas",
     "editShortcuts": "Editar atalhos de teclado",
-    "toggleArchivedNotes": "mostrar/esconder notas arquivadas"
+    "toggleArchivedNotes": "mostrar/esconder notas arquivadas",
+    "openAiAssistant": "abrir o assistente de IA na seleção"
   },
   "import": {
     "importIntoNote": "Importar para a nota",

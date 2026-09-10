@@ -14,6 +14,7 @@ import { buildNote } from "../../../test/easy-froca";
 import { TREE_CLIPBOARD_TYPE } from "../../note_tree";
 import { ParentComponent } from "../../react/react_utils";
 import BoardView, { BoardViewData } from ".";
+import { placeCard, settleCards } from "./column";
 
 vi.mock("../../../services/branches", () => ({
     default: {
@@ -61,25 +62,118 @@ describe("Board drag and drop", () => {
         }
     });
 
+    /**
+     * The gap stands outside the column's flow and the cards below it stand aside for it. Carried
+     * among them instead, it changes what the column holds, and the board restyles every element
+     * it holds for that, on every step of a drag.
+     */
     it("marks the card a drop would land before, from where the pointer is", async () => {
         const { columns } = await renderBoard();
 
         // Above the middle of the second card, so the drop lands between the two.
         await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
 
-        const placeholders = [ ...columns[0].querySelectorAll(".board-column-content > *") ]
-            .map(child => child.className);
-        expect(placeholders[1]).toContain("board-drop-placeholder");
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(card => card.style.transform !== "")).toEqual([ false, true ]);
     });
 
     it("clears the mark once the pointer leaves the column altogether", async () => {
         const { columns } = await renderBoard();
 
         await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeTruthy();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
 
+        // The gap itself stays where it stands; it is shown and hidden rather than made and
+        // unmade, which is what keeps a drag off the board's own contents.
         await drag(columns[0], "dragleave", { types: [] });
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder")).toBeTruthy();
+    });
+
+    /**
+     * A sorted column places the card itself, so there is no place to open a gap at. The border
+     * is what says the column would take the card.
+     */
+    it("opens no gap over a sorted column, and marks its border instead", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+        expect(columns[0].classList.contains("drag-over")).toBe(true);
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(card => card.style.transform !== "")).toEqual([ false, false ]);
+    });
+
+    it("adds a note dropped on a sorted column without placing it against a card", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+        const stranger = buildNote({ title: "Stranger" });
+
+        // Over the second card, which is where a manual column would clone it after.
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+        await drag(columns[0], "drop", {
+            types: [ TREE_CLIPBOARD_TYPE ],
+            data: { text: JSON.stringify([ { noteId: stranger.noteId, branchId: "far" } ]) }
+        });
+
+        expect(branches.cloneNoteToParentNote)
+            .toHaveBeenCalledWith(stranger.noteId, expect.any(String));
+        expect(branches.cloneNoteAfter).not.toHaveBeenCalled();
+    });
+
+    /** The reader chose a column, not a place in it, so the card says where it went. */
+    it("reveals the card a sorted column placed", async () => {
+        const { columns, cards } = await renderBoard({ orderBy: "title" });
+        expect(columns[0].querySelector(".board-note.appearing")).toBeNull();
+
+        // A card already on the board, so what is drawn afterwards is the one just dropped.
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+        await drag(columns[0], "drop", {
+            types: [ TREE_CLIPBOARD_TYPE ],
+            data: { text: JSON.stringify([ cards[1] ]) }
+        });
+        await act(async () => { await settle(); });
+
+        expect(columns[0].querySelector(".board-note.appearing")
+            ?.getAttribute("data-note-id")).toBe(cards[1].noteId);
+    });
+
+    /**
+     * The card is taken out of the flow the moment it is picked up. Without the gap, the cards
+     * below it close up and stay closed for the length of the gesture, even though the column
+     * cannot take the card anywhere the reader points it.
+     */
+    it("keeps the hole a card left in the sorted column it was picked up from", async () => {
+        const { columns } = await renderBoard({ orderBy: "title" });
+        await act(async () => { await settle(); });
+
+        const card = columns[0].querySelector<HTMLElement>(".board-note");
+        if (!card) throw new Error("expected a card");
+
+        await pointer(card, "pointerdown", 50, 50);
+        await pointer(columns[0], "pointermove", 50, 300);
+        await act(async () => { await settle(); });
+
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeTruthy();
+        // The card below the hole stands aside for it, as it does over a column sorted by hand.
+        expect([ ...columns[0].querySelectorAll<HTMLElement>(".board-note") ]
+            .map(other => other.style.transform !== "")).toEqual([ false, true ]);
+
+        // The hole says why it will not move, which no column sorted by hand has to.
+        expect(columns[0].querySelector(".board-drop-placeholder .sorted-no-reorder")).toBeTruthy();
+
+        await pointer(columns[0], "pointerup", 50, 300);
+        await act(async () => { await settle(); });
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
+    });
+
+    it("says nothing about reordering in a column arranged by hand", async () => {
+        const { columns } = await renderBoard();
+
+        await drag(columns[0], "dragover", { types: [ TREE_CLIPBOARD_TYPE ] }, 120);
+
+        expect(columns[0].querySelector(".board-drop-placeholder .sorted-no-reorder")).toBeNull();
     });
 
     it("ignores a drag carrying something the board has no use for", async () => {
@@ -87,7 +181,7 @@ describe("Board drag and drop", () => {
 
         await drag(columns[0], "dragover", { types: [ "text/uri-list" ] }, 120);
 
-        expect(columns[0].querySelector(".board-drop-placeholder")).toBeNull();
+        expect(columns[0].querySelector(".board-drop-placeholder.show")).toBeNull();
     });
 
     it("clones a note dragged in from the tree, which the board does not hold", async () => {
@@ -301,6 +395,72 @@ describe("Board drag and drop", () => {
         expect(gap?.style.height).toBe("100px");
     });
 
+    /**
+     * The card leaves the flow as it is lifted, and the gap opens in its place by pushing the cards
+     * below it down again. Under their transition that reads as the column closing up and then
+     * sliding back open, where nothing has actually moved.
+     */
+    it("opens the gap without a transition as a card is lifted", async () => {
+        const { columns, board } = await renderBoard();
+        await act(async () => { await settle(); });
+        const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
+
+        // Watched rather than read afterwards: the frame that puts the transitions back has run by
+        // the time the gesture returns.
+        const eased = await transitionsWhile(first, async () => {
+            expect(await classesWhile(board, async () => {
+                await pointer(second, "pointerdown", 50, 150);
+                await pointer(columns[0], "pointermove", 50, 60);
+            })).toContain("board-still");
+        });
+
+        // The card that steps aside carries the suppression itself: a rule under the board's class
+        // would reach every card on it.
+        expect(first.style.transform).toBe("translateY(100px)");
+        expect(eased).toContain("none");
+    });
+
+    /**
+     * Cards below the gap carry a `translateY` that the drop replaces with the layout the reorder
+     * gives them. Cleared under their transition they slide up from a place they never stood in,
+     * which reads as the column settling after the card has landed.
+     */
+    it("takes the transforms off without a transition once a card has landed", async () => {
+        const { columns, board } = await renderBoard();
+        await act(async () => { await settle(); });
+        const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
+
+        await pointer(second, "pointerdown", 50, 150);
+        await pointer(columns[0], "pointermove", 50, 60);
+        await act(async () => { await frames(); });
+        // The lift suppresses transitions too, so the release is watched on its own: left running,
+        // this would pass on what the lift did.
+        expect(board.classList.contains("board-still")).toBe(false);
+        expect(first.style.transform).toBe("translateY(100px)");
+
+        const eased = await transitionsWhile(first, async () => {
+            expect(await classesWhile(board, () => pointer(columns[0], "pointerup", 50, 60)))
+                .toContain("board-still");
+        });
+
+        // Put back where the column draws it, and without easing its way there.
+        expect(first.style.transform).toBe("");
+        expect(eased).toContain("none");
+    });
+
+    it("puts the suppressed transitions back once the frame that moved the cards has passed",
+        async () => {
+            const { columns } = await renderBoard();
+            await act(async () => { await settle(); });
+            const [ first, second ] = columns[0].querySelectorAll<HTMLElement>(".board-note");
+
+            await pointer(second, "pointerdown", 50, 150);
+            await pointer(columns[0], "pointermove", 50, 60);
+            await act(async () => { await frames(); });
+
+            expect(first.style.transition).toBe("");
+        });
+
     function place(
         element: HTMLElement | null,
         box: { left: number, top: number, width: number, height: number }
@@ -327,7 +487,8 @@ describe("Board drag and drop", () => {
 
     /** A board of one column of two cards, each given a height the pointer can be placed in. */
     async function renderBoard(
-        { collapsed, saveConfig }: { collapsed?: boolean, saveConfig?: () => void } = {}
+        { collapsed, saveConfig, orderBy }:
+            { collapsed?: boolean, saveConfig?: () => void, orderBy?: string } = {}
     ) {
         const note = buildNote({
             title: "Board",
@@ -351,7 +512,7 @@ describe("Board drag and drop", () => {
                         notePath={`root/${note.noteId}`}
                         noteIds={[ ...note.getChildNoteIds() ]}
                         highlightedTokens={null}
-                        viewConfig={{ columns: [ { value: "To Do", collapsed } ] }}
+                        viewConfig={{ columns: [ { value: "To Do", collapsed, orderBy } ] }}
                         saveConfig={saveConfig ?? (() => {})}
                         media="screen"
                         onReady={() => {}}
@@ -384,7 +545,9 @@ describe("Board drag and drop", () => {
         const cards = note.getChildBranches()
             .map(branch => ({ noteId: branch.noteId, branchId: branch.branchId }));
 
-        return { note, columns, cards };
+        if (!board) throw new Error("expected the board container");
+
+        return { note, columns, cards, board };
     }
 
     /** Dispatches one of the drag events, with the clipboard the board reads its payload from. */
@@ -422,6 +585,12 @@ describe("Board drag and drop", () => {
 
     function settle() {
         return new Promise((resolve) => setTimeout(resolve));
+    }
+
+    /** Waits out the two frames a suppressed transition is put back after. */
+    function frames() {
+        return new Promise<void>(resolve => requestAnimationFrame(
+            () => requestAnimationFrame(() => setTimeout(resolve))));
     }
 });
 
@@ -485,6 +654,61 @@ describe("Board column reordering", () => {
 
         const placeholder = board.querySelector<HTMLElement>(".column-drop-placeholder");
         expect(placeholder?.style.width).toBe("");
+    });
+
+    /**
+     * The row is left as it stands for the length of the gesture: the carried column's place is
+     * held open where it was lifted from, and the columns it is carried past step aside by a
+     * transform. Reordering the elements per step would lay out every card on the board again.
+     */
+    it("holds the gap where the column was lifted from and steps the others aside", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Carried over the third column, which spans 200 to 300, past its middle.
+        await carryColumn(columns[0], 280, { release: false });
+
+        // The copy being carried is a column too, and it follows the pointer rather than the row.
+        const drawn = [ ...board.querySelectorAll<HTMLElement>(
+            ".board-column:not(.board-drag-preview)") ];
+        const placeholder = board.querySelector<HTMLElement>(".column-drop-placeholder");
+        // Still the first thing in the row, where the column it stands for was picked up.
+        expect(placeholder?.previousElementSibling).toBeNull();
+        // The two it passes close up by what it takes out of the row, which is its own 100px:
+        // happy-dom computes no styles, so the gap between columns reads as nothing here.
+        expect(drawn.map(column => column.style.transform))
+            .toEqual([ "", "translateX(-100px)", "translateX(-100px)" ]);
+    });
+
+    /**
+     * The transforms come off in the same frame the row is drawn in its new order, where every
+     * column already stands where that order puts it. Eased to nothing they would each carry a
+     * column's width from a place it never stood in, which reads as the row sliding after the drop.
+     */
+    it("takes the transforms off without a transition once a column has landed", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Watched rather than read afterwards: the frame that puts the transition back has run by
+        // the time the gesture returns.
+        expect(await classesWhile(board, () => carryColumn(columns[0], 280)))
+            .toContain("board-still");
+    });
+
+    it("eases the columns back where the drag is called off, having moved nothing", async () => {
+        const { columns, board } = await renderColumns();
+
+        // Let go where it started, which places the column back where it came from: the columns
+        // that stepped aside slide back, so the transition has to stay on.
+        expect(await classesWhile(board, () => carryColumn(columns[0], 20)))
+            .not.toContain("board-still");
+    });
+
+    it("puts the columns back once the gesture is over", async () => {
+        const { columns, board } = await renderColumns();
+
+        await carryColumn(columns[0], 280);
+
+        expect([ ...board.querySelectorAll<HTMLElement>(".board-column") ]
+            .map(column => column.style.transform)).toEqual([ "", "", "" ]);
     });
 
     /** A copy of it is carried, capped so a tall column does not cover the board it is placed on. */
@@ -735,3 +959,78 @@ describe("Board column reordering", () => {
         return new Promise((resolve) => setTimeout(resolve));
     }
 });
+
+describe("a board leaving the page", () => {
+    /**
+     * Boards stay mounted across tabs and splits, and the frame that puts a suppressed transition
+     * back is one they share. A board being taken off the page settles its own cards alone.
+     */
+    it("puts back only the cards it holds, leaving another board's gesture alone", () => {
+        const [ leaving, staying ] = [ board(), board() ];
+
+        placeCard(leaving.card, "translateY(10px)", true);
+        placeCard(staying.card, "translateY(10px)", true);
+        expect([ leaving.card.style.transition, staying.card.style.transition ])
+            .toEqual([ "none", "none" ]);
+
+        settleCards(leaving.container);
+
+        expect(leaving.card.style.transition).toBe("");
+        expect(staying.card.style.transition).toBe("none");
+
+        settleCards(staying.container);
+        expect(staying.card.style.transition).toBe("");
+        for (const { container } of [ leaving, staying ]) container.remove();
+    });
+
+    /** A card taken off the page with its board has nothing left to animate. */
+    it("puts back a card that has already left the page, whichever board held it", () => {
+        const gone = board();
+        placeCard(gone.card, "translateY(10px)", true);
+        gone.container.remove();
+
+        settleCards(document.createElement("div"));
+
+        expect(gone.card.style.transition).toBe("");
+    });
+
+    function board() {
+        const container = document.createElement("div");
+        const card = document.createElement("div");
+        card.className = "board-note";
+        container.appendChild(card);
+        document.body.appendChild(container);
+        return { container, card };
+    }
+});
+
+/** Every class the element wears at any point while `run` is going on. */
+function classesWhile(element: HTMLElement, run: () => Promise<void>) {
+    return seenWhile(element, "class", () => element.classList, run);
+}
+
+/** Every inline `transition` the element carries at any point while `run` is going on. */
+function transitionsWhile(element: HTMLElement, run: () => Promise<void>) {
+    return seenWhile(element, "style", () => [ element.style.transition ], run);
+}
+
+/**
+ * What `read` returns each time the watched attribute changes, gathered while `run` goes on.
+ *
+ * Read as it happens rather than afterwards: what a still frame writes is taken back a frame or
+ * two later, so by the time the gesture returns there is nothing left to find.
+ */
+async function seenWhile(
+    element: HTMLElement, attribute: string, read: () => Iterable<string>, run: () => Promise<void>
+) {
+    const seen = new Set<string>();
+    const watch = new MutationObserver(() => {
+        for (const value of read()) {
+            seen.add(value);
+        }
+    });
+    watch.observe(element, { attributes: true, attributeFilter: [ attribute ] });
+    await run();
+    watch.disconnect();
+    return [ ...seen ];
+}

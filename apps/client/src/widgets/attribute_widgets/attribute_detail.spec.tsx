@@ -1,4 +1,16 @@
+import { render } from "preact";
+import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import Component from "../../components/component";
+import { ParentComponent } from "../react/react_utils";
+
+// i18next is never initialized here, so `t()` returns undefined and a row whose label is only a
+// translated string renders without the `<label for>` the tests below look rows up by.
+vi.mock("../../services/i18n", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../services/i18n")>()),
+    t: (key: string) => key
+}));
 
 // The popup docks differently under the new layout, and the flag behind that is read once when the
 // module loads — so the two are exercised by loading it twice.
@@ -8,9 +20,29 @@ vi.mock("../../services/experimental_features", async (importOriginal) => ({
     isExperimentalFeatureEnabled: () => newLayout.enabled
 }));
 
+// The form fetches the names a definition can complete against and the notes already carrying the
+// attribute. Neither is what these tests are about, and an unanswered request rejects into the run.
+vi.mock("../../services/server", () => ({
+    default: {
+        get: vi.fn(async () => []),
+        post: vi.fn(async () => ({ results: [], count: 0 }))
+    }
+}));
+
 import type { AttributeDetailOpts } from "./attribute_detail";
 
 const VIEWPORT = { width: 1200, height: 800 };
+
+// Every popup these tests render counts the notes already carrying the attribute, and reads the
+// active context to name their paths. The app is never started here, so it is given one with
+// nothing hoisted rather than left to reject into the run. Mocked rather than assigned: the tests
+// below reset the module registry, which would hand the popup a fresh, unstarted context.
+vi.mock("../../components/app_context", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../components/app_context")>();
+    (actual.default as { tabManager?: unknown }).tabManager =
+        { getActiveContext: () => undefined };
+    return actual;
+});
 
 describe("attribute detail popup positioning", () => {
     beforeEach(() => {
@@ -171,6 +203,9 @@ describe("attribute detail popup naming", () => {
         expect(isSameShow(shown, opts({ ...shown, focus: "name" }))).toBe(false);
         // Which rows the form carries is part of what it would show.
         expect(isSameShow(shown, opts({ ...shown, hideInheritance: true }))).toBe(false);
+        expect(isSameShow(shown, opts({ ...shown, hideMultiplicity: true }))).toBe(false);
+        expect(isSameShow(shown, opts({ ...shown, hideType: true }))).toBe(false);
+        expect(isSameShow(shown, opts({ ...shown, hideTypeOptions: true }))).toBe(false);
 
         // ...but the very same request handed back is the host re-rendering around an untouched
         // popup, which every keystroke does — rebuilding the form there costs the focus and, with a
@@ -272,6 +307,83 @@ describe("related notes menu", () => {
 
         appContext.tabManager = previousTabManager;
         vi.restoreAllMocks();
+    });
+});
+
+describe("the rows the form carries", () => {
+    let mounted: HTMLElement | undefined;
+
+    afterEach(() => {
+        if (mounted) {
+            render(null, mounted);
+            mounted.remove();
+            mounted = undefined;
+        }
+    });
+
+    /** Renders the form on a definition, which is where the kind and multiplicity rows live. */
+    async function renderForm(overrides: Partial<AttributeDetailOpts> = {}) {
+        const { AttributeForm } = await import("./attribute_detail");
+        const host = document.createElement("div");
+        mounted = host;
+        document.body.appendChild(host);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <AttributeForm
+                        opts={opts({
+                            attribute: {
+                                type: "label",
+                                name: "label:severity",
+                                value: "promoted,single,select"
+                            },
+                            ...overrides
+                        })}
+                        attrType="label-definition"
+                        onCancel={() => {}}
+                    />
+                </ParentComponent.Provider>,
+                host
+            );
+        });
+
+        // `OptionsRow` names the control it wraps, labelling it by a unique id built from that
+        // name.
+        return (name: string) =>
+            !!host.querySelector(`[name="${name}"], [id^="${name}"], [for^="${name}"]`);
+    }
+
+    it("carries the kind, kind options, multiplicity and inheritance rows by default", async () => {
+        const has = await renderForm();
+
+        expect(has("attr-label-type")).toBe(true);
+        expect(has("attr-select-options")).toBe(true);
+        expect(has("attr-multiplicity")).toBe(true);
+        expect(has("attr-inheritable")).toBe(true);
+    });
+
+    /** A host that can only use one kind, such as a board grouping by a select, leaves it out. */
+    it("leaves out the kind row alone for `hideType`", async () => {
+        const has = await renderForm({ hideType: true });
+
+        expect(has("attr-label-type")).toBe(false);
+        // Only that row: the rest of the form is untouched.
+        expect(has("attr-name")).toBe(true);
+        expect(has("attr-multiplicity")).toBe(true);
+        expect(has("attr-inheritable")).toBe(true);
+    });
+
+    /** A host that fills the kind's own rows in itself, such as a board making the columns. */
+    it("leaves out the select options alone for `hideTypeOptions`", async () => {
+        const has = await renderForm({ hideTypeOptions: true });
+
+        expect(has("attr-select-options")).toBe(false);
+        // Only that row: the rest of the form is untouched.
+        expect(has("attr-name")).toBe(true);
+        expect(has("attr-label-type")).toBe(true);
+        expect(has("attr-multiplicity")).toBe(true);
+        expect(has("attr-inheritable")).toBe(true);
     });
 });
 

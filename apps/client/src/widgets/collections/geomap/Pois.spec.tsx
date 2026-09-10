@@ -43,7 +43,9 @@ const { FakePopup } = vi.hoisted(() => {
     return { FakePopup };
 });
 
-vi.mock("maplibre-gl", () => ({ Popup: FakePopup, setWorkerUrl: vi.fn() }));
+// isLocationDot is imported from MapToolbar, which extends GeolocateControl at module load
+// (HiddenGeolocateControl); the mock must define it too.
+vi.mock("maplibre-gl", () => ({ GeolocateControl: class {}, Popup: FakePopup, setWorkerUrl: vi.fn() }));
 
 /** What the tooltip currently reads, or `null` where none is up. */
 function tooltipText() {
@@ -92,8 +94,10 @@ function fakeMap({
             onPoi = poi;
             onOwn = own;
         },
-        click() {
-            for (const fn of listeners.get("click") ?? []) fn({ point: { x: 0, y: 0 } });
+        /** Fires a map click event with `originalEvent.target` set to the given element, as MapLibre
+         *  does for a click on a marker. */
+        click(target: Element | null = null) {
+            for (const fn of listeners.get("click") ?? []) fn({ point: { x: 0, y: 0 }, originalEvent: { target } });
         },
         /** The pointer coming to rest on a place of the base map, as MapLibre reports it. */
         hover(feature: unknown) {
@@ -249,6 +253,20 @@ describe("geo map Pois", () => {
             own: [ { properties: { id: "note1" } } ]
         });
         await act(async () => { map.click(); });
+
+        expect(picked).toEqual([]);
+    });
+
+    it("leaves a click that landed on the device's own dot to the dot", async () => {
+        const map = fakeMap();
+        const { picked } = await renderPois(map);
+        map.setUnderPointer({ poi: [ poiFeature({ name: "Café Kranzler", amenity: "cafe" }) ] });
+
+        // isLocationDot checks the click's target directly, since the dot is a DOM marker over the
+        // canvas rather than a layer the POI hit test below can see.
+        const dot = document.createElement("div");
+        dot.className = "maplibregl-marker maplibregl-user-location-dot";
+        await act(async () => { map.click(dot); });
 
         expect(picked).toEqual([]);
     });

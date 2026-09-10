@@ -2,6 +2,7 @@ import type { BulkAction } from "@triliumnext/commons";
 
 import type FNote from "../../entities/fnote";
 import { executeBulkActions } from "../../services/bulk_action";
+import { t } from "../../services/i18n";
 
 /** How one promoted attribute is shown, as a collection's view config stores it. */
 export interface PromotedAttributeSetting {
@@ -18,14 +19,21 @@ export interface PromotedAttribute {
     /** The definition the collection note carries, `label:dueDate` for instance. */
     definitionName: string;
     type: "label" | "relation";
-    /** What the reader sees: the definition's alias, or the name where it gives none. */
+    /**
+     * What the reader sees: the definition's alias, or the name behind the kind that defines it
+     * where it gives none. See {@link defaultTitle}.
+     */
     title: string;
+    /** The name the definition gives it, absent where it gives none. */
+    promotedAlias?: string;
     /** Whether the attribute is kept off the items. */
     hidden: boolean;
     /** The definition as stored, which the attribute editor is handed to edit. */
     definitionValue: string;
     /** What the field holds: `text`, `date`, `boolean` and the rest. Absent for a relation. */
     labelType?: string;
+    /** The values a `select` field offers, in the order it offers them. */
+    selectOptions?: string[];
     /** Whether the note that defines it is the collection itself rather than an ancestor. */
     isOwned: boolean;
     /**
@@ -69,8 +77,10 @@ export function resolvePromotedAttributes(
             name,
             definitionName: definition.name,
             type,
-            title: parsed?.promotedAlias || name,
+            title: parsed?.promotedAlias || defaultTitle(type, name),
+            promotedAlias: parsed?.promotedAlias,
             labelType: parsed?.labelType,
+            selectOptions: parsed?.selectOptions,
             hidden: false,
             definitionValue: definition.value,
             isOwned: definition.noteId === note?.noteId,
@@ -94,6 +104,16 @@ export function resolvePromotedAttributes(
     }
 
     return ordered;
+}
+
+/**
+ * What an attribute with no alias is listed as: the name behind the kind that defines it, so a bare
+ * `dueDate` reads as the field it is rather than as a name someone chose.
+ */
+function defaultTitle(type: "label" | "relation", name: string) {
+    return type === "relation"
+        ? t("promoted_attributes.relation_name", { name })
+        : t("promoted_attributes.label_name", { name });
 }
 
 /** The attributes drawn on an item, in order, for a view showing their values. */

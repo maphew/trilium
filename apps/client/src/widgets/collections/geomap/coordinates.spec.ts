@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { boundsOf, formatCoordinates, parseCoordinates } from "./coordinates";
+import { boundsOf, formatCoordinates, parseCoordinates, POINT_ZOOM, pointPlace } from "./coordinates";
 
 /** Sibiu, as each form writes it. Held as `[lng, lat]`, which is how the map holds a point. */
 const SIBIU: [number, number] = [ 24.9668, 45.9432 ];
@@ -69,6 +69,18 @@ describe("reading a point out of the search bar", () => {
         // Rather than padded out to a fixed precision: four decimals were meant as four.
         expect(formatCoordinates(SIBIU)).toBe("45.9432, 24.9668");
         expect(formatCoordinates([ 0, 0 ])).toBe("0, 0");
+    });
+
+    it("makes a place of a point, named by its coordinates and shown close in", () => {
+        expect(pointPlace(SIBIU)).toEqual({
+            id: "point:24.9668,45.9432",
+            name: "45.9432, 24.9668",
+            label: "45.9432, 24.9668",
+            lat: 45.9432,
+            lng: 24.9668,
+            zoom: POINT_ZOOM,
+            unnamed: true
+        });
     });
 });
 

@@ -82,6 +82,39 @@ describe("Board API (core)", () => {
         expect(becca.getNoteOrThrow(card.noteId).getOwnedRelationValue("status")).toBe(other.noteId);
     });
 
+    /**
+     * A board holds a column list per grouping, and one of them can carry a column of the same name
+     * as another's. A rename belongs to the grouping it was made on and to no other.
+     */
+    it("renames a column of the grouping it was made on, leaving other lists alone", async () => {
+        const board = await createTextNote(api, { title: "Board" });
+        const card = await createTextNote(api, { parentNoteId: board.noteId, title: "Card" });
+        await api.put(`/api/notes/${card.noteId}/set-attribute`,
+            { body: { type: "label", name: "priority", value: "High" } });
+        await api.post(`/api/notes/${board.noteId}/attachments`, {
+            body: {
+                title: "board.json", role: "viewConfig", mime: "application/json",
+                content: JSON.stringify({
+                    columns: [ { value: "High", color: "#ff0000" } ],
+                    priorityViewColumns: [
+                        { value: "High", icon: "bx bx-up-arrow" }, { value: "Low" }
+                    ]
+                })
+            }
+        });
+
+        const res = await api.put<{ cards: number }>(
+            `/api/notes/${board.noteId}/board/rename-column`,
+            { body: { attribute: "priority", oldValue: "High", newValue: "Urgent" } });
+
+        expect(res.status).toBe(200);
+        expect(res.body.cards).toBe(1);
+        expect(configOf(board.noteId).priorityViewColumns).toEqual([
+            { value: "Urgent", icon: "bx bx-up-arrow" }, { value: "Low" }
+        ]);
+        expect(configOf(board.noteId).columns).toEqual([ { value: "High", color: "#ff0000" } ]);
+    });
+
     /** A board with one card per value given, the second column carrying a colour of its own. */
     async function buildBoard(values: string[]) {
         const board = await createTextNote(api, { title: "Board" });
@@ -124,7 +157,9 @@ describe("Board API (core)", () => {
         return definition.split("options=")[1]?.split(";") ?? [];
     }
 
-    function configOf(boardId: string): { columns: { value: string, color?: string }[] } {
+    type StoredColumns = { value: string, color?: string, icon?: string }[];
+
+    function configOf(boardId: string): Record<string, StoredColumns> & { columns: StoredColumns } {
         const attachment = becca.getNoteOrThrow(boardId).getAttachmentByTitle("board.json");
         return JSON.parse(attachment?.getContent().toString() ?? "{}");
     }
