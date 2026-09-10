@@ -107,7 +107,7 @@ export function useBoardKeyboard({
     sendCardsToColumn, moveCardsWithin
 }: BoardKeyboardOptions) {
     const pendingFocus = useRef<PendingFocus | null>(null);
-    /** The card a column has been asked to draw, so it is not asked for again each render. */
+    /** The card `askForCard` has already run for, so it does not run again on every render. */
     const asked = useRef<string | null>(null);
     /** Where the reader last stood, for a key pressed while focus is between two draws. */
     const lastSpot = useRef<Spot | null>(null);
@@ -145,7 +145,7 @@ export function useBoardKeyboard({
         }
 
         // The card has landed in a windowed column that is not drawing it, so there is nothing to
-        // focus yet. The column is asked to scroll to it, which draws it.
+        // focus yet. `askForCard` scrolls that column, which draws the card.
         //
         // Waited for here rather than left to this effect running again: the scroll re-renders the
         // column alone, and the board this effect belongs to is not drawn again by it.
@@ -470,15 +470,16 @@ function walk(container: HTMLElement, from: Spot, key: string): Spot | null {
     }
 
     // A windowed column draws a slice of its cards, and the walk has stepped onto one outside it.
-    // The column is asked to bring it into view, which is what puts it in the page to be focused.
+    // `askForCard` scrolls that column, which puts the card in the page so it can be focused.
     if (next.kind === "item") {
         const column = columnsOf(container)[next.column];
         const value = column?.dataset.column;
         if (!column || value === undefined) return null;
 
-        // Drawn before the ask returns, so the card is focused in this keystroke. Left to a later
-        // frame, the scroll can take the card being walked from out of the page first, and focus
-        // falls to nothing: the next key then finds nowhere to walk from and the board scrolls.
+        // `immediate` draws the card before this returns, so it is focused in this keystroke.
+        // Deferred to a later frame, the scroll can unmount the card being walked from, leaving
+        // `document.activeElement` on the body: `spotOf` then finds no spot and the browser
+        // scrolls the board instead.
         askForCard(container, value, next.item, true);
         const arrived = cardAt(column, next.item);
         if (arrived) {

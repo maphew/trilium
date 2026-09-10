@@ -547,8 +547,9 @@ function row(held: Gesture & { kind: "column" }) {
 /**
  * The place a carried card would take in a column.
  *
- * A windowed column is asked what it is drawing with now: the boxes a gesture measures at its start
- * only estimate the cards it was not drawing then, and an auto-scroll draws them for real.
+ * For a windowed column this reads the column's current `ColumnModel`: the boxes `measureBoard`
+ * takes at the start of a gesture only estimate the cards that were not drawn then, and an
+ * auto-scroll goes on to draw them at their own heights.
  */
 function placeAt(area: HTMLElement, y: number, card: DraggedCard, column: ColumnBox): number {
     const model = getColumnModel(area);
@@ -556,7 +557,8 @@ function placeAt(area: HTMLElement, y: number, card: DraggedCard, column: Column
         return placeIn(column.cards, y, card, column.value);
     }
 
-    return placeInModel(model, y, column.value === card.fromColumn ? card.index : undefined);
+    return placeInModel(
+        model, y - column.origin, column.value === card.fromColumn ? card.index : undefined);
 }
 
 /**
@@ -601,8 +603,8 @@ function startCard(
     const noteId = element?.dataset.noteId;
     if (!element || !columnElement || !noteId) return null;
 
-    // A windowed column draws a slice of its cards, so the card says which place it holds rather
-    // than being counted among the ones on screen.
+    // A windowed column draws a slice of its cards, so the index comes from `data-index` rather
+    // than from the card's position among the ones on screen.
     const stated = element.dataset.index;
     const place = stated === undefined ? Number.NaN : Number(stated);
     const index = Number.isFinite(place)

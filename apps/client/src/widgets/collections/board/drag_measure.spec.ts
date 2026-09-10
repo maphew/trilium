@@ -355,6 +355,33 @@ describe("measuring a windowed column", () => {
         expect(column.cards).toHaveLength(2);
     });
 
+    /**
+     * A place counted from the heights alone starts at zero, while a point read into the area's
+     * space starts at the column's own top padding. Losing that shifts every place by it, and a
+     * point near a boundary lands in the slot below the one the gap is drawn at.
+     */
+    it("reports where the column's cards begin, which is its own padding", () => {
+        const board = buildWindowed({ above: 2400 });
+        const area = board.querySelector<HTMLElement>(".board-column-content");
+        const spacer = area?.querySelector<HTMLElement>(".board-window-spacer");
+        if (!area || !spacer) throw new Error("expected a spacer at the head of the cards");
+
+        // The head spacer begins 8px into the area, which is what the column is padded by.
+        place(spacer, { left: 0, top: 48, width: 100, height: 2400 });
+
+        const [ column ] = measureBoard(board).columns;
+
+        expect(column.origin).toBe(8);
+    });
+
+    it("reports no origin for a column measured without its cards", () => {
+        const board = buildWindowed();
+
+        const [ column ] = measureBoard(board, false).columns;
+
+        expect(column.origin).toBe(0);
+    });
+
     it("counts a column that states a window but is drawing none of it", () => {
         const board = buildWindowed({ total: 60, from: 60, above: 3600, below: 0 });
         const area = board.querySelector<HTMLElement>(".board-column-content");

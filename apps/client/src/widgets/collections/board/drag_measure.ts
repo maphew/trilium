@@ -47,11 +47,28 @@ export function measureBoard(container: HTMLElement, withCards = true): BoardMea
             width: rect.width,
             top: rect.top,
             height: rect.height,
+            origin: withCards ? contentOrigin(area) : 0,
             cards: withCards ? measureCards(area) : []
         });
     }
 
     return { columns, areas };
+}
+
+/**
+ * Where a column's first card begins, in the space {@link toAreaY} reads a point into.
+ *
+ * Taken from the spacer standing at the head of the cards, which begins where they do whatever the
+ * column is drawing. Read once per gesture: a column's padding does not change while one runs.
+ */
+function contentOrigin(area: HTMLElement | null) {
+    const spacer = area?.querySelector<HTMLElement>(".board-window-spacer");
+    if (!area || !spacer) {
+        return 0;
+    }
+
+    return spacer.getBoundingClientRect().top
+        - (area.getBoundingClientRect().top - area.scrollTop);
 }
 
 /** A point in the board's content space, which its horizontal scrolling does not move columns in. */
@@ -63,9 +80,9 @@ export function toBoardX(container: HTMLElement, clientX: number): number {
  * The place a carried card would take in a windowed column, counted from what the column lays its
  * cards out with rather than from the page.
  *
- * The same answer {@link cardInsertionIndex} gives for a column drawn in full, and the same
- * treatment of the carried card: it is out of the flow while it is held, so the cards below it
- * stand one place higher and the index is counted back afterwards.
+ * Matches {@link cardInsertionIndex} for a column drawn in full, and treats the carried card the
+ * same way: it is out of the flow while held, so the cards below it stand one place higher and the
+ * index is converted back afterwards.
  *
  * Worked out per move rather than once per gesture. A window that has moved under an auto-scroll
  * draws cards the gesture had only estimated, and an index counted from the estimate drifts further
@@ -244,7 +261,7 @@ function countCards(area: HTMLElement, readEvery: boolean) {
     return { cards: [ ...above, ...cards, ...below ], elements, borrowed, top, drawnFrom: window.from };
 }
 
-/** What the column says it is drawing, or nothing where it draws all of itself. */
+/** The window a column states on its card area, or nothing where it draws every card. */
 function readWindow(area: HTMLElement) {
     const stated = area.dataset.windowCount;
     const total = stated === undefined ? Number.NaN : Number(stated);

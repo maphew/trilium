@@ -129,9 +129,9 @@ export function resolveHeights(
  * column's cards at another's average puts its spacers, its scrollbar and its scroll destinations
  * all in the wrong place.
  *
- * Answers nothing until enough of them have been measured, and the caller then holds what it is
- * given for good. It has to stop moving: the spacer above the window holds the reader's place and
- * is counted from this, so a figure that kept being revised would slide the column as they read.
+ * Returns `undefined` until enough of them have been measured; the caller then keeps the first
+ * figure it gets. It must stop changing: the spacer above the window is counted from it and is
+ * what holds the reader's place, so revising it would slide the column while they read.
  *
  * @param held what the column has already settled on, which is answered back unchanged.
  */
@@ -258,7 +258,7 @@ export function useColumnWindow(
         //
         // Only where the same cards are still drawn: a window that moved because the reader
         // scrolled has a different spacer above it by rights, and the scroll position that moved
-        // it is already the one they asked for.
+        // the scroll position that moved it is the one the reader chose.
         const held = above.current;
         const shift = held.from === bounds.from ? bounds.above - held.height : 0;
         above.current = { from: bounds.from, height: bounds.above };
@@ -316,8 +316,8 @@ export function useColumnWindow(
         // Placed a little above the foot of the area, so the card is not left under its own edge.
         area.scrollTop = Math.max(0, offset - area.clientHeight / 2);
 
-        // Moved here rather than left to the scroll event the write raises: that event arrives a
-        // frame later, and the card has to be drawn for the ask to have been worth making.
+        // Set here rather than left to the scroll event the write above raises: that event
+        // arrives a frame later, and the card must be drawn for this call to have any effect.
         const moved = { top: area.scrollTop, viewport: area.clientHeight };
         if (immediate) {
             // Drawn before this returns, for a keyboard walk that focuses the card in the same
@@ -352,10 +352,10 @@ export function getColumnModel(area: HTMLElement) {
 const models = new WeakMap<HTMLElement, ColumnModel>();
 
 /**
- * Asks the column drawing `column` to bring a card into view.
+ * Raises {@link REVEAL_CARD} so the column drawing `column` scrolls a card into view.
  *
  * The keyboard walks a column by index and can step onto a card outside the window, which is not
- * in the page to be focused. The column answers by scrolling to it, which draws it.
+ * in the page to be focused. The column handles the event by scrolling to it, which draws it.
  */
 export function askForCard(
     container: HTMLElement, column: string, index: number, immediate = false
@@ -370,12 +370,12 @@ export interface RevealCardDetail {
     column: string;
     index: number;
     /**
-     * Whether the card must be in the page by the time the ask returns.
+     * Whether the card must be in the page by the time {@link askForCard} returns.
      *
      * For a keyboard walk, which has to focus it in the same keystroke: focus left on nothing
      * while a frame is waited for makes the next key find no card to walk from, and the browser
-     * scrolls the board instead. Not for an ask made while the board is drawing, where drawing
-     * again in the middle of a commit is not safe.
+     * scrolls the board instead. Not set when the call is made from a layout effect, where
+     * drawing again in the middle of a commit is not safe.
      */
     immediate?: boolean;
 }
