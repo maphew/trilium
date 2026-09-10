@@ -1,18 +1,16 @@
 import { getLog } from "@triliumnext/core";
 
-import { OCRProcessingOptions, OCRResult } from '../ocr_service.js';
-import renderer, { RenderedPage } from '../pdf_renderer.js';
-import recognizer from '../tesseract_recognizer.js';
-import { FileProcessor } from './file_processor.js';
+import { OCRProcessingOptions, OCRResult } from "../ocr_service.js";
+import renderer, { RenderedPage } from "../pdf_renderer.js";
+import recognizer from "../tesseract_recognizer.js";
+import { FileProcessor } from "./file_processor.js";
 
-type PdfDocument = Awaited<ReturnType<typeof import('unpdf').getDocumentProxy>>;
+type PdfDocument = Awaited<ReturnType<typeof import("unpdf").getDocumentProxy>>;
 
 /**
- * Embedded characters per square point of page area below which a page is treated as scanned and
- * sent to OCR. A flat character count cannot separate the two cases: a scan carrying a header, a
- * watermark or a partial text layer clears any small bound while the body of the page stays unread.
- * This works out to roughly 240 characters on Letter and A4 — far below a sparse but genuine text
- * page, far above a header.
+ * Embedded characters per square point of page area below which a page counts as scanned and goes
+ * to OCR. Scaling by area rather than counting characters is what separates a genuine text layer
+ * from the header or watermark a scan carries. Works out to roughly 240 characters on Letter and A4.
  */
 const MIN_EMBEDDED_TEXT_DENSITY = 0.0005;
 
@@ -20,43 +18,37 @@ const MIN_EMBEDDED_TEXT_DENSITY = 0.0005;
 const FALLBACK_PAGE_AREA = 612 * 792;
 
 /**
- * Upper bound on how many scanned pages a single PDF may OCR. Rasterizing and
- * recognizing a page costs seconds and non-trivial memory, so an unbounded scan
- * of a large document could stall the OCR queue. Pages beyond the cap keep
- * whatever embedded text they have (usually none) and are logged, never silently
- * dropped.
+ * Upper bound on how many scanned pages a single PDF may OCR. Rasterizing and recognizing a page
+ * costs seconds and non-trivial memory, so a large scan would otherwise stall the OCR queue. Pages
+ * beyond the cap keep whatever embedded text they have and are logged, never silently dropped.
  */
 const MAX_OCR_PAGES = 50;
 
-/** An embedded-text page is exact, so it is reported at the same high confidence the previous text-only path used. */
+/** Embedded text is exact, so a page taken from the text layer reports this confidence. */
 const EMBEDDED_TEXT_CONFIDENCE = 0.99;
 
 /**
  * PDF processor. Prefers the PDF's embedded text layer (fast and exact) and falls back to OCR for
- * pages carrying too little text for their size, rasterizing those through PDFium and reading them
- * with the shared Tesseract recognizer. Detection is per page, so mixed PDFs (some real-text pages,
- * some scans) are handled correctly.
- *
- * Reading the rendered page rather than the images it paints is what lets a scan be recognized when
- * its text is drawn as vector outlines, when it is split across several images, or when the page
- * carries a rotation the images know nothing about.
+ * pages carrying too little text for their size, rasterizing those through {@link renderer} and
+ * reading them with the shared Tesseract recognizer. Detection is per page, so a mixed PDF of real
+ * text pages and scans is handled correctly.
  */
 export class PDFProcessor extends FileProcessor {
 
     canProcess(mimeType: string): boolean {
-        return mimeType.toLowerCase() === 'application/pdf';
+        return mimeType.toLowerCase() === "application/pdf";
     }
 
     getSupportedMimeTypes(): string[] {
-        return ['application/pdf'];
+        return ["application/pdf"];
     }
 
     async extractText(buffer: Buffer, options: OCRProcessingOptions = {}): Promise<OCRResult> {
-        getLog().info('Starting PDF text extraction...');
+        getLog().info("Starting PDF text extraction...");
 
         const language = options.language || "eng";
         // Dynamically imported so unpdf only loads when a PDF is actually processed.
-        const { extractText, getDocumentProxy } = await import('unpdf');
+        const { extractText, getDocumentProxy } = await import("unpdf");
         const pdf = await getDocumentProxy(new Uint8Array(buffer));
         const { totalPages, text: pageTexts } = await extractText(pdf, { mergePages: false });
 
@@ -119,7 +111,7 @@ export class PDFProcessor extends FileProcessor {
     }
 
     getProcessingType(): string {
-        return 'pdf';
+        return "pdf";
     }
 
     /**
@@ -153,10 +145,9 @@ async function getPageArea(pdf: PdfDocument, pageNum: number): Promise<number> {
 
 /**
  * Encode a rendered page into a PNG buffer that Tesseract can decode. The renderer produces BGRA
- * and Jimp bitmaps are RGBA, so blue and red swap places within the page's own buffer: it belongs
- * to this call and is dropped as soon as the PNG exists, and a full-page copy to swap two channels
- * costs 8 MB for nothing. Alpha is forced opaque, or a transparent page background would reach
- * Tesseract as black.
+ * and Jimp bitmaps are RGBA, so blue and red swap places within the page's own buffer, which
+ * belongs to this call. Alpha is forced opaque, or a transparent page background reaches Tesseract
+ * as black.
  */
 async function toPngBuffer({ data, width, height }: RenderedPage): Promise<Buffer> {
     const bitmap = Buffer.from(data.buffer, data.byteOffset, data.byteLength);

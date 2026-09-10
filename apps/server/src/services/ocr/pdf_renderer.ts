@@ -16,17 +16,13 @@ export interface RenderedPage {
 
 /**
  * Multiplier applied to a page's natural size (72 dpi) when rasterizing it for OCR, giving about
- * 144 dpi. Recognition confidence climbs steeply below this and is flat above it: across a scanned
- * document and a vector-drawn one, scale 1 scored 82/54, scale 1.5 scored 93/89 and scale 2 scored
- * 94/93, while scale 3 and 4 added nothing but two to four times the pixels to encode and read.
+ * 144 dpi. Recognition accuracy drops off below this and does not improve above it.
  */
 const RENDER_SCALE = 2;
 
 /**
- * Pages are rasterized in colour even though Tesseract reads them as grey. PDFium's own grayscale
- * conversion flattens coloured text into its background — on the demo document it costs the whole
- * "Organize your thoughts" panel, 60 characters that colour rendering and Tesseract's own greyscale
- * conversion both keep. Raising the scale does not bring them back.
+ * Pages rasterize in colour even though Tesseract reads them as grey, because PDFium's own
+ * grayscale conversion drops coloured text into its background where Tesseract's keeps it.
  */
 const RENDER_COLOR_SPACE = "BGRA";
 
@@ -40,15 +36,14 @@ export const MAX_RENDER_PIXELS = 20_000_000;
 /**
  * Renders PDF pages for OCR through PDFium compiled to WebAssembly.
  *
- * Rasterizing the page, rather than pulling out the images it paints, is what lets a scan be read
- * at all when its text is drawn as vector outlines, when the scan is split across several images,
- * or when the page carries a rotation the images themselves know nothing about. It also bounds the
- * work: a page becomes a fixed number of pixels no matter what resolution it was scanned at.
+ * Rasterizing a page reads text the page's embedded images do not carry: outlined text, a scan
+ * split across several images, and page rotation. It also fixes the pixel count per page,
+ * independently of the resolution the document was scanned at.
  */
 class PdfRenderer {
     private library: Promise<PdfiumLibrary> | null = null;
-    // Serializes renders. The library holds one wasm heap that grows to fit the largest page it has
-    // been asked for, so overlapping renders would size it to their sum rather than their maximum.
+    // Serializes renders. The library has one wasm heap sized to the largest page rendered so far,
+    // so concurrent renders would size it to their combined area rather than to the largest.
     private queue: Promise<unknown> = Promise.resolve();
 
     /**
@@ -77,8 +72,8 @@ class PdfRenderer {
     }
 
     /**
-     * Loads PDFium once and keeps it. Its heap settles at the size of the largest page rendered and
-     * is reused from then on, so a long-lived instance costs no more than the biggest single page.
+     * Loads PDFium once and keeps it. Its heap grows to the largest page rendered and is reused
+     * from then on, so holding the library costs no more than one page of that size.
      */
     private ensureLibrary(): Promise<PdfiumLibrary> {
         if (!this.library) {
@@ -139,16 +134,16 @@ interface PdfiumPage {
 
 /**
  * The PDFium wasm, read the way `core_assets.ts` reads schema.sql: copied beside the server's own
- * assets by the build, resolved through node_modules when running from source. PDFium would
- * otherwise locate it relative to `import.meta.url`, which in the split ESM bundle is a hash-named
- * file under chunks/ rather than anywhere the wasm was copied to.
+ * assets by the build, resolved through node_modules when running from source. PDFium otherwise
+ * locates it relative to `import.meta.url`, which in the split ESM bundle names a hashed file under
+ * chunks/ rather than the directory the wasm was copied to.
  */
 function readWasm(): ArrayBuffer {
     const productionPath = path.join(RESOURCE_DIR, "pdfium.wasm");
     const bytes = fs.existsSync(productionPath)
         ? fs.readFileSync(productionPath)
         : fs.readFileSync(require.resolve("@hyzyla/pdfium/dist/pdfium.wasm"));
-    // Copied into an ArrayBuffer of its own: readFileSync can hand back a view into a pooled
-    // buffer, whose remainder has nothing to do with the module PDFium is about to compile.
+    // Copied into an ArrayBuffer of its own, because readFileSync can return a view into a pooled
+    // buffer and PDFium compiles the whole buffer it is given.
     return new Uint8Array(bytes).buffer;
 }

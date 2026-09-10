@@ -1,8 +1,8 @@
-import { getLog, options } from '@triliumnext/core';
-import fs from 'fs';
-import Tesseract from 'tesseract.js';
+import { getLog, options } from "@triliumnext/core";
+import fs from "fs";
+import Tesseract from "tesseract.js";
 
-import dataDirs from '../data_dir.js';
+import dataDirs from "../data_dir.js";
 
 export interface RecognitionResult {
     /** Recognized text after per-word confidence filtering. */
@@ -21,11 +21,9 @@ export interface RecognitionResult {
 class TesseractRecognizer {
     private worker: Tesseract.Worker | null = null;
     private currentLanguage: string | null = null;
-    // Serializes recognition jobs. The worker is a single shared resource and a
-    // language change tears it down and rebuilds it, so two overlapping calls (e.g.
-    // a manual reprocess arriving mid-batch) could otherwise terminate a worker that
-    // another call is mid-recognition with. Chaining also bounds OCR to one CPU-heavy
-    // job at a time.
+    // Serializes recognition jobs. A language change terminates the shared worker and builds a new
+    // one, so a second call arriving mid-recognition could otherwise destroy the worker the first
+    // is using. Chaining also bounds OCR to one CPU-heavy job at a time.
     private queue: Promise<unknown> = Promise.resolve();
 
     /**
@@ -75,7 +73,7 @@ class TesseractRecognizer {
                 getLog().error(`Tesseract worker error: ${error}`);
             },
             logger: (m: { status: string; progress: number }) => {
-                if (m.status === 'recognizing text') {
+                if (m.status === "recognizing text") {
                     getLog().info(`OCR progress (${language}): ${Math.round(m.progress * 100)}%`);
                 }
             }
@@ -119,7 +117,7 @@ class TesseractRecognizer {
             }
             getLog().info(`Entire text filtered out due to low confidence ${overallConfidence} (below threshold ${minConfidence})`);
             return {
-                text: '',
+                text: "",
                 confidence: overallConfidence
             };
         }
@@ -144,7 +142,7 @@ class TesseractRecognizer {
             // A line every word of which was dropped leaves no blank behind: the gap would read as
             // spacing on the picture that isn't there.
             if (keptWords.length > 0) {
-                keptLines.push(keptWords.join(' '));
+                keptLines.push(keptWords.join(" "));
             }
         }
 
@@ -156,7 +154,7 @@ class TesseractRecognizer {
         getLog().info(`Filtered OCR text: ${keptConfidences.length} words kept out of ${totalWords} total words (min confidence: ${minConfidence})`);
 
         return {
-            text: keptLines.join('\n').trim(),
+            text: keptLines.join("\n").trim(),
             confidence: averageConfidence
         };
     }
@@ -165,7 +163,7 @@ class TesseractRecognizer {
      * Get minimum confidence threshold from options
      */
     private getMinConfidenceThreshold(): number {
-        const minConfidence = options.getOption('ocrMinConfidence') ?? 0;
+        const minConfidence = options.getOption("ocrMinConfidence") ?? 0;
         return parseFloat(minConfidence);
     }
 }
