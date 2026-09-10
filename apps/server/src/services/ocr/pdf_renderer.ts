@@ -31,6 +31,13 @@ const RENDER_SCALE = 2;
 const RENDER_COLOR_SPACE = "BGRA";
 
 /**
+ * Ceiling on the pixels one page may rasterize to. Page geometry is whatever the document declares,
+ * so without a ceiling a PDF claiming a 200-inch page sizes the bitmap into gigabytes. Set clear of
+ * an A1 page at full scale, so only genuinely outsized pages render below {@link RENDER_SCALE}.
+ */
+export const MAX_RENDER_PIXELS = 20_000_000;
+
+/**
  * Renders PDF pages for OCR through PDFium compiled to WebAssembly.
  *
  * Rasterizing the page, rather than pulling out the images it paints, is what lets a scan be read
@@ -54,7 +61,7 @@ class PdfRenderer {
             try {
                 const page = document.getPage(pageNum - 1);
                 const { data, width, height } = await page.render({
-                    scale: RENDER_SCALE,
+                    scale: renderScaleFor(page, pageNum),
                     render: "bitmap",
                     colorSpace: RENDER_COLOR_SPACE
                 });
@@ -94,15 +101,40 @@ class PdfRenderer {
 
 export default new PdfRenderer();
 
+/**
+ * The scale to rasterize a page at: {@link RENDER_SCALE}, or as much of it as
+ * {@link MAX_RENDER_PIXELS} leaves room for. The budget is an area and the scale applies to each
+ * axis, hence the square root.
+ */
+function renderScaleFor(page: PdfiumPage, pageNum: number): number {
+    const { originalWidth, originalHeight } = page.getOriginalSize();
+    const area = originalWidth * originalHeight;
+    // Also rejects a NaN area, which would otherwise pass straight through Math.min.
+    if (!(area > 0)) {
+        return RENDER_SCALE;
+    }
+
+    const scale = Math.min(RENDER_SCALE, Math.sqrt(MAX_RENDER_PIXELS / area));
+    if (scale < RENDER_SCALE) {
+        getLog().info(`PDF page ${pageNum} measures ${originalWidth}x${originalHeight}pt; rendering at scale ${scale.toFixed(2)} rather than ${RENDER_SCALE} to stay within the pixel budget.`);
+    }
+    return scale;
+}
+
 /** The subset of PDFium's API this renderer uses. */
 interface PdfiumLibrary {
-    loadDocument(bytes: Uint8Array): Promise<{
-        getPage(index: number): {
-            render(options: { scale: number; render: "bitmap"; colorSpace: typeof RENDER_COLOR_SPACE }):
-                Promise<{ data: Uint8Array; width: number; height: number }>;
-        };
-        destroy(): void;
-    }>;
+    loadDocument(bytes: Uint8Array): Promise<PdfiumDocument>;
+}
+
+interface PdfiumDocument {
+    getPage(index: number): PdfiumPage;
+    destroy(): void;
+}
+
+interface PdfiumPage {
+    getOriginalSize(): { originalWidth: number; originalHeight: number };
+    render(options: { scale: number; render: "bitmap"; colorSpace: typeof RENDER_COLOR_SPACE }):
+        Promise<{ data: Uint8Array; width: number; height: number }>;
 }
 
 /**
