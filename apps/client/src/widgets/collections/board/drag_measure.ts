@@ -107,12 +107,13 @@ function measureCards(area: HTMLElement | null): CardBox[] {
 
     const counted = countCards(area, false);
     const { cards, elements } = counted;
-    const last = cards.length - 1;
+    // The last card the column actually draws, which in a windowed one is not the last it holds.
+    const last = counted.drawnFrom + elements.length - 1;
 
     // A card whose title or attributes changed stands a different height, and nothing says so, so
     // where the last card really is settles whether what was remembered still holds.
-    if (counted.borrowed && last > 0) {
-        const at = elements[last].getBoundingClientRect().top - counted.top;
+    if (counted.borrowed && elements.length > 1 && cards[last]) {
+        const at = elements[elements.length - 1].getBoundingClientRect().top - counted.top;
         if (Math.abs(at - cards[last].top) > 1) {
             for (const element of elements) {
                 heights.delete(element.dataset.noteId ?? "");
@@ -133,6 +134,10 @@ function measureCards(area: HTMLElement | null): CardBox[] {
 function countCards(area: HTMLElement, readEvery: boolean) {
     const top = area.getBoundingClientRect().top - area.scrollTop;
     const cards: CardBox[] = [];
+    // A windowed column draws a slice of itself. The cards it leaves undrawn are counted in below
+    // and above the ones it does, so an index here still names a place in the column rather than a
+    // place among what happens to be on screen.
+    const window = readWindow(area);
     const elements: HTMLElement[] = [];
     /** Where the next card stands if it has to be counted rather than read. */
     let next = 0;
@@ -181,5 +186,48 @@ function countCards(area: HTMLElement, readEvery: boolean) {
         next = stands + height + (spacing ?? 0);
     }
 
-    return { cards, elements, borrowed, top };
+    if (!window) {
+        return { cards, elements, borrowed, top, drawnFrom: 0 };
+    }
+
+    // The undrawn cards are spread evenly over the spacer standing for them: precise enough for a
+    // drop, which can only land where the reader can see, and it keeps every index in the column's
+    // own terms.
+    const above = spread(window.from, 0, window.above);
+    const below = spread(
+        window.total - window.from - cards.length,
+        window.above + (cards.length ? next - window.above : 0),
+        window.below);
+
+    return { cards: [ ...above, ...cards, ...below ], elements, borrowed, top, drawnFrom: window.from };
+}
+
+/** What the column says it is drawing, or nothing where it draws all of itself. */
+function readWindow(area: HTMLElement) {
+    const stated = area.dataset.windowCount;
+    const total = stated === undefined ? Number.NaN : Number(stated);
+    if (!Number.isFinite(total)) {
+        return undefined;
+    }
+
+    const spacers = area.querySelectorAll<HTMLElement>(".board-window-spacer");
+    return {
+        from: Number(area.dataset.windowFrom ?? "0") || 0,
+        total,
+        above: spacers[0]?.offsetHeight ?? 0,
+        below: spacers[1]?.offsetHeight ?? 0
+    };
+}
+
+/** Stands `count` cards evenly across a run of pixels, for the ones a column is not drawing. */
+function spread(count: number, from: number, span: number): CardBox[] {
+    if (count <= 0) {
+        return [];
+    }
+
+    const each = span / count;
+    return Array.from({ length: count }, (_, index) => ({
+        top: from + index * each,
+        height: Math.max(0, each - (spacing ?? 0))
+    }));
 }

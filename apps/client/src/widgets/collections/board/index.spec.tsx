@@ -4208,3 +4208,100 @@ describe("Board properties from the note menu", () => {
         return host;
     }
 });
+
+describe("a column windowed for its size", () => {
+    let container: HTMLElement | undefined;
+
+    beforeEach(() => {
+        saved.length = 0;
+        vi.restoreAllMocks();
+        vi.spyOn(server, "put").mockResolvedValue(undefined);
+    });
+
+    afterEach(() => {
+        if (container) {
+            render(null, container);
+            container.remove();
+            container = undefined;
+        }
+    });
+
+    it("draws a slice of a big column and stands spacers for the rest", async () => {
+        const board = await renderSized(200, 3);
+        const columns = board.querySelectorAll<HTMLElement>(".board-column");
+        const big = columns[0];
+        const small = columns[1];
+        if (!big || !small) throw new Error("expected two columns");
+
+        const drawn = big.querySelectorAll(".board-note");
+        expect(drawn.length).toBeGreaterThan(0);
+        expect(drawn.length).toBeLessThan(200);
+        expect(big.classList.contains("windowed")).toBe(true);
+
+        const area = big.querySelector<HTMLElement>(".board-column-content");
+        expect(area?.dataset.windowCount).toBe("200");
+        expect(area?.dataset.windowFrom).toBe("0");
+
+        // The cards it is not drawing are held by the spacer below them.
+        const spacers = big.querySelectorAll<HTMLElement>(".board-window-spacer");
+        expect(spacers).toHaveLength(2);
+        expect(spacers[0].style.height).toBe("0px");
+        expect(Number.parseFloat(spacers[1].style.height)).toBeGreaterThan(0);
+
+        // A column that fits keeps the path it has always had.
+        expect(small.classList.contains("windowed")).toBe(false);
+        expect(small.querySelectorAll(".board-note")).toHaveLength(3);
+        expect(small.querySelector<HTMLElement>(".board-column-content")?.dataset.windowCount)
+            .toBeUndefined();
+    });
+
+    /**
+     * The drag and the keyboard both name a card by the place it holds in its column. Counting
+     * drawn elements would name a place among whatever is on screen, which moves as it scrolls.
+     */
+    it("gives each card the place it holds in the column, not among the ones drawn", async () => {
+        const board = await renderSized(200, 3);
+        const drawn = [ ...board.querySelectorAll<HTMLElement>(".board-column-content .board-note") ];
+        const big = drawn.filter((card) => card.closest(".board-column")
+            === board.querySelector(".board-column"));
+
+        expect(big.map((card) => card.dataset.index))
+            .toEqual(big.map((_, index) => String(index)));
+    });
+
+    async function renderSized(big: number, small: number) {
+        const note = buildNote({
+            title: "Board",
+            "#collection": "",
+            "#viewType": "board",
+            children: [
+                ...Array.from({ length: big }, (_, i) => ({
+                    title: `Big ${i}`, "#status": "To Do"
+                })),
+                ...Array.from({ length: small }, (_, i) => ({
+                    title: `Small ${i}`, "#status": "Done"
+                }))
+            ]
+        });
+
+        const mountPoint = document.createElement("div");
+        container = mountPoint;
+        document.body.appendChild(mountPoint);
+
+        await act(async () => {
+            render(
+                <ParentComponent.Provider value={new Component()}>
+                    <Harness
+                        note={note}
+                        noteIds={[ ...note.getChildNoteIds() ]}
+                        initialConfig={{ columns: [ { value: "To Do" }, { value: "Done" } ] }}
+                    />
+                </ParentComponent.Provider>,
+                mountPoint
+            );
+        });
+        await act(async () => { await flush(); });
+
+        return mountPoint;
+    }
+});

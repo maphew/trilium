@@ -270,6 +270,7 @@ function Card({
                 }
             }}
             data-note-id={note.noteId}
+            data-index={index}
             onContextMenu={handleContextMenu}
             onDragStart={handleDragStart}
             onClick={!isEditing ? handleClick : undefined}

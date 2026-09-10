@@ -583,7 +583,13 @@ function startCard(
     const noteId = element?.dataset.noteId;
     if (!element || !columnElement || !noteId) return null;
 
-    const cards = [ ...columnElement.querySelectorAll(".board-note") ];
+    // A windowed column draws a slice of its cards, so the card says which place it holds rather
+    // than being counted among the ones on screen.
+    const stated = element.dataset.index;
+    const place = stated === undefined ? Number.NaN : Number(stated);
+    const index = Number.isFinite(place)
+        ? place
+        : [ ...columnElement.querySelectorAll(".board-note") ].indexOf(element);
     const noteIds = carriedWith(noteId);
     return {
         kind: "card",
@@ -593,7 +599,7 @@ function startCard(
             noteId,
             noteIds,
             fromColumn: columnElement.dataset.column ?? "",
-            index: cards.indexOf(element),
+            index,
             height: carriedHeight(element, noteIds)
         },
         position: null,

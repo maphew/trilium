@@ -625,6 +625,19 @@ body.mobile .board-view-container .board-add-column {
 /* A column contains only what it can scroll itself. `contain` on both axes would also hold a
    sideways swipe that starts on a card, which the column cannot scroll and the board can: Chrome
    stops it at the column instead of passing it on, and the board never moves. */
+/* Stands for the cards a windowed column is not drawing, so the column is the height it would be
+   were it drawing them. */
+.board-view-container .board-window-spacer {
+  margin: 0;
+}
+
+/* A measurement that corrects the spacer above moves everything below it, and the column moves its
+   own scroll position by as much to hold the reader still. The browser must not do so as well: the
+   two chase each other and never settle. */
+.board-view-container .board-column.windowed > .board-column-content {
+  overflow-anchor: none;
+}
+
 .board-view-container .board-column-content {
   overscroll-behavior-y: contain;
   /* What the gap is placed against, and what a card's `offsetTop` is then counted from. */
