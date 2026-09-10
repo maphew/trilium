@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { cardInsertionIndex, columnAt } from "./drag_geometry";
-import { forgetCardHeights, measureBoard, toAreaY, toBoardX } from "./drag_measure";
+import {
+    forgetCardHeights, measureBoard, placeInModel, toAreaY, toBoardX
+} from "./drag_measure";
 
 let container: HTMLElement | undefined;
 
@@ -224,5 +226,62 @@ describe("reading a point against a measurement", () => {
             expect(columnAt(columns, toBoardX(board, onScreen))?.value).toBe("To Do");
             board.remove();
         }
+    });
+});
+
+describe("placeInModel", () => {
+    /** The boxes a column of these heights lays out, for comparing against the geometry. */
+    const boxesOf = (heights: number[], spacing: number) => {
+        let top = 0;
+        return heights.map((height) => {
+            const box = { top, height };
+            top += height + spacing;
+            return box;
+        });
+    };
+
+    /**
+     * The model has to answer exactly what the geometry answers from the boxes: it stands in for
+     * reading the page, and a column that drifts between the two puts the gap somewhere the drop
+     * does not go.
+     */
+    it("agrees with the geometry at every point down a column", () => {
+        const heights = Array.from({ length: 40 }, (_, i) => 40 + (i % 5) * 20);
+        const spacing = 9;
+        const boxes = boxesOf(heights, spacing);
+        const foot = boxes[boxes.length - 1].top + boxes[boxes.length - 1].height;
+
+        for (let y = -20; y < foot + 40; y += 7) {
+            expect(placeInModel({ heights, spacing }, y, undefined))
+                .toBe(cardInsertionIndex(boxes, y));
+        }
+    });
+
+    it("agrees with the geometry for a card carried within the same column", () => {
+        const heights = Array.from({ length: 30 }, (_, i) => 50 + (i % 3) * 30);
+        const spacing = 9;
+
+        for (const carried of [ 0, 7, 29 ]) {
+            // The carried card is out of the flow, so the column lays out without it.
+            const rest = heights.filter((_, index) => index !== carried);
+            const boxes = boxesOf(rest, spacing);
+            const foot = boxes[boxes.length - 1].top + boxes[boxes.length - 1].height;
+
+            for (let y = -20; y < foot + 40; y += 11) {
+                const place = cardInsertionIndex(boxes, y);
+                const expected = place >= carried ? place + 1 : place;
+                expect(placeInModel({ heights, spacing }, y, carried)).toBe(expected);
+            }
+        }
+    });
+
+    it("puts a point above the column at the front and one below it at the back", () => {
+        const model = { heights: [ 60, 60, 60 ], spacing: 10 };
+        expect(placeInModel(model, -500, undefined)).toBe(0);
+        expect(placeInModel(model, 99_999, undefined)).toBe(3);
+    });
+
+    it("answers for a column holding nothing", () => {
+        expect(placeInModel({ heights: [], spacing: 9 }, 40, undefined)).toBe(0);
     });
 });

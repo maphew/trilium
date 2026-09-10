@@ -1,4 +1,5 @@
 import { type CardBox, type ColumnBox } from "./drag_geometry";
+import { type ColumnModel } from "./windowing";
 
 /** What a drag measures once at its start, and reads for the rest of the gesture. */
 export interface BoardMeasurement {
@@ -56,6 +57,47 @@ export function measureBoard(container: HTMLElement, withCards = true): BoardMea
 /** A point in the board's content space, which its horizontal scrolling does not move columns in. */
 export function toBoardX(container: HTMLElement, clientX: number): number {
     return clientX - container.getBoundingClientRect().left + container.scrollLeft;
+}
+
+/**
+ * The place a carried card would take in a windowed column, counted from what the column lays its
+ * cards out with rather than from the page.
+ *
+ * The same answer {@link cardInsertionIndex} gives for a column drawn in full, and the same
+ * treatment of the carried card: it is out of the flow while it is held, so the cards below it
+ * stand one place higher and the index is counted back afterwards.
+ *
+ * Worked out per move rather than once per gesture. A window that has moved under an auto-scroll
+ * draws cards the gesture had only estimated, and an index counted from the estimate drifts further
+ * from the gap the longer the scroll runs.
+ *
+ * @param carrying the place the carried card holds here, or `undefined` if it came from elsewhere.
+ */
+export function placeInModel(model: ColumnModel, y: number, carrying: number | undefined): number {
+    const { heights, spacing } = model;
+    let offset = 0;
+    /** How many cards have been passed, the carried one not counted among them. */
+    let place = 0;
+
+    for (const [ index, height ] of heights.entries()) {
+        if (index === carrying) {
+            continue;
+        }
+
+        const foot = offset + height;
+        const isLast = index === heights.length - 1
+            || (carrying === heights.length - 1 && index === heights.length - 2);
+        // Halfway into the gap below a card is where the next place begins.
+        const boundary = isLast ? foot : foot + spacing / 2;
+        if (y < boundary) {
+            return carrying !== undefined && place >= carrying ? place + 1 : place;
+        }
+
+        offset = foot + spacing;
+        place++;
+    }
+
+    return carrying !== undefined && place >= carrying ? place + 1 : place;
 }
 
 /**

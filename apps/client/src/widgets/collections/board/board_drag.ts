@@ -3,10 +3,13 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import { useTrackedElement } from "../../react/hooks";
 import {
-    type CardBox, cardInsertionIndex, columnAt, columnCovers, columnInsertionIndex
+    type CardBox, cardInsertionIndex, columnAt, type ColumnBox, columnCovers, columnInsertionIndex
 } from "./drag_geometry";
-import { type BoardMeasurement, measureBoard, toAreaY, toBoardX } from "./drag_measure";
+import {
+    type BoardMeasurement, measureBoard, placeInModel, toAreaY, toBoardX
+} from "./drag_measure";
 import { createEdgeScroller, type ScrollTarget } from "../../react/edge_scroll";
+import { getColumnModel } from "./windowing";
 
 /** How far a pointer travels before a press with a button held is taken for a drag. */
 const MOUSE_THRESHOLD = 4;
@@ -247,7 +250,7 @@ export function useBoardDrag(
                 ? {
                     column: column.value,
                     index: area
-                        ? placeIn(column.cards, toAreaY(area, topY), held.card, column.value)
+                        ? placeAt(area, toAreaY(area, topY), held.card, column)
                         : 0
                 }
                 : null;
@@ -539,6 +542,21 @@ function row(held: Gesture & { kind: "column" }) {
     }
 
     return { lefts, stride: (boxes[held.index]?.width ?? 0) + gap };
+}
+
+/**
+ * The place a carried card would take in a column.
+ *
+ * A windowed column is asked what it is drawing with now: the boxes a gesture measures at its start
+ * only estimate the cards it was not drawing then, and an auto-scroll draws them for real.
+ */
+function placeAt(area: HTMLElement, y: number, card: DraggedCard, column: ColumnBox): number {
+    const model = getColumnModel(area);
+    if (!model) {
+        return placeIn(column.cards, y, card, column.value);
+    }
+
+    return placeInModel(model, y, column.value === card.fromColumn ? card.index : undefined);
 }
 
 /**

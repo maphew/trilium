@@ -561,7 +561,7 @@ export default function Column({
         const reveal = (event: Event) => {
             const { detail } = event as CustomEvent<RevealCardDetail>;
             if (detail.column === column) {
-                scrollToCard(detail.index);
+                scrollToCard(detail.index, detail.immediate);
             }
         };
 

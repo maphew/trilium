@@ -3548,6 +3548,33 @@ describe("Board filtering", () => {
         return results;
     }
 
+    /**
+     * The move is drawn at once, into the unfiltered map. Counting the place among the shown cards
+     * instead puts the card partway up the column, and it jumps to the end when the write lands.
+     */
+    it("sends a card to the end of the column, not to the end of what the filter shows", async () => {
+        // "To Do" holds three cards and shows one, so the two counts are far enough apart to tell
+        // which of them the move used.
+        await setup({ matched: [ "filtered3", "filtered4" ] });
+        expect(cardTitles(0)).toEqual([ "Third" ]);
+        expect(cardTitles(1)).toEqual([ "Fourth" ]);
+
+        const carried = container.querySelectorAll<HTMLElement>(".board-column")[1]
+            ?.querySelector<HTMLElement>(".board-note");
+        if (!carried) throw new Error("expected a card in the second column");
+
+        carried.focus();
+        await act(async () => {
+            carried.dispatchEvent(new KeyboardEvent("keydown", {
+                key: "ArrowLeft", ctrlKey: true, bubbles: true, cancelable: true
+            }));
+            await flush();
+        });
+
+        // Drawn behind the card already shown, which is where the end of the column is.
+        expect(cardTitles(0)).toEqual([ "Third", "Fourth" ]);
+    });
+
     it("shows only the matched cards, in their own order, keeping every column", async () => {
         // The matches arrive in score order; the board must keep branch order regardless.
         const note = await setup({ matched: [ "filtered3", "filtered1" ] });

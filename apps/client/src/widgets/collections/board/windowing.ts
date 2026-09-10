@@ -9,6 +9,7 @@
  */
 
 import { RefObject } from "preact";
+import { flushSync } from "preact/compat";
 import {
     useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
@@ -121,31 +122,49 @@ export function resolveHeights(
 }
 
 /**
- * What an unmeasured card is counted at, settled once from the first cards drawn and left alone
- * after that.
+ * What a column counts an unmeasured card at, from the cards of that column already measured.
  *
- * It has to stop moving. The spacer above the window is what holds the reader's place, and it is
- * counted from these: a figure that kept being revised would move every card under them on every
- * measurement, and the column would creep while they read it.
+ * A column's own cards, not every card the page has drawn: two boards, or two columns of one
+ * board, can carry different attributes and stand at quite different heights, and counting one
+ * column's cards at another's average puts its spacers, its scrollbar and its scroll destinations
+ * all in the wrong place.
+ *
+ * Answers nothing until enough of them have been measured, and the caller then holds what it is
+ * given for good. It has to stop moving: the spacer above the window holds the reader's place and
+ * is counted from this, so a figure that kept being revised would slide the column as they read.
+ *
+ * @param held what the column has already settled on, which is answered back unchanged.
  */
-export function estimateFrom(measured: ReadonlyMap<string, number>) {
-    if (estimate !== undefined || measured.size < ESTIMATE_SAMPLE) {
-        return estimate ?? NOMINAL_CARD_HEIGHT;
+export function estimateFor(
+    noteIds: readonly string[],
+    measured: ReadonlyMap<string, number>,
+    held: number | undefined
+) {
+    if (held !== undefined) {
+        return held;
     }
 
     let total = 0;
-    for (const height of measured.values()) {
-        total += height;
+    let seen = 0;
+    for (const noteId of noteIds) {
+        const height = measured.get(noteId);
+        if (height !== undefined) {
+            total += height;
+            seen++;
+        }
     }
 
-    estimate = total / measured.size;
-    return estimate;
+    return seen >= ESTIMATE_SAMPLE ? total / seen : undefined;
 }
 
-/** How many cards are measured before what the rest are counted at is settled. */
+/** How many of a column's cards are measured before what the rest are counted at is settled. */
 const ESTIMATE_SAMPLE = 12;
 
-let estimate: number | undefined;
+/**
+ * Bumped when what has been measured is dropped, so every column settles on a fresh estimate
+ * rather than holding one taken at a width the board no longer has.
+ */
+let generation = 0;
 
 /**
  * Whether two windows draw the same cards.
@@ -176,11 +195,19 @@ export function useColumnWindow(
 ) {
     const [ revision, setRevision ] = useState(0);
     const [ scroll, setScroll ] = useState({ top: 0, viewport: 0 });
+    /** What this column counts its unmeasured cards at, once its own have settled it. */
+    const estimate = useRef<{ at: number, value?: number }>({ at: generation });
+    if (estimate.current.at !== generation) {
+        estimate.current = { at: generation };
+    }
+    estimate.current.value = estimateFor(noteIds, cardHeights, estimate.current.value);
+
+    const settled = estimate.current.value;
     const heights = useMemo(
-        () => resolveHeights(noteIds, cardHeights, estimateFrom(cardHeights)),
+        () => resolveHeights(noteIds, cardHeights, settled ?? NOMINAL_CARD_HEIGHT),
         // `revision` stands for the measurements, which live outside the render.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [ noteIds, revision ]);
+        [ noteIds, revision, settled ]);
     const spacing = cardSpacing() || DEFAULT_SPACING;
 
     const bounds = useMemo(() => (enabled
@@ -259,11 +286,24 @@ export function useColumnWindow(
         }
     });
 
+    // Published after each commit, so a gesture reads what the column is drawing with now rather
+    // than what it was drawing with when the gesture started.
+    useLayoutEffect(() => {
+        const area = areaRef.current;
+        if (!area) return;
+
+        if (enabled) {
+            models.set(area, { heights, spacing });
+        } else {
+            models.delete(area);
+        }
+    }, [ areaRef, enabled, heights, spacing ]);
+
     /**
      * Brings a card into the window, for one the column has just made where the reader is not
      * looking. The scroll is what moves the window: it is worked out from the same heights.
      */
-    const scrollToCard = useCallback((index: number) => {
+    const scrollToCard = useCallback((index: number, immediate = false) => {
         const area = areaRef.current;
         if (!area || !enabled) return;
 
@@ -275,10 +315,36 @@ export function useColumnWindow(
 
         // Placed a little above the foot of the area, so the card is not left under its own edge.
         area.scrollTop = Math.max(0, offset - area.clientHeight / 2);
+
+        if (immediate) {
+            // The scroll event that would move the window arrives a frame later, so the window is
+            // moved here instead and the card is in the page before this returns.
+            flushSync(() => setScroll({ top: area.scrollTop, viewport: area.clientHeight }));
+        }
     }, [ areaRef, enabled, heights, spacing ]);
 
     return { bounds, windowChanged: changed, scrollToCard };
 }
+
+/**
+ * What a column lays its cards out from: the heights the spacers are counted with, and the gap
+ * between one card and the next.
+ *
+ * Published so a drag can work out where a card would land without reading the page. The page is
+ * the wrong source mid-gesture: the carried card is out of the flow, the gap stands over the cards,
+ * and the ones below it are moved aside by a transform.
+ */
+export interface ColumnModel {
+    heights: readonly number[];
+    spacing: number;
+}
+
+/** The model a column is drawing with, or nothing where it draws all of its cards. */
+export function getColumnModel(area: HTMLElement) {
+    return models.get(area);
+}
+
+const models = new WeakMap<HTMLElement, ColumnModel>();
 
 /**
  * Asks the column drawing `column` to bring a card into view.
@@ -286,8 +352,10 @@ export function useColumnWindow(
  * The keyboard walks a column by index and can step onto a card outside the window, which is not
  * in the page to be focused. The column answers by scrolling to it, which draws it.
  */
-export function askForCard(container: HTMLElement, column: string, index: number) {
-    container.dispatchEvent(new CustomEvent(REVEAL_CARD, { detail: { column, index } }));
+export function askForCard(
+    container: HTMLElement, column: string, index: number, immediate = false
+) {
+    container.dispatchEvent(new CustomEvent(REVEAL_CARD, { detail: { column, index, immediate } }));
 }
 
 /** The event {@link askForCard} raises, which a windowed column listens for. */
@@ -296,12 +364,21 @@ export const REVEAL_CARD = "board:reveal-card";
 export interface RevealCardDetail {
     column: string;
     index: number;
+    /**
+     * Whether the card must be in the page by the time the ask returns.
+     *
+     * For a keyboard walk, which has to focus it in the same keystroke: focus left on nothing
+     * while a frame is waited for makes the next key find no card to walk from, and the browser
+     * scrolls the board instead. Not for an ask made while the board is drawing, where drawing
+     * again in the middle of a commit is not safe.
+     */
+    immediate?: boolean;
 }
 
 /** Drops what has been measured, for a window whose size has changed under it. */
 export function forgetWindowHeights() {
     cardHeights.clear();
-    estimate = undefined;
+    generation++;
 }
 
 /**

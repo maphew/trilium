@@ -109,6 +109,8 @@ export function useBoardKeyboard({
     const pendingFocus = useRef<PendingFocus | null>(null);
     /** The card a column has been asked to draw, so it is not asked for again each render. */
     const asked = useRef<string | null>(null);
+    /** Where the reader last stood, for a key pressed while focus is between two draws. */
+    const lastSpot = useRef<Spot | null>(null);
 
     // Every render, since a redraw is the only thing that takes focus away here and more than one
     // of them follows a move.
@@ -197,7 +199,11 @@ export function useBoardKeyboard({
         // work over a board as over anything else.
         if (e.altKey && !e.ctrlKey) return;
 
-        const spot = spotOf(container, document.activeElement);
+        const spot = spotOf(container, document.activeElement)
+            // Focus can be left on nothing by a redraw that took the card it was on out of the
+            // page. The walk carries on from where it last stood rather than letting the key
+            // through, which would scroll the board instead of moving along it.
+            ?? (NAVIGATION_KEYS.includes(e.key) ? lastSpot.current : null);
         if (!spot) return;
 
         if (e.ctrlKey) {
@@ -274,7 +280,7 @@ export function useBoardKeyboard({
         if (NAVIGATION_KEYS.includes(e.key)) {
             // The plain arrows would otherwise scroll the page past the end of a column.
             take(e);
-            walk(container, spot, e.key);
+            lastSpot.current = walk(container, spot, e.key) ?? spot;
             return;
         }
 
@@ -453,14 +459,14 @@ function spotOf(container: HTMLElement, element: Element | null): Spot | null {
  * right cross to the next column's first card, or to its button where it holds none: its header is
  * reached by pressing up from there, which is the only way a header is reached at all.
  */
-function walk(container: HTMLElement, from: Spot, key: string) {
+function walk(container: HTMLElement, from: Spot, key: string): Spot | null {
     const next = destination(container, from, key);
-    if (!next) return false;
+    if (!next) return null;
 
     const element = elementAt(container, next);
     if (element) {
         reveal(element);
-        return true;
+        return next;
     }
 
     // A windowed column draws a slice of its cards, and the walk has stepped onto one outside it.
@@ -468,20 +474,20 @@ function walk(container: HTMLElement, from: Spot, key: string) {
     if (next.kind === "item") {
         const column = columnsOf(container)[next.column];
         const value = column?.dataset.column;
-        if (!column || value === undefined) return false;
+        if (!column || value === undefined) return null;
 
-        askForCard(container, value, next.item);
-        // Focused on the frame after the column has drawn it: the element does not exist yet.
-        requestAnimationFrame(() => {
-            const arrived = cardAt(column, next.item);
-            if (arrived) {
-                reveal(arrived);
-            }
-        });
-        return true;
+        // Drawn before the ask returns, so the card is focused in this keystroke. Left to a later
+        // frame, the scroll can take the card being walked from out of the page first, and focus
+        // falls to nothing: the next key then finds nowhere to walk from and the board scrolls.
+        askForCard(container, value, next.item, true);
+        const arrived = cardAt(column, next.item);
+        if (arrived) {
+            reveal(arrived);
+            return next;
+        }
     }
 
-    return false;
+    return null;
 }
 
 function destination(container: HTMLElement, from: Spot, key: string): Spot | null {

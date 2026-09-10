@@ -49,6 +49,7 @@ import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api"
 import { useBoardDrag } from "./board_drag";
 import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geometry";
 import { forgetCardHeights } from "./drag_measure";
+import { forgetWindowHeights } from "./windowing";
 import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
 import { adoptLegacyColumns, readColumns } from "./column_storage";
@@ -658,8 +659,13 @@ export default function BoardView({
     // measured at. A phone gives a column a share of the window, so a window that changes size
     // takes the heights with it.
     useEffect(() => {
-        window.addEventListener("resize", forgetCardHeights);
-        return () => window.removeEventListener("resize", forgetCardHeights);
+        const forget = () => {
+            forgetCardHeights();
+            forgetWindowHeights();
+        };
+
+        window.addEventListener("resize", forget);
+        return () => window.removeEventListener("resize", forget);
     }, []);
 
     // Which columns stand narrow, as a line, so that one opening or closing is read off a single
@@ -1107,15 +1113,21 @@ export default function BoardView({
     const sendCardsToColumn = useCallback((
         cards: { noteId: string, branchId: string }[], targetColumn: string
     ) => holdMove(
-        cards, targetColumn, api.getColumnNoteIds(targetColumn).length,
+        // The end of the column itself, not of what a filter leaves showing of it: the move is
+        // drawn into `allByColumn`, so a place counted among the shown cards would put the card
+        // partway up the column and leave it to jump to the end as the write lands.
+        cards, targetColumn, allByColumn?.get(targetColumn)?.length ?? 0,
         api.moveToColumnEnd(cards, targetColumn)),
-    [ api, holdMove ]);
+    [ api, holdMove, allByColumn ]);
 
     /** Moves cards to a place among the ones already in a column. */
     const moveCardsWithin = useCallback((
         cards: { noteId: string, branchId: string }[], column: string, index: number
-    ) => holdMove(cards, column, index, api.moveWithinBoard(cards, column, index)),
-    [ api, holdMove ]);
+    ) => holdMove(
+        cards, column,
+        unfilteredCardIndex(byColumn?.get(column) ?? [], allByColumn?.get(column) ?? [], index),
+        api.moveWithinBoard(cards, column, index)),
+    [ api, holdMove, byColumn, allByColumn ]);
 
     const clearSelectionOutsideCards = useCallback((e: MouseEvent) => {
         if (!(e.target as HTMLElement | null)?.closest(".board-note")) {

@@ -3,8 +3,9 @@ import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-    type ColumnWindow, computeWindow, estimateFrom, forgetWindowHeights, NOMINAL_CARD_HEIGHT,
-    resolveHeights, sameWindow, useColumnWindow, type WindowInput
+    askForCard, type ColumnWindow, computeWindow, estimateFor, forgetWindowHeights,
+    NOMINAL_CARD_HEIGHT, resolveHeights, REVEAL_CARD, type RevealCardDetail, sameWindow,
+    useColumnWindow, type WindowInput
 } from "./windowing";
 
 /** A column of uniform cards, which makes every offset in a test arithmetic. */
@@ -134,34 +135,61 @@ describe("resolveHeights", () => {
     });
 });
 
-describe("estimateFrom", () => {
-    beforeEach(() => forgetWindowHeights());
+describe("estimateFor", () => {
+    const ids = (count: number, from = 0) =>
+        Array.from({ length: count }, (_, i) => `n${from + i}`);
+    const measuredAt = (count: number, height: number, from = 0) =>
+        new Map(ids(count, from).map((id) => [ id, height ] as const));
 
-    it("stands at the nominal height until enough cards have been measured", () => {
-        const measured = new Map([ [ "a", 200 ], [ "b", 200 ] ]);
-        expect(estimateFrom(measured)).toBe(NOMINAL_CARD_HEIGHT);
+    it("answers nothing until enough of the column's own cards have been measured", () => {
+        expect(estimateFor(ids(50), measuredAt(2, 200), undefined)).toBeUndefined();
     });
 
-    it("settles on the average once there are enough of them", () => {
-        const measured = new Map(
-            Array.from({ length: 12 }, (_, i) => [ `n${i}`, 100 ] as const));
-        expect(estimateFrom(measured)).toBe(100);
+    it("settles on the average of the column's measured cards", () => {
+        expect(estimateFor(ids(50), measuredAt(12, 100), undefined)).toBe(100);
     });
 
     /**
-     * The spacer above the window is counted from this, and the spacer is what holds the reader's
-     * place: a figure that kept being revised would move the column under them as they read it.
+     * The spacer above the window is counted from this and is what holds the reader's place: a
+     * figure that kept being revised would slide the column while they read it.
      */
-    it("never moves again once it has settled", () => {
-        const measured = new Map<string, number>(
-            Array.from({ length: 12 }, (_, i) => [ `n${i}`, 100 ]));
-        expect(estimateFrom(measured)).toBe(100);
+    it("answers back what a column has already settled on", () => {
+        const measured = new Map<string, number>(measuredAt(40, 500));
+        expect(estimateFor(ids(50), measured, 100)).toBe(100);
+    });
 
-        for (let i = 0; i < 40; i++) {
-            measured.set(`tall${i}`, 500);
-        }
+    /**
+     * Two boards, or two columns of one board, can carry different attributes and stand at quite
+     * different heights. Counting one column's cards at another's average puts its spacers, its
+     * scrollbar and its scroll destinations all in the wrong place.
+     */
+    it("counts only the cards the column holds, not every card measured anywhere", () => {
+        const measured = new Map<string, number>([
+            // A tall column measured earlier, whose cards this one does not hold.
+            ...measuredAt(40, 500, 100),
+            ...measuredAt(12, 60)
+        ]);
 
-        expect(estimateFrom(measured)).toBe(100);
+        expect(estimateFor(ids(50), measured, undefined)).toBe(60);
+    });
+});
+
+describe("askForCard", () => {
+    it("raises the ask on the board, naming the column, the card and how soon it is wanted", () => {
+        const board = document.createElement("div");
+        document.body.appendChild(board);
+        const seen: RevealCardDetail[] = [];
+        board.addEventListener(REVEAL_CARD, (e) =>
+            seen.push((e as CustomEvent<RevealCardDetail>).detail));
+
+        askForCard(board, "To Do", 42);
+        askForCard(board, "Done", 7, true);
+        board.remove();
+
+        expect(seen).toEqual([
+            { column: "To Do", index: 42, immediate: false },
+            { column: "Done", index: 7, immediate: true }
+        ]);
     });
 });
 
@@ -200,13 +228,14 @@ describe("useColumnWindow", () => {
 
     /** Renders a probe that does nothing but report what the hook hands back. */
     async function probe(noteIds: string[], enabled = true) {
-        const seen: { bounds: ColumnWindow, windowChanged: boolean }[] = [];
+        const seen: ReturnType<typeof useColumnWindow>[] = [];
         const ref = { current: area ?? null };
 
         function Probe() {
             seen.push(useColumnWindow(ref, noteIds, enabled));
             return null;
         }
+
 
         await act(async () => {
             render(<Probe />, host ?? document.body);
@@ -247,6 +276,58 @@ describe("useColumnWindow", () => {
         expect(moved.above).toBeGreaterThan(first.above);
         // The flip has to be told, or it slides cards from places that named other cards.
         expect(last().windowChanged).toBe(true);
+    });
+
+    it("scrolls to a card the column is not drawing, placing it inside the area", async () => {
+        const { last } = await probe(ids(2000));
+
+        await act(async () => last().scrollToCard(400));
+
+        // Cards stand at the nominal height until measured, so where card 400 begins is arithmetic.
+        const perCard = NOMINAL_CARD_HEIGHT + 9;
+        expect(area?.scrollTop).toBe(Math.max(0, 400 * perCard - 300));
+    });
+
+    it("leaves the scroll alone for a column it is switched off for", async () => {
+        const { last } = await probe(ids(2000), false);
+        if (area) area.scrollTop = 42;
+
+        await act(async () => last().scrollToCard(400));
+
+        expect(area?.scrollTop).toBe(42);
+    });
+
+    it("draws the card before the ask returns when it is wanted at once", async () => {
+        const { last } = await probe(ids(2000));
+        const before = last().bounds;
+
+        // No act(): the point is that the window has moved by the time the call returns, which is
+        // what lets a keyboard walk focus the card in the same keystroke.
+        last().scrollToCard(400, true);
+
+        expect(last().bounds.from).toBeGreaterThan(before.from);
+    });
+
+    it("counts a card at what it measures once the column has drawn it", async () => {
+        const noteIds = ids(2000);
+        const { last } = await probe(noteIds);
+        const tall = last().bounds.below;
+
+        // The cards the column drew, standing taller than the nominal height it assumed.
+        await act(async () => {
+            for (const noteId of noteIds.slice(0, 30)) {
+                const card = document.createElement("div");
+                card.className = "board-note";
+                card.dataset.noteId = noteId;
+                Object.defineProperty(card, "offsetHeight", { value: 200, configurable: true });
+                area?.appendChild(card);
+            }
+            if (area) area.scrollTop = 1;
+            area?.dispatchEvent(new Event("scroll"));
+        });
+
+        // A taller column has more of itself left below the window than it was counted at.
+        expect(last().bounds.below).toBeGreaterThan(tall);
     });
 
     it("leaves the window alone for a scroll that stays inside the chunk it is drawing", async () => {
