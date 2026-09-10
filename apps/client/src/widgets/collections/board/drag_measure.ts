@@ -58,8 +58,8 @@ export function measureBoard(container: HTMLElement, withCards = true): BoardMea
 /**
  * Where a column's first card begins, in the space {@link toAreaY} reads a point into.
  *
- * Taken from the spacer standing at the head of the cards, which begins where they do whatever the
- * column is drawing. Read once per gesture: a column's padding does not change while one runs.
+ * Read from the leading `.board-window-spacer`, which begins where the cards do whether or not the
+ * column is windowed. Read once per gesture: the padding does not change while one runs.
  */
 function contentOrigin(area: HTMLElement | null) {
     const spacer = area?.querySelector<HTMLElement>(".board-window-spacer");
@@ -80,20 +80,20 @@ export function toBoardX(container: HTMLElement, clientX: number): number {
  * The place a carried card would take in a windowed column, counted from what the column lays its
  * cards out with rather than from the page.
  *
- * Matches {@link cardInsertionIndex} for a column drawn in full, and treats the carried card the
- * same way: it is out of the flow while held, so the cards below it stand one place higher and the
+ * Matches {@link cardInsertionIndex} for a fully rendered column, and treats the dragged card the
+ * same way: it is out of the flow while held, so the cards below it shift up one place and the
  * index is converted back afterwards.
  *
- * Worked out per move rather than once per gesture. A window that has moved under an auto-scroll
- * draws cards the gesture had only estimated, and an index counted from the estimate drifts further
- * from the gap the longer the scroll runs.
+ * Computed per pointer move rather than once per gesture. An auto-scroll moves the window onto
+ * cards the gesture had only estimated, and an index computed from those estimates drifts further
+ * from the drop placeholder the longer the scroll runs.
  *
  * @param carrying the place the carried card holds here, or `undefined` if it came from elsewhere.
  */
 export function placeInModel(model: ColumnModel, y: number, carrying: number | undefined): number {
     const { heights, spacing } = model;
     let offset = 0;
-    /** How many cards have been passed, the carried one not counted among them. */
+    /** How many cards have been passed, excluding the dragged one. */
     let place = 0;
 
     for (const [ index, height ] of heights.entries()) {
@@ -104,7 +104,7 @@ export function placeInModel(model: ColumnModel, y: number, carrying: number | u
         const foot = offset + height;
         const isLast = index === heights.length - 1
             || (carrying === heights.length - 1 && index === heights.length - 2);
-        // Halfway into the gap below a card is where the next place begins.
+        // The next slot begins halfway into the gap below a card.
         const boundary = isLast ? foot : foot + spacing / 2;
         if (y < boundary) {
             return carrying !== undefined && place >= carrying ? place + 1 : place;
@@ -193,9 +193,8 @@ function measureCards(area: HTMLElement | null): CardBox[] {
 function countCards(area: HTMLElement, readEvery: boolean) {
     const top = area.getBoundingClientRect().top - area.scrollTop;
     const cards: CardBox[] = [];
-    // A windowed column draws a slice of itself. The cards it leaves undrawn are counted in below
-    // and above the ones it does, so an index here still names a place in the column rather than a
-    // place among what happens to be on screen.
+    // A windowed column renders a slice of its cards. Boxes for the unrendered ones are added
+    // above and below, so an index here is a position in the column, not among the visible cards.
     const window = readWindow(area);
     const elements: HTMLElement[] = [];
     /** Where the next card stands if it has to be counted rather than read. */
@@ -249,9 +248,8 @@ function countCards(area: HTMLElement, readEvery: boolean) {
         return { cards, elements, borrowed, top, drawnFrom: 0 };
     }
 
-    // The undrawn cards are spread evenly over the spacer standing for them: precise enough for a
-    // drop, which can only land where the reader can see, and it keeps every index in the column's
-    // own terms.
+    // Spread the unrendered cards evenly across the spacer covering them. Precise enough for a
+    // drop, which can only land where the reader can see, and it keeps every index in column terms.
     const above = spread(window.from, 0, window.above);
     const below = spread(
         window.total - window.from - cards.length,
@@ -278,7 +276,7 @@ function readWindow(area: HTMLElement) {
     };
 }
 
-/** Stands `count` cards evenly across a run of pixels, for the ones a column is not drawing. */
+/** Returns `count` boxes spread evenly across `span` pixels, for cards a column does not render. */
 function spread(count: number, from: number, span: number): CardBox[] {
     if (count <= 0) {
         return [];

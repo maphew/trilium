@@ -1,11 +1,10 @@
 /**
- * Which of a column's cards are drawn, for a column holding more of them than the page can carry.
+ * Picks which of a column's cards to render, for columns holding more than the page can carry.
  *
- * A board keeps every card of every column in the page, and the cost of that is not the elements
- * inside a card but the card itself: the style rules the page holds are matched against each one,
- * so a column of thousands makes scrolling, dragging and hovering it cost hundreds of milliseconds.
- * Drawing only what the reader can see, with a spacer standing for the rest, takes those back to
- * the frame budget.
+ * Without this the board renders every card of every column. The cost is the `.board-note` element
+ * itself, not its contents: the page's CSS rules are matched against each one, so a column of
+ * 10,000 cards costs hundreds of milliseconds per style recalculation. Rendering only the visible
+ * cards, with a spacer div for the rest, brings scrolling, dragging and hovering back to 60fps.
  */
 
 import { RefObject } from "preact";
@@ -16,47 +15,47 @@ import {
 
 import { cardSpacing } from "./drag_measure";
 
-/** What a card stands at before anything has measured it: one line of title with its padding. */
+/** Height assumed for a card before it is measured: one line of title plus its padding. */
 export const NOMINAL_CARD_HEIGHT = 64;
 
-/** How far past each edge of the area cards are still drawn, so scrolling has somewhere to go. */
+/** Extra pixels rendered past each edge of the area, so a scroll has cards ready. */
 export const OVERSCAN_PX = 800;
 
-/** The window's edges move in steps of this many cards, so a scroll swaps them in batches. */
+/** The window's edges move in steps of this many cards, batching re-renders. */
 export const WINDOW_CHUNK = 25;
 
-/** What a column holds before it is worth windowing at all. */
+/** Minimum cards in a column before windowing is worth its complexity. */
 export const WINDOW_THRESHOLD = 120;
 
 export interface ColumnWindow {
-    /** The first card drawn. */
+    /** Index of the first card rendered. */
     from: number;
-    /** One past the last card drawn. */
+    /** Index one past the last card rendered. */
     until: number;
-    /** What the spacer above the drawn cards stands at, in pixels. */
+    /** Height of the spacer above the rendered cards, in pixels. */
     above: number;
-    /** What the spacer below them stands at, in pixels. */
+    /** Height of the spacer below them, in pixels. */
     below: number;
 }
 
 export interface WindowInput {
-    /** What each card stands at, in the order the column holds them. */
+    /** Height of each card, in the column's own order. */
     heights: readonly number[];
-    /** What stands between one card and the next. */
+    /** Vertical gap between one card and the next. */
     spacing: number;
     scrollTop: number;
-    /** What the area drawing the cards stands at. */
+    /** Height of the scrolling area the cards are rendered in. */
     viewport: number;
     overscan?: number;
-    /** How many cards the window's edges move by. One card, for a test that wants no batching. */
+    /** Cards per step of the window's edges. Pass 1 in a test to disable batching. */
     chunk?: number;
 }
 
 /**
- * The cards to draw at a scroll position, and what the spacers around them stand at.
+ * Returns the cards to render at a scroll position, and the height of the spacer at each end.
  *
- * The edges are rounded outwards to whole chunks so that scrolling by a card does not redraw the
- * column: a window only changes once the reader has passed a chunk of them.
+ * `from` and `until` are rounded outwards to whole chunks, so scrolling by one card does not
+ * re-render the column: the window changes only after the reader passes a chunk.
  */
 export function computeWindow({
     heights, spacing, scrollTop, viewport, overscan = OVERSCAN_PX, chunk = WINDOW_CHUNK
@@ -71,7 +70,7 @@ export function computeWindow({
     let first = count;
     let last = -1;
     let offset = 0;
-    /** Where each drawn edge stands, kept while walking so neither is measured a second time. */
+    /** Offset of each card, accumulated once so neither edge is computed twice. */
     const edges: number[] = [];
 
     for (const [index, height] of heights.entries()) {
@@ -87,8 +86,8 @@ export function computeWindow({
     }
     edges.push(offset);
 
-    // Nothing is in view when the column is scrolled past its own end, which a shrinking column
-    // leaves the reader at. The last chunk is drawn instead, so the column is never blank.
+    // A column that has shrunk can leave `scrollTop` past its own end, where no card matches.
+    // Render the last chunk instead, so the column is never blank.
     if (last < 0 || first > last) {
         first = Math.max(0, count - 1);
         last = count - 1;
@@ -101,17 +100,14 @@ export function computeWindow({
         from,
         until,
         above: edges[from] ?? 0,
-        // The spacing below the last drawn card is its own margin, so the spacer stands for what
-        // is left after it.
+        // The last rendered card supplies its own bottom margin, so the spacer covers only what
+        // follows it.
         below: Math.max(0, (edges[count] ?? 0) - (edges[until] ?? edges[count] ?? 0))
     };
 }
 
 /**
- * What each card stands at, measured where it has been drawn and estimated where it has not.
- *
- * The estimate is the average of what has been measured, so a column of tall cards is not counted
- * as a column of short ones once any of them has been seen.
+ * Returns each card's height: the measured value where there is one, `nominal` otherwise.
  */
 export function resolveHeights(
     noteIds: readonly string[],
@@ -122,18 +118,17 @@ export function resolveHeights(
 }
 
 /**
- * What a column counts an unmeasured card at, from the cards of that column already measured.
+ * Returns the height to assume for a column's unmeasured cards, averaged over its measured ones.
  *
- * A column's own cards, not every card the page has drawn: two boards, or two columns of one
- * board, can carry different attributes and stand at quite different heights, and counting one
- * column's cards at another's average puts its spacers, its scrollbar and its scroll destinations
- * all in the wrong place.
+ * Averages only `noteIds`, not every card the page has measured. Two boards, or two columns of one
+ * board, can have different promoted attributes and so different heights; using another column's
+ * average gives the wrong spacer heights, scrollbar length and `scrollToCard` destinations.
  *
- * Returns `undefined` until enough of them have been measured; the caller then keeps the first
- * figure it gets. It must stop changing: the spacer above the window is counted from it and is
- * what holds the reader's place, so revising it would slide the column while they read.
+ * Returns `undefined` until `ESTIMATE_SAMPLE` cards are measured. The caller then keeps the first
+ * value: `bounds.above` derives from it and holds the reader's scroll position, so changing it
+ * later shifts the column under them.
  *
- * @param held what the column has already settled on, which is answered back unchanged.
+ * @param held a value the column already settled on, returned unchanged.
  */
 export function estimateFor(
     noteIds: readonly string[],
@@ -161,32 +156,31 @@ export function estimateFor(
 const ESTIMATE_SAMPLE = 12;
 
 /**
- * Bumped when what has been measured is dropped, so every column settles on a fresh estimate
- * rather than holding one taken at a width the board no longer has.
+ * Incremented by `forgetWindowHeights` so each column recomputes its estimate instead of keeping
+ * one measured at a column width the board no longer has.
  */
 let generation = 0;
 
 /**
- * Whether two windows draw the same cards.
+ * Returns whether two windows render the same cards.
  *
- * The spacers are left out: they follow from the heights, and a measurement that only corrects
- * them must not count as a change that redraws the column.
+ * Ignores `above` and `below`: they derive from the heights, and a measurement that only corrects
+ * them must not count as a re-render.
  */
 export function sameWindow(a: ColumnWindow, b: ColumnWindow) {
     return a.from === b.from && a.until === b.until;
 }
 
 /**
- * The window a column draws, kept in step with its scrolling and with what its cards measure.
+ * Tracks which cards a column renders, following its scroll position and its measured heights.
  *
- * Heights are learned as cards are drawn and remembered by note, so a card that has been on screen
- * once is counted at its own height afterwards rather than at the estimate. Correcting a height
- * above the reader would slide the column under them, so the scroll position is moved by the same
- * amount in the frame the correction lands.
+ * Measures each card as it is rendered and caches the height by note id, so a card seen once uses
+ * its real height afterwards. A correction above the viewport shifts the content below it, so
+ * `scrollTop` is adjusted by the same amount in that frame.
  *
- * @param areaRef the scrolling element the cards are drawn in.
- * @param noteIds the column's cards, in the order it holds them.
- * @param enabled whether this column is windowed at all.
+ * @param areaRef the column's scrolling element.
+ * @param noteIds the column's cards, in order.
+ * @param enabled whether to window this column at all.
  */
 export function useColumnWindow(
     areaRef: RefObject<HTMLElement>,
@@ -195,7 +189,7 @@ export function useColumnWindow(
 ) {
     const [ revision, setRevision ] = useState(0);
     const [ scroll, setScroll ] = useState({ top: 0, viewport: 0 });
-    /** What this column counts its unmeasured cards at, once its own have settled it. */
+    /** Height this column assumes for its unmeasured cards, once its own have settled it. */
     const estimate = useRef<{ at: number, value?: number }>({ at: generation });
     if (estimate.current.at !== generation) {
         estimate.current = { at: generation };
@@ -205,7 +199,7 @@ export function useColumnWindow(
     const settled = estimate.current.value;
     const heights = useMemo(
         () => resolveHeights(noteIds, cardHeights, settled ?? NOMINAL_CARD_HEIGHT),
-        // `revision` stands for the measurements, which live outside the render.
+        // `revision` tracks `cardHeights`, which is mutated outside the render.
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [ noteIds, revision, settled ]);
     const spacing = cardSpacing() || DEFAULT_SPACING;
@@ -217,13 +211,13 @@ export function useColumnWindow(
         : { from: 0, until: noteIds.length, above: 0, below: 0 }
     ), [ enabled, heights, spacing, scroll.top, scroll.viewport, noteIds.length ]);
 
-    /** What the last commit drew, so a change of window can be told from a change of spacer. */
+    /** The previous commit's window, to distinguish a window change from a spacer correction. */
     const drawn = useRef(bounds);
     const changed = enabled && !sameWindow(drawn.current, bounds);
     drawn.current = bounds;
 
-    // Follows the column's own scrolling. Read in the event rather than through state, so the
-    // window keeps up with the finger instead of trailing it by a frame.
+    // Reads the scroll position in the listener rather than from state, so the window keeps up
+    // with the pointer instead of trailing it by a frame.
     useEffect(() => {
         const area = areaRef.current;
         if (!area || !enabled) return;
@@ -244,7 +238,7 @@ export function useColumnWindow(
         };
     }, [ areaRef, enabled ]);
 
-    /** What the spacer above stood at last, and for which first card, so a correction is spotted. */
+    /** The previous `above` and `from`, used to detect an estimate correction. */
     const above = useRef({ from: bounds.from, height: bounds.above });
     useLayoutEffect(() => {
         const area = areaRef.current;
@@ -253,12 +247,11 @@ export function useColumnWindow(
             return;
         }
 
-        // A correction to what the undrawn cards are counted at moves everything below it, so the
-        // column is scrolled by as much to leave what the reader is looking at where it was.
+        // Correcting the estimate changes `bounds.above`, which shifts every card below it, so
+        // `scrollTop` moves by the same amount to keep the viewport on the same cards.
         //
-        // Only where the same cards are still drawn: a window that moved because the reader
-        // scrolled has a different spacer above it by rights, and the scroll position that moved
-        // the scroll position that moved it is the one the reader chose.
+        // Only when `bounds.from` is unchanged. A window that moved because the reader scrolled
+        // has a different `above` by rights, and their scroll position is already correct.
         const held = above.current;
         const shift = held.from === bounds.from ? bounds.above - held.height : 0;
         above.current = { from: bounds.from, height: bounds.above };
@@ -270,8 +263,8 @@ export function useColumnWindow(
         for (const card of area.querySelectorAll<HTMLElement>(".board-note")) {
             const noteId = card.dataset.noteId;
             const height = card.offsetHeight;
-            // A card holding the field its title is typed in stands taller than the card does, and
-            // a carried one is out of the flow at no height at all.
+            // A card with its title editor open is taller than the card itself, and a dragged one
+            // is out of the flow with no height.
             if (!noteId || !height || card.classList.contains("editing")) continue;
 
             const known = cardHeights.get(noteId);
@@ -286,8 +279,8 @@ export function useColumnWindow(
         }
     });
 
-    // Published after each commit, so a gesture reads what the column is drawing with now rather
-    // than what it was drawing with when the gesture started.
+    // Republished after each commit, so `placeInModel` reads the current heights rather than the
+    // ones measured when a drag started.
     useLayoutEffect(() => {
         const area = areaRef.current;
         if (!area) return;
@@ -300,8 +293,8 @@ export function useColumnWindow(
     }, [ areaRef, enabled, heights, spacing ]);
 
     /**
-     * Brings a card into the window, for one the column has just made where the reader is not
-     * looking. The scroll is what moves the window: it is worked out from the same heights.
+     * Scrolls a card into the window, for one created outside it. The scroll moves the window,
+     * and the offset comes from the same `heights`.
      */
     const scrollToCard = useCallback((index: number, immediate = false) => {
         const area = areaRef.current;
@@ -332,19 +325,18 @@ export function useColumnWindow(
 }
 
 /**
- * What a column lays its cards out from: the heights the spacers are counted with, and the gap
- * between one card and the next.
+ * The heights a column lays its cards out from, and the gap between one card and the next.
  *
- * Published so a drag can work out where a card would land without reading the page. The page is
- * the wrong source mid-gesture: the carried card is out of the flow, the gap stands over the cards,
- * and the ones below it are moved aside by a transform.
+ * Published so a drag can compute where a card would land without reading the DOM. The DOM is
+ * wrong mid-gesture: the dragged card is out of the flow, the drop placeholder overlays the cards,
+ * and the ones below it are offset by a transform.
  */
 export interface ColumnModel {
     heights: readonly number[];
     spacing: number;
 }
 
-/** The model a column is drawing with, or nothing where it draws all of its cards. */
+/** Returns the model a column renders with, or `undefined` if it renders every card. */
 export function getColumnModel(area: HTMLElement) {
     return models.get(area);
 }
@@ -380,19 +372,19 @@ export interface RevealCardDetail {
     immediate?: boolean;
 }
 
-/** Drops what has been measured, for a window whose size has changed under it. */
+/** Clears the measured heights, for a window resize that changes card widths. */
 export function forgetWindowHeights() {
     cardHeights.clear();
     generation++;
 }
 
 /**
- * What each card measured, by note, kept for as long as the page is open.
+ * Measured height of each card, by note id, for the lifetime of the page.
  *
- * Shared by every board: a card keeps its height wherever it is drawn, and a column that has never
- * been scrolled still counts its cards at what they stood at somewhere else.
+ * Shared across boards: a note has the same height wherever it is rendered, so a column opened for
+ * the first time can reuse heights measured elsewhere.
  */
 const cardHeights = new Map<string, number>();
 
-/** What stands between two cards before a drag has measured it. Matches `.board-note`'s margin. */
+/** Gap between two cards before a drag measures it. Matches `.board-note`'s bottom margin. */
 const DEFAULT_SPACING = 9;

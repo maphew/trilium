@@ -278,8 +278,8 @@ export default function Column({
             const last = drawn[drawn.length - 1];
             const top = standing
                 ? standing.offsetTop
-                // A gap above the window stands at the first drawn card; one below it stands
-                // after the last, which is where the cards run out either way.
+                // Above the window, place the gap at the first rendered card; below it, after
+                // the last.
                 : (placeOf(dropIndex) < 0
                     ? (cards[0]?.offsetTop ?? 0)
                     : (last ? last.offsetTop + last.offsetHeight + cardSpacing() : 0));
@@ -539,9 +539,8 @@ export default function Column({
         return () => window.clearTimeout(timer);
     }, [ insertedNoteId, columnItems ]);
 
-    // A card just made at the foot of a long column stands outside the window, and the card's own
-    // effect that scrolls to it cannot run while it is not drawn. The column brings it into view
-    // instead, which is what draws it.
+    // A card created at the foot of a long column falls outside the window, so the card's own
+    // scroll effect never runs. Scroll to it here, which renders it.
     const arrived = createdNoteId ?? landedNoteId;
     useEffect(() => {
         if (!isWindowed || !arrived) return;

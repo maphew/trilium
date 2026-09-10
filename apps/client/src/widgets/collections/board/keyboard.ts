@@ -109,7 +109,7 @@ export function useBoardKeyboard({
     const pendingFocus = useRef<PendingFocus | null>(null);
     /** The card `askForCard` has already run for, so it does not run again on every render. */
     const asked = useRef<string | null>(null);
-    /** Where the reader last stood, for a key pressed while focus is between two draws. */
+    /** The last spot walked to, for a key pressed while focus is between two renders. */
     const lastSpot = useRef<Spot | null>(null);
 
     // Every render, since a redraw is the only thing that takes focus away here and more than one
@@ -201,8 +201,8 @@ export function useBoardKeyboard({
 
         const spot = spotOf(container, document.activeElement)
             // Focus can be left on nothing by a redraw that took the card it was on out of the
-            // page. The walk carries on from where it last stood rather than letting the key
-            // through, which would scroll the board instead of moving along it.
+            // page. Fall back to the previous spot rather than letting the key through, which
+            // would scroll the board instead of moving along it.
             ?? (NAVIGATION_KEYS.includes(e.key) ? lastSpot.current : null);
         if (!spot) return;
 

@@ -260,7 +260,7 @@ export const BoardKeptCardsContext = createContext<Set<string>>(new Set());
  * board handles itself (see `keyboard.ts` and the card and column handlers), none of them
  * rebindable, so each is listed literally rather than through a registered action.
  */
-/** Stands for a board where no column has an insert field open, so no render allocates a set. */
+/** Shared empty set for a board with no insert field open, so no render allocates one. */
 const NO_COLUMNS: ReadonlySet<string> = new Set();
 
 /** How long a finger stays on the create button before it offers where to put the card. */
