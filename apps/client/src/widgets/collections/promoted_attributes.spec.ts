@@ -9,6 +9,12 @@ import {
 const mocks = vi.hoisted(() => ({ bulk: vi.fn(async () => {}) }));
 vi.mock("../../services/bulk_action", () => ({ executeBulkActions: mocks.bulk }));
 
+// i18next is never initialised under test, so `t` echoes the key with what it interpolates.
+vi.mock("../../services/i18n", () => ({
+    t: (key: string, values?: { name?: string }) =>
+        values?.name ? `${key}:${values.name}` : key
+}));
+
 /** A definition as the collection note carries it, `label:dueDate` naming `dueDate`. */
 function definition(name: string, {
     alias, noteId = "board1", value = "promoted,single,text", isPromoted = true,
@@ -40,7 +46,7 @@ const DEFINED = [
 ];
 
 describe("resolvePromotedAttributes", () => {
-    it("reads what the note defines, naming each by its alias where it has one", () => {
+    it("reads what the note defines, naming each by its alias or by its kind and name", () => {
         const resolved = resolvePromotedAttributes(collection(DEFINED), undefined);
 
         expect(resolved).toEqual([
@@ -49,13 +55,23 @@ describe("resolvePromotedAttributes", () => {
                 definitionName: "label:dueDate",
                 type: "label",
                 title: "Due",
+                promotedAlias: "Due",
                 hidden: false,
                 definitionValue: "promoted,single,text",
                 isOwned: true,
                 isInheritable: true
             },
-            expect.objectContaining({ name: "requiresResearch", title: "requiresResearch" }),
-            expect.objectContaining({ name: "owner", type: "relation" })
+            // No alias, so the name is prefixed by the kind that defines it.
+            expect.objectContaining({
+                name: "requiresResearch",
+                title: "promoted_attributes.label_name:requiresResearch",
+                promotedAlias: undefined
+            }),
+            expect.objectContaining({
+                name: "owner",
+                type: "relation",
+                title: "promoted_attributes.relation_name:owner"
+            })
         ]);
     });
 

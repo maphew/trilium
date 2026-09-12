@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { Fragment } from "preact";
 import { flushSync } from "preact/compat";
 import {
-    useCallback, useContext, useEffect, useMemo, useRef, useState
+    useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
 import { JSX } from "preact/jsx-runtime";
 
@@ -25,8 +25,18 @@ import { useScrollFade } from "../../react/scroll_fade";
 /** How long a field waits for the card it made, after which it is taken down regardless. */
 const HAND_OVER_MS = 2000;
 
+/** What a gap stands at when nothing carried says otherwise. Matches `.board-drop-placeholder`. */
+const STOCK_GAP_HEIGHT = 40;
+
+/**
+ * The least a card can stand, which is one line of its title with the padding and gap around it.
+ *
+ * Says how many cards a column can show at once, which is how many below the gap have to move.
+ */
+const MIN_CARD_HEIGHT = 32;
+
 /** How long an open takes. Matches `--board-expand-duration` in the board's own rules. */
-const EXPAND_MS = 200;
+export const EXPAND_MS = 200;
 import NoteLink from "../../react/NoteLink";
 import { BoardActionsContext, BoardDragStateContext, TitleEditor } from ".";
 import BoardApi from "./api";
@@ -34,7 +44,10 @@ import Card from "./card";
 import CardTemplatePill from "./card_template_pill";
 import { type CardTemplates } from "./card_templates";
 import { DEFAULT_CARD_ICON, DEFAULT_COLUMN_ICON, INBOX_COLUMN } from "./columns";
-import { openColumnContextMenu, openCreateCardMenu } from "./context_menu";
+import { openColumnContextMenu, openColumnSortMenu, openCreateCardMenu } from "./context_menu";
+import type { ColumnSort } from "./data";
+import { cardSpacing } from "./drag_measure";
+import { BoardDropStateContext, useDropIndex, useIsDropTarget } from "./drop_state";
 
 interface DragContext {
     column: string;
@@ -58,11 +71,16 @@ export default function Column({
     keepCollapsed,
     isActive,
     isPeeked,
+    isResizing,
+    standsAside,
     nested,
     limit,
     columnItems,
+    totalCount,
     isNew,
     cardTemplates,
+    sort,
+    landedNoteId,
     api,
     parentNote,
     isInRelationMode
@@ -82,12 +100,33 @@ export default function Column({
     isActive?: boolean,
     /** Whether the board is showing every collapsed column at once, which opens this one too. */
     isPeeked?: boolean,
+    /** Whether a column is still taking its new width, during which no column's cards move. */
+    isResizing?: boolean,
+    /**
+     * How far the column stands aside for one being carried, in pixels.
+     *
+     * The row keeps its order for the length of the gesture, so a step costs a transform per
+     * column rather than a fresh layout of every card on the board.
+     */
+    standsAside?: number,
     /** What a new card is made from, and how the reader picks something else. */
     cardTemplates: CardTemplates,
     /** Whether the inbox also collects notes deeper than the board's direct children. */
     nested?: boolean,
     /** The note limit, absent if disabled. */
     limit?: number,
+    /**
+     * How the column orders its cards, absent for the manual order. A sorted column opens no drop
+     * gap and offers no control that puts a card at a chosen index.
+     */
+    sort?: ColumnSort,
+    /** The card just dropped here, drawn with the `appearing` reveal. */
+    landedNoteId?: string,
+    /**
+     * How many cards the column really holds, when an active filter leaves `columnItems` with
+     * fewer. The badge counts what is shown; the limit is about the real column.
+     */
+    totalCount?: number,
     api: BoardApi,
     parentNote: FNote,
     isInRelationMode: boolean,
@@ -98,6 +137,7 @@ export default function Column({
     onFocusColumn: (column: string) => void,
     onFocusCard: (noteId: string) => void
 } & DragContext) {
+    const isSorted = !!sort;
     const [ isCreatingNewItem, setIsCreatingNewItem ] = useState(false);
     /**
      * The card a field standing among the cards makes its own above, absent while no such field is
@@ -116,10 +156,20 @@ export default function Column({
      */
     const itemsRef = useRef(columnItems);
     itemsRef.current = columnItems;
+    // A ref for the same reason: `beginInsert` below keeps one identity.
+    const isSortedRef = useRef(isSorted);
+    isSortedRef.current = isSorted;
     /** Opens the field at a place among the cards, which is the index the card it makes takes. */
     const beginInsert = useCallback((index: number) => {
+        // A sorted column has no index to insert at.
+        if (isSortedRef.current) {
+            return;
+        }
+
         setInsertBefore({ branchId: itemsRef.current?.[index]?.branch.branchId });
     }, []);
+    /** Opens the field at the foot of the column, which its button and its menu also open. */
+    const beginNewItem = useCallback(() => setIsCreatingNewItem(true), []);
     /** The card the footer just made, which is revealed and scrolled to as it is drawn. */
     const [ createdNoteId, setCreatedNoteId ] = useState<string>();
     /**
@@ -138,32 +188,126 @@ export default function Column({
     const [ isRevealed, setIsRevealed ] = useState(false);
     const { setColumnNameToEdit, setColumnLimitToEdit, setActiveColumn } =
         useContext(BoardActionsContext);
-    const { branchIdToEdit, columnNameToEdit, dropTarget, draggedCard, dropPosition } = useContext(BoardDragStateContext);
+    const { branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn } =
+        useContext(BoardDragStateContext);
+    // Every card on the move. The one under the pointer is taken out of the flow by the gesture
+    // itself; the rest of a carried selection stay where they are drawn and are dimmed instead.
+    const carriedNoteIds = draggedCard
+        ? new Set(draggedCard.noteIds ?? [ draggedCard.noteId ])
+        : null;
+    // Asked about this column alone: where the gap stands changes on every step of a drag, and a
+    // column that the answer does not concern is left as it is rather than drawn again.
+    const standingDropIndex = useDropIndex(column);
+    // A sorted column draws only its border, since `sortColumnMap` decides where the card lands.
+    // The source column keeps the gap at the lifted card's own index, or the cards below close up
+    // for the length of the gesture. A gap stands before the card it indexes, hence the `+ 1`.
+    const dropIndex = !isSorted
+        ? standingDropIndex
+        : (draggedCard?.fromColumn === column ? draggedCard.index + 1 : null);
+    const isDropTarget = useIsDropTarget(column);
     const isEditing = (columnNameToEdit === column);
     const editorRef = useRef<HTMLInputElement>(null);
     const headerRef = useRef<HTMLHeadingElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
     const scrollFade = useScrollFade(contentRef);
-    // Cards slide to follow the drop gap opening and closing. No card opens out of nothing: one
-    // made in the footer is shown by the scroll to the end and by its fade, and one made among the
-    // others takes the place its field was standing in.
-    useFlip(contentRef, { selector: ".board-note" });
-    const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
-        column, columnIndex, columnItems, isEditing, api, parentNote
+    // Cards slide to follow the drop gap opening and closing. Measured only when the column's own
+    // cards have changed: reading one position costs a layout of the whole board, and anything
+    // else that redraws it would have every column read one per card.
+    const measured = useRef<unknown>();
+    const cardsChanged = measured.current !== columnItems;
+    measured.current = columnItems;
+    useFlip(contentRef, {
+        selector: ".board-note",
+        // Paused where nothing has moved the cards, so the places it knows are still good.
+        paused: !cardsChanged,
+        // Off for the length of a gesture, so the commit that ends one records where the cards
+        // landed rather than sliding them there.
+        disabled: !!draggedCard || !!draggedColumn || !!isResizing
     });
 
-    // Measured rather than styled: the gap stands for the card being carried, which is whatever
-    // height its own content gave it. A drag from the note tree carries no card, so the stock
-    // height stands.
-    const gapStyle = draggedCard?.height
-        ? { height: `${draggedCard.height}px` }
-        : undefined;
+    // The gap is a standing element that slides, and the cards beside it are transformed: putting
+    // one among the cards, or taking one out, restyles every element the board holds.
+    const gapRef = useRef<HTMLDivElement>(null);
+    const roomRef = useRef<HTMLDivElement>(null);
+    /** Whether a card was being carried at the previous commit. */
+    const carried = useRef(false);
+    /** Which cards were last told to stand aside, so only what changed is written. */
+    const aside = useRef({ from: 0, until: 0, room: 0 });
+    useLayoutEffect(() => {
+        // The commits a drag opens and closes on, where a card is already standing where it is
+        // being drawn. Every commit in between moves the cards for real and eases as usual.
+        const atOnce = carried.current !== !!draggedCard;
+        carried.current = !!draggedCard;
+
+        const area = contentRef.current;
+        const gap = gapRef.current;
+        if (!area || !gap) return;
+
+        const cards = area.querySelectorAll<HTMLElement>(".board-note");
+        const height = draggedCard?.height ?? STOCK_GAP_HEIGHT;
+        const room = dropIndex === null ? 0 : height + cardSpacing();
+        // Read with the places below, before anything is written: every card the column can show
+        // moves, and the ones past its foot are left alone whatever it holds.
+        const reach = Math.ceil(area.clientHeight / MIN_CARD_HEIGHT) + 1;
+
+        // Read before anything is written, and `offsetTop` is no business of a transform anyway.
+        if (dropIndex !== null) {
+            const standing = cards[dropIndex];
+            // `lift()` sets `display: none` on the carried card, so a gap past the last one
+            // measures against the last card still laid out.
+            const drawn = [ ...cards ].filter(card => card.style.display !== "none");
+            const last = drawn[drawn.length - 1];
+            const top = standing
+                ? standing.offsetTop
+                : (last ? last.offsetTop + last.offsetHeight + cardSpacing() : 0);
+            gap.style.transform = `translateY(${top}px)`;
+            gap.style.height = `${height}px`;
+        }
+        gap.classList.toggle("show", dropIndex !== null);
+        roomRef.current?.style.setProperty("height", `${room}px`);
+
+        // Once the gap is gone, every card is put back, whichever ones they now are: a drop
+        // reorders the column, so the places that stood aside no longer name the same cards.
+        if (dropIndex === null) {
+            for (const card of cards) {
+                if (card.style.transform) {
+                    placeCard(card, null, atOnce);
+                }
+            }
+            aside.current = { from: 0, until: 0, room: 0 };
+            return;
+        }
+
+        const from = dropIndex;
+        const until = Math.min(cards.length, from + reach);
+        const last = aside.current;
+        // A step of a drag moves the gap by a card, so only the few cards it passed change what
+        // they are told; the rest of the window is already standing where it should.
+        const afresh = last.room !== room;
+        for (let index = last.from; index < last.until; index++) {
+            if (afresh || index < from || index >= until) {
+                const card = cards[index];
+                if (card) {
+                    placeCard(card, null, atOnce);
+                }
+            }
+        }
+        for (let index = from; index < until; index++) {
+            if (afresh || index < last.from || index >= last.until) {
+                placeCard(cards[index], `translateY(${room}px)`, atOnce);
+            }
+        }
+        aside.current = { from, until, room };
+    }, [ dropIndex, draggedCard, columnItems ]);
+    const { handleDragOver, handleDragLeave, handleDrop } = useDragging({
+        column, columnIndex, columnItems, isEditing, api, parentNote, onLanded: setCreatedNoteId
+    });
 
     // Read here rather than in the badge: the column body shows an outline as well.
-    const isOverLimit = limit !== undefined && (columnItems?.length ?? 0) > limit;
+    const isOverLimit = limit !== undefined && (totalCount ?? columnItems?.length ?? 0) > limit;
     const isCollapsed = !!collapsed && !isActive && !isPeeked;
     // A column opened to take a dragged card takes its width at once, and its cards with it.
-    const opensAtOnce = !!draggedCard || dropTarget === column;
+    const opensAtOnce = !!draggedCard || isDropTarget;
 
     /**
      * Whether the column is still widening, during which its cards are left unpainted.
@@ -175,6 +319,17 @@ export default function Column({
      * Unpainted rather than undrawn: the board focuses the card a keyboard open steps onto, and a
      * card that is not there yet is one it cannot hand focus to.
      */
+    /**
+     * Whether the cards have been drawn, which they stay once they have been.
+     *
+     * A column collapsed when the board opens draws none of them; past the first open they are
+     * hidden rather than taken out, which is what makes closing one cheap.
+     */
+    const [ isDrawn, setIsDrawn ] = useState(!isCollapsed);
+    if (!isDrawn && !isCollapsed) {
+        setIsDrawn(true);
+    }
+
     const [ isExpanding, setIsExpanding ] = useState(false);
     const [ wasCollapsed, setWasCollapsed ] = useState(isCollapsed);
     if (wasCollapsed !== isCollapsed) {
@@ -246,6 +401,24 @@ export default function Column({
         setActiveColumn(isPeeked ? column : undefined);
     }, [ column, isActive, isPeeked, setActiveColumn ]);
 
+    // Only for a sorted column. The arrow shows which way the order runs.
+    const sortButton = sort && (
+        <ActionButton
+            className="column-sort"
+            icon={sort.isDescending ? "bx bx-sort-down" : "bx bx-sort-up"}
+            text={t("board_view.sort")}
+            // Disabled on a strip: the menu would open over the space the column is about to
+            // take as it widens.
+            disabled={isCollapsed}
+            onClick={(e) => {
+                // The heading is the column's drag handle and opens its own menu on a right
+                // click; neither should also fire from the button.
+                e.stopPropagation();
+                openColumnSortMenu(api, ...menuOrigin(e), column);
+            }}
+        />
+    );
+
     const openMenu = useCallback((e: ContextMenuEvent) => {
         openColumnContextMenu(api, e, {
             value: column,
@@ -259,7 +432,7 @@ export default function Column({
             keepCollapsed,
             nested,
             onEditTitle: () => setColumnNameToEdit(column),
-            onNewItem: () => setIsCreatingNewItem(true),
+            onNewItem: beginNewItem,
             onAddColumn: async (direction) => {
                 setColumnNameToEdit(await api.insertColumn(column, direction));
             },
@@ -362,7 +535,7 @@ export default function Column({
         <div
             data-column={column}
             className={clsx("board-column", {
-                "drag-over": dropTarget === column && draggedCard?.fromColumn !== column,
+                "drag-over": isDropTarget && (isSorted || draggedCard?.fromColumn !== column),
                 // The class the themes key a hue off, worn here as anywhere else that carries one.
                 "with-hue": hue !== undefined,
                 "board-column-archived": archived,
@@ -387,7 +560,10 @@ export default function Column({
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            style={{ "--board-column-custom-hue": hue }}
+            style={{
+                "--board-column-custom-hue": hue,
+                transform: standsAside ? `translateX(${standsAside}px)` : undefined
+            }}
         >
             <h3
                 ref={headerRef}
@@ -423,6 +599,7 @@ export default function Column({
                             }}
                         />
                         <CountBadge items={columnItems} limit={limit} isOver={isOverLimit} />
+                        {sortButton}
                         <span className="title">
                             {isInRelationMode
                                 ? <NoteLink notePath={column} />
@@ -454,6 +631,7 @@ export default function Column({
                                 : api.getColumnTitle(column)}
                         </span>
                         <div className="spacer" />
+                        {sortButton}
                         <CountBadge items={columnItems} limit={limit} isOver={isOverLimit} />
                         <ActionButton
                             className="column-menu"
@@ -480,52 +658,53 @@ export default function Column({
                 </>)}
             </h3>
 
-            {!isCollapsed && <div
+            {isDrawn && <div
                 ref={contentRef}
                 className={clsx("board-column-content", scrollFade.className)}
                 style={scrollFade.style}
                 onWheel={handleScroll}
             >
-                {(columnItems ?? []).map(({ note, branch }, index) => {
-                    // The card being carried is out of the flow, so the gap stands in its own
-                    // place too: held still, which a touch does before it moves, that is where it
-                    // was picked up from.
-                    const showIndicatorBefore = dropPosition?.column === column &&
-                                            dropPosition.index === index;
-
-                    return (
-                        <Fragment key={note.noteId}>
-                            {showIndicatorBefore && (
-                                <div className="board-drop-placeholder show" style={gapStyle} />
-                            )}
-                            {insertBefore?.branchId === branch.branchId && insertField}
-                            <Card
-                                api={api}
-                                note={note}
-                                branch={branch}
-                                column={column}
-                                index={index}
-                                statusAttribute={api.statusAttribute}
-                                isNew={note.noteId === createdNoteId}
-                                focusOnArrival={note.noteId === insertedNoteId}
-                                isDragging={draggedCard?.noteId === note.noteId}
-                                isEditing={branch.branchId === branchIdToEdit}
-                                onFocusCard={onFocusCard}
-                                onInsert={beginInsert}
-                            />
-                        </Fragment>
-                    );
-                })}
+                {(columnItems ?? []).map(({ note, branch }, index) => (
+                    <Fragment key={note.noteId}>
+                        {insertBefore?.branchId === branch.branchId && insertField}
+                        <Card
+                            api={api}
+                            note={note}
+                            branch={branch}
+                            column={column}
+                            index={index}
+                            statusAttribute={api.statusAttribute}
+                            isNew={note.noteId === createdNoteId
+                                || note.noteId === landedNoteId}
+                            focusOnArrival={note.noteId === insertedNoteId}
+                            isDragging={!!carriedNoteIds?.has(note.noteId)}
+                            isEditing={branch.branchId === branchIdToEdit}
+                            onFocusCard={onFocusCard}
+                            onInsert={beginInsert}
+                            onNewItem={beginNewItem}
+                        />
+                    </Fragment>
+                ))}
                 {insertBefore && !insertBefore.branchId && insertField}
-                {dropPosition?.column === column && dropPosition.index === (columnItems?.length ?? 0) && (
-                    <div className="board-drop-placeholder show" style={gapStyle} />
-                )}
+                {/* Both stand here for the length of the board's life: an element appearing
+                    among the cards, or leaving them, is what a drag cannot afford. */}
+                <div ref={gapRef} className="board-drop-placeholder">
+                    {/* The gap is the one the lifted card left, and it does not follow the
+                        pointer. */}
+                    {isSorted && (
+                        <span className="sorted-no-reorder">
+                            {t("board_view.sorted-no-reorder")}
+                        </span>
+                    )}
+                </div>
+                <div ref={roomRef} className="board-drop-room" />
             </div>}
 
             {!isCollapsed && <AddNewItem
                 api={api}
                 cardTemplates={cardTemplates}
                 column={column}
+                isSorted={isSorted}
                 isCreating={isCreatingNewItem}
                 setIsCreating={setIsCreatingNewItem}
                 onCreated={setCreatedNoteId}
@@ -535,6 +714,90 @@ export default function Column({
 }
 
 /**
+ * Puts a card where a transform says, easing it there unless the board is drawing a still frame.
+ *
+ * Suppressed on the card rather than by a rule under the board's own class, which would match
+ * every card on it.
+ *
+ * @param transform what to write, or `null` to put the card back where the column draws it.
+ * @param atOnce whether the card is already standing where it is being put, as at a lift or a drop.
+ */
+/**
+ * Where a menu opened from a button stands: at the pointer for a press, and below the button for a
+ * keyboard, which reports no position of its own.
+ */
+function menuOrigin(e: JSX.TargetedMouseEvent<HTMLElement>): [ number, number ] {
+    if (e.detail) {
+        return [ e.pageX, e.pageY ];
+    }
+
+    const box = e.currentTarget.getBoundingClientRect();
+    return [ box.right + window.scrollX, box.bottom + window.scrollY ];
+}
+
+export function placeCard(card: HTMLElement, transform: string | null, atOnce: boolean) {
+    if (atOnce) {
+        card.style.transition = "none";
+        settling.add(card);
+    }
+
+    if (transform === null) {
+        card.style.removeProperty("transform");
+    } else {
+        card.style.transform = transform;
+    }
+
+    if (!atOnce) {
+        return;
+    }
+
+    // Started afresh on every call: a lift and the drop that follows it a frame later would
+    // otherwise be put back on the first one's schedule, before the drop has been drawn.
+    if (restoring !== undefined) {
+        cancelAnimationFrame(restoring);
+    }
+
+    // Put back a frame later than the one that draws them, since a frame's callbacks run before
+    // the styles it paints are worked out.
+    restoring = requestAnimationFrame(() => {
+        restoring = requestAnimationFrame(() => {
+            restoring = undefined;
+            for (const held of settling) {
+                held.style.removeProperty("transition");
+            }
+            settling.clear();
+        });
+    });
+}
+
+/**
+ * Puts back at once the suppressed transitions of the cards one board holds, for a board leaving
+ * the page.
+ *
+ * Its own cards alone, and whatever has already left the page: another board can be part-way
+ * through a gesture, and the frame that would put its cards back is the same one.
+ */
+export function settleCards(container: HTMLElement | null) {
+    for (const held of settling) {
+        if (held.isConnected && !container?.contains(held)) {
+            continue;
+        }
+
+        held.style.removeProperty("transition");
+        settling.delete(held);
+    }
+
+    if (!settling.size && restoring !== undefined) {
+        cancelAnimationFrame(restoring);
+        restoring = undefined;
+    }
+}
+
+/** The cards whose transition is suppressed, waiting for the frame that puts it back. */
+const settling = new Set<HTMLElement>();
+let restoring: number | undefined;
+
+/**
  * The editor a new card is named in, standing below the column or between two of its cards.
  *
  * Below the column it is opened by the button it replaces or by the column's menu, so that state
@@ -542,11 +805,13 @@ export default function Column({
  * cards it is opened by a card's own menu, and `insert` says where it stands.
  */
 function AddNewItem({
-    column, api, cardTemplates, isCreating, setIsCreating, onCreated, insert
+    column, api, cardTemplates, isCreating, setIsCreating, onCreated, insert, isSorted
 }: {
     column: string,
     api: BoardApi,
     cardTemplates: CardTemplates,
+    /** Whether the column orders its own cards, which leaves the reader no end to pick. */
+    isSorted?: boolean,
     isCreating?: boolean,
     setIsCreating?: (isCreating: boolean) => void,
     /** Names the card just made, which the column shows once the board has drawn it. */
@@ -652,8 +917,9 @@ function AddNewItem({
                     }}
                     submitTitle={t("board_view.create-new-note")}
                     // Only the field below the column offers both ends. One standing among the
-                    // cards is already at the end the reader asked for.
-                    openPlacements={!insert ? openCreateCardMenu : undefined}
+                    // cards is already at the end the reader asked for, and a sorted column places
+                    // the card itself.
+                    openPlacements={!insert && !isSorted ? openCreateCardMenu : undefined}
                     footer={(hold) => <CardTemplatePill {...cardTemplates} {...hold} />}
                     icon={{
                         current: icon,
@@ -710,10 +976,21 @@ ${warning}` : counts}
     );
 }
 
-function useDragging({ column, columnIndex, columnItems, isEditing, api, parentNote }: DragContext & { isEditing: boolean, api: BoardApi, parentNote: FNote }) {
+function useDragging({
+    column, columnIndex, columnItems, isEditing, api, parentNote, onLanded
+}: DragContext & {
+    isEditing: boolean,
+    api: BoardApi,
+    parentNote: FNote,
+    /** Reports a card a sorted column placed, for the `appearing` reveal. */
+    onLanded: (noteId: string) => void
+}) {
     const { setDraggedColumn, setDropTarget, setDropPosition, setActiveColumn } =
         useContext(BoardActionsContext);
-    const { draggedColumn, dropPosition } = useContext(BoardDragStateContext);
+    const { draggedColumn } = useContext(BoardDragStateContext);
+    // Read when a drop happens rather than watched: these callbacks answer for a drag from the
+    // note tree, and where the gap stands is of no interest to the column until one lands.
+    const dropState = useContext(BoardDropStateContext);
     /** Needed to track if current column is dragged in real-time, since {@link draggedColumn} is populated one render cycle later.  */
     const isDraggingRef = useRef(false);
 
@@ -767,10 +1044,11 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
             }
         }
 
-        if (!(dropPosition?.column === column && dropPosition.index === newIndex)) {
+        const standing = dropState.get().position;
+        if (!(standing?.column === column && standing.index === newIndex)) {
             setDropPosition({ column, index: newIndex });
         }
-    }, [column, setDropTarget, setActiveColumn, dropPosition, setDropPosition, isEditing]);
+    }, [column, setDropTarget, setActiveColumn, dropState, setDropPosition, isEditing]);
 
     const handleDragLeave = useCallback((e: DragEvent) => {
         const relatedTarget = e.relatedTarget as HTMLElement;
@@ -785,6 +1063,8 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
     const handleDrop = useCallback(async (e: DragEvent) => {
         if (draggedColumn) return; // Don't handle card drops when dragging columns
         e.preventDefault();
+        // Taken before the gap is closed, which is what says where the note goes.
+        const standing = dropState.get().position;
         setDropTarget(null);
         setDropPosition(null);
 
@@ -802,11 +1082,16 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
             const { noteId, branchId } = dropped[0];
             const targetNote = await froca.getNote(noteId, true);
             const parentNoteId = parentNote.noteId;
-            if (!dropPosition) return;
+            if (!standing) return;
 
-            const targetIndex = dropPosition.index - 1;
+            // A sorted column places the card itself, so the note is added at the end of the
+            // board's children and nothing is written against the card it was dropped over.
+            const isSorted = api.isColumnSorted(column);
+            const targetIndex = standing.index - 1;
             const targetItems = columnItems || [];
-            const targetBranch = targetIndex >= 0 ? targetItems[targetIndex].branch : null;
+            const targetBranch = !isSorted && targetIndex >= 0
+                ? targetItems[targetIndex].branch
+                : null;
 
             await api.changeColumn(noteId, column);
 
@@ -821,8 +1106,16 @@ function useDragging({ column, columnIndex, columnItems, isEditing, api, parentN
             } else if (targetBranch) {
                 await branches.moveAfterBranch([ branchId ], targetBranch.branchId);
             }
+
+            // The drop named a column, not an index, so the reveal shows where it landed.
+            if (isSorted) {
+                onLanded(noteId);
+            }
         }
-    }, [ api, draggedColumn, dropPosition, columnItems, column, setDropTarget, setDropPosition ]);
+    }, [
+        api, draggedColumn, dropState, columnItems, column, setDropTarget, setDropPosition,
+        onLanded
+    ]);
 
     return { handleColumnDragStart, handleColumnDragEnd, handleDragOver, handleDragLeave, handleDrop };
 }

@@ -136,9 +136,8 @@ export function hardenWebviewPreferences(webPreferences: Electron.WebPreferences
 
 /**
  * Permission allowlists per session kind. Unset handlers make Electron GRANT
- * every request, so anything not listed here (camera, microphone, geolocation,
- * notifications, MIDI, HID, serial, USB, pointer lock, clipboard read, …) is
- * denied.
+ * every request, so anything not listed here (camera, microphone, MIDI, HID,
+ * serial, USB, pointer lock, clipboard read, …) is denied.
  *
  * - `app`: the default session — the Trilium renderer itself. It legitimately
  *   writes to the clipboard (copy note content/links), toggles fullscreen
@@ -159,6 +158,11 @@ export function hardenWebviewPreferences(webPreferences: Electron.WebPreferences
  *   this device (see `listSystemFonts`); Chromium routes it through the
  *   *check* handler rather than the request handler, so granting it here is
  *   what keeps the picker from falling back to the stock list.
+ *   `geolocation` lets the geo map's locate button ask where this device is
+ *   (see `useGeolocate` in the client). Chromium prompts for nothing
+ *   of its own in Electron, so this grant is the only gate; the origin check
+ *   below keeps it from remote embeds, and MapLibre probes the *check*
+ *   handler before it enables the button at all.
  * - `guest`: the `<webview>` partition hosting arbitrary remote pages from
  *   Web View notes. Fullscreen only (embedded video players) — a remote page
  *   must not show OS notifications that appear to come from Trilium.
@@ -169,7 +173,7 @@ export function hardenWebviewPreferences(webPreferences: Electron.WebPreferences
  * the default session. Fullscreen is the exception — granted for any origin.
  */
 const PERMISSION_ALLOWLIST = {
-    app: new Set(["clipboard-sanitized-write", "fileSystem", "fullscreen", "local-fonts", "notifications"]),
+    app: new Set(["clipboard-sanitized-write", "fileSystem", "fullscreen", "geolocation", "local-fonts", "notifications"]),
     guest: new Set(["fullscreen"])
 } as const;
 

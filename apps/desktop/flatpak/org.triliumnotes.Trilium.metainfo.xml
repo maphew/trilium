@@ -36,6 +36,9 @@
       <li>REST API for automation</li>
     </ul>
   </description>
+  <keywords>
+    <keyword>Trillium</keyword>
+  </keywords>
   <launchable type="desktop-id">org.triliumnotes.Trilium.desktop</launchable>
   <screenshots>
     <screenshot type="default">

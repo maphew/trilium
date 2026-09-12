@@ -11,11 +11,12 @@ import server from "../../../services/server";
 import toast from "../../../services/toast";
 import { logError } from "../../../services/ws";
 import CollectionProperties from "../../note_bars/CollectionProperties";
-import { useCollectionTreeDrag, useEffectiveReadOnly, useNoteBlob, useNoteContext, useNoteLabel, useNoteLabelBoolean, useNoteProperty, useSpacedUpdate } from "../../react/hooks";
+import { useCollectionTreeDrag, useColorScheme, useEffectiveReadOnly, useNoteBlob, useNoteContext, useNoteLabel, useNoteLabelBoolean, useNoteProperty, useSpacedUpdate } from "../../react/hooks";
 import { ViewModeProps } from "../interface";
 import { createNewNote, createNoteForPlace, importGpxTrack, moveMarker } from "./api";
 import Buildings from "./Buildings";
 import ContextMenus from "./ContextMenus";
+import { pointPlace } from "./coordinates";
 import DetailPane, { PaneSelection } from "./DetailPane";
 import EditToolbar from "./EditToolbar";
 import GhostPin from "./GhostPin";
@@ -192,6 +193,16 @@ export default function GeoView({ note, noteIds, viewConfig, saveConfig }: ViewM
                 .catch((e) => logError(`Fetching the boundary of "${place.label}" failed: ${e}`));
         }, OUTLINE_DELAY_MS);
     }, []);
+
+    /**
+     * Points the map at the device's position the same way it points at a typed coordinate: pickPlace
+     * opens it as a place, offered for keeping as a marker (see PlacePanel). Does nothing while a click
+     * is armed to place a note instead.
+     */
+    const showLocation = useCallback((location: { lat: number; lng: number }) => {
+        if (placement) return;
+        pickPlace(pointPlace([ roundCoordinate(location.lng), roundCoordinate(location.lat) ]));
+    }, [ placement, pickPlace ]);
 
     /**
      * Stands the map on one of a search's results: a place under a pin of its own, or a note of the
@@ -394,7 +405,7 @@ export default function GeoView({ note, noteIds, viewConfig, saveConfig }: ViewM
                         onAddMarker={keepPlaceAsMarker} onClose={() => pickPlace(null)}
                     />
                 </>}
-                <MapToolbar />
+                <MapToolbar onLocationClick={showLocation} />
                 <EditToolbar
                     isReadOnly={isReadOnly}
                     placing={placement?.mode === "new"}
@@ -435,6 +446,14 @@ export default function GeoView({ note, noteIds, viewConfig, saveConfig }: ViewM
 }
 
 /**
+ * Rounds a coordinate to six decimals, the precision a place is named and stored at (see
+ * `formatLocation` in Markers). A geolocation fix reports far more digits than that.
+ */
+function roundCoordinate(value: number) {
+    return Number(value.toFixed(6));
+}
+
+/**
  * Asks the user for a GPX file, resolving to none where the dialog is dismissed.
  *
  * A detached input rather than one rendered somewhere: the browser only wants an input to open its
@@ -460,6 +479,7 @@ function useLayerData(note: FNote) {
     // Markers). Only the style itself can say, and a style named by URL says nothing to us: it is
     // fetched by the map, and its tiles are pictures besides. So the note is asked instead.
     const [ isDarkStyle ] = useNoteLabelBoolean(note, "map:darkStyle");
+    const isSystemDark = useColorScheme() === "dark";
     // Memo is needed because it would generate unnecessary reloads due to layer change.
     const layerData = useMemo(() => {
         // Custom layers.
@@ -477,8 +497,18 @@ function useLayerData(note: FNote) {
         // that setting it does something wherever it is set; it can only ever say that a style is
         // dark, never that it is light, so a built-in dark style keeps its own answer either way.
         const layerData = MAP_LAYERS[layerName ?? ""] ?? MAP_LAYERS[DEFAULT_MAP_LAYER_NAME];
+
+        // Automatic dark/light style switching based on the system color scheme.
+        if ("styleDark" in layerData) {
+            return {
+                ...layerData,
+                style: isSystemDark ? (layerData.styleDark ?? layerData.style) : layerData.style,
+                isDarkTheme: isSystemDark
+            } satisfies MapLayer;
+        }
+
         return isDarkStyle ? { ...layerData, isDarkTheme: true } : layerData;
-    }, [ layerName, isDarkStyle ]);
+    }, [ layerName, isDarkStyle, isSystemDark ]);
 
     return layerData;
 }

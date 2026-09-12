@@ -14,7 +14,7 @@ import { filterTokens, matchesFilter } from "../../react/filter";
 import FormAutocomplete from "../../react/FormAutocomplete";
 import Icon from "../../react/Icon";
 import OverlayToolbar, { OverlayToolbarButton } from "../../react/OverlayToolbar";
-import { formatCoordinates, parseCoordinates } from "./coordinates";
+import { parseCoordinates, pointPlace } from "./coordinates";
 import { DEFAULT_GEOCODING_PROVIDER_NAME, DEFAULT_PLACE_ICON, type GeoBounds, GEOCODING_PROVIDERS, type GeoSearchResult, SEARCH_RADIUS_M } from "./geocoding";
 import { GPX_MIME } from "./GpxTrack";
 import { ParentMap } from "./map";
@@ -48,12 +48,6 @@ const EARTH_RADIUS_M = 6_371_008.8;
  * addresses, which at the field's own width is mostly an ellipsis.
  */
 const RESULT_LIST_WIDTH = 500;
-
-/**
- * How close a point named by its coordinates is shown. Nearer than the level a place of unsaid
- * extent is given: coordinates are typed to reach one spot rather than the town around it.
- */
-const POINT_ZOOM = 16;
 
 /** Caps how many of the map's own notes the list offers. */
 const MAX_MARKER_RESULTS = 8;
@@ -477,11 +471,8 @@ function headingEntry(key: string, label: string): SearchEntry {
 }
 
 /**
- * The row for a point the query names outright, or `null` where it names none.
- *
- * A place like any the geocoder answers with, so that taking it pins it, offers it for keeping and
- * steps among the rest exactly as a searched place does — one without a name, which is why it is
- * named by its own coordinates.
+ * The row for a point the query names outright, or `null` where it names none. The point is offered
+ * as a place (see `pointPlace`), so taking it pins it and steps among the rest as a searched place does.
  */
 function pointEntry(query: string): SearchEntry | null {
     const center = parseCoordinates(query);
@@ -489,24 +480,15 @@ function pointEntry(query: string): SearchEntry | null {
         return null;
     }
 
-    const [ lng, lat ] = center;
-    const coordinates = formatCoordinates(center);
+    const result = pointPlace(center);
 
     return {
         kind: "point",
-        key: `place:point:${lng},${lat}`,
-        label: t("geo-map.go-to-coordinates", { coordinates }),
+        key: `place:${result.id}`,
+        label: t("geo-map.go-to-coordinates", { coordinates: result.name }),
         icon: "bx bx-crosshair",
         center,
-        result: {
-            id: `point:${lng},${lat}`,
-            name: coordinates,
-            label: coordinates,
-            lat,
-            lng,
-            zoom: POINT_ZOOM,
-            unnamed: true
-        }
+        result
     };
 }
 

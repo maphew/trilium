@@ -20,6 +20,8 @@ interface UserAttributesListProps {
      * carrying a definition is drawn, in the order the definitions stand in.
      */
     shownAttributes?: string[];
+    /** Drawn before the attributes, for what a caller marks a note with in the same row. */
+    badges?: ComponentChildren;
 }
 
 interface AttributeWithDefinitions {
@@ -31,11 +33,12 @@ interface AttributeWithDefinitions {
 }
 
 export default function UserAttributesDisplay({
-    note, ignoredAttributes, shownAttributes
+    note, ignoredAttributes, shownAttributes, badges
 }: UserAttributesListProps) {
     const userAttributes = useNoteAttributesWithDefinitions(note, ignoredAttributes, shownAttributes);
-    return userAttributes?.length > 0 && (
+    return (userAttributes?.length > 0 || !!badges) && (
         <div className="user-attributes">
+            {badges}
             {userAttributes?.map(attr => buildUserAttribute(attr))}
         </div>
     );

@@ -10,12 +10,17 @@ import type { PromotedAttribute, PromotedAttributeSetting } from "../collections
 import PromotedAttributesCard from "./PromotedAttributesCard";
 import { ParentComponent } from "./react_utils";
 
-// i18next is never initialised under test, so every label would read as undefined. The command
+// i18next is never initialised under test, so every label would read as undefined. `t` echoes the
+// key with what it interpolates, which is how an attribute with no alias is named. The command
 // registry, reached through the attribute editor, waits on the translations before it builds.
 vi.mock("../../services/i18n", () => ({
-    t: (key: string) => key,
+    t: (key: string, values?: { name?: string }) =>
+        values?.name ? `${key}:${values.name}` : key,
     translationsInitializedPromise: Promise.resolve()
 }));
+
+/** What a label with no alias is listed as, the editor naming it by its kind. */
+const unnamed = (name: string) => `promoted_attributes.label_name:${name}`;
 
 const mocks = vi.hoisted(() => ({
     setLabel: vi.fn(),
@@ -97,7 +102,7 @@ describe("PromotedAttributesCard", () => {
     it("lists what the note defines, named as the definitions name them", () => {
         draw();
 
-        expect(names()).toEqual([ "Due", "owner" ]);
+        expect(names()).toEqual([ "Due", unnamed("owner") ]);
         expect(shown()).toEqual([ true, true ]);
     });
 
@@ -125,7 +130,7 @@ describe("PromotedAttributesCard", () => {
         settings = [ { name: "owner", hidden: true }, { name: "dueDate" } ];
         draw();
 
-        expect(names()).toEqual([ "owner", "Due" ]);
+        expect(names()).toEqual([ unnamed("owner"), "Due" ]);
         expect(shown()).toEqual([ false, true ]);
     });
 
@@ -135,7 +140,7 @@ describe("PromotedAttributesCard", () => {
         press(segments()[0], "ArrowDown", { ctrlKey: true });
 
         expect(stored.at(-1)?.map((attribute) => attribute.name)).toEqual([ "owner", "dueDate" ]);
-        expect(names()).toEqual([ "owner", "Due" ]);
+        expect(names()).toEqual([ unnamed("owner"), "Due" ]);
     });
 
     it("hides an attribute without taking it off the list, and shows it again", () => {
@@ -307,7 +312,7 @@ describe("PromotedAttributesCard", () => {
             expect(mocks.detail.opts?.focus).toBe("name");
             expect(mocks.detail.opts?.hideInheritance).toBe(true);
             // Nothing is listed until the note reports what was made.
-            expect(names()).toEqual([ "Due", "owner" ]);
+            expect(names()).toEqual([ "Due", unnamed("owner") ]);
             expect(stored).toEqual([]);
         });
 
@@ -322,7 +327,7 @@ describe("PromotedAttributesCard", () => {
             defined = [ ...defined, definition("label:priority") ];
             await reported();
 
-            expect(names()).toEqual([ "Due", "owner", "priority" ]);
+            expect(names()).toEqual([ "Due", unnamed("owner"), unnamed("priority") ]);
         });
 
         /** A definition the reader left unpromoted is not one the items can show. */
@@ -335,7 +340,7 @@ describe("PromotedAttributesCard", () => {
             });
             await reported();
 
-            expect(names()).toEqual([ "Due", "owner" ]);
+            expect(names()).toEqual([ "Due", unnamed("owner") ]);
         });
 
         it("drops an attribute the note no longer defines, keeping the order of the rest", async () => {

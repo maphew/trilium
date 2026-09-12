@@ -2,7 +2,7 @@ import { trimIndentation } from "@triliumnext/commons";
 import { sanitize, utils } from "@triliumnext/core";
 import ejs from "ejs";
 import { parse } from "node-html-parser";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { buildShareNote, buildShareNotes } from "../test/shaca_mocking.js";
 import { getContent, getDefaultTemplatePath, readTemplate, renderCode, renderNoteContent, type Result, shouldSyntaxHighlight } from "./content_renderer.js";
@@ -10,16 +10,14 @@ import type SNote from "./shaca/entities/snote.js";
 import shaca from "./shaca/shaca.js";
 import shareRoot from "./share_root.js";
 
-describe("content_renderer", () => {
-    beforeAll(() => {
-        vi.mock("../becca/becca_loader.js", () => ({
-            default: {
-                load: vi.fn(),
-                loaded: Promise.resolve()
-            }
-        }));
-    });
+vi.mock("../becca/becca_loader.js", () => ({
+    default: {
+        load: vi.fn(),
+        loaded: Promise.resolve()
+    }
+}));
 
+describe("content_renderer", () => {
     it("Reports protected notes not being renderable", () => {
         const note = buildShareNote({ isProtected: true });
         const result = getContent(note);

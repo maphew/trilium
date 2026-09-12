@@ -25,8 +25,22 @@ export interface FlipOptions {
      * full size. A predicate decides per child, for arrivals already shown some other way.
      */
     grow?: boolean | ((child: HTMLElement) => boolean);
-    /** Whether to leave the children where the browser puts them. */
+    /**
+     * Whether to leave the children where the browser puts them, stop measuring them, and forget
+     * where they stood.
+     *
+     * For a container whose children are being rebuilt for reasons that are not moves: sliding
+     * from a place recorded before such a rebuild animates it as a move.
+     */
     disabled?: boolean;
+    /**
+     * Whether to stop measuring the children while keeping the places they were last measured at.
+     *
+     * For a container that is not taking part yet: its children still stand where they were
+     * measured, so it slides them from there the moment it does take part. Where {@link disabled}
+     * is set as well, the places are dropped: forgetting outranks remembering.
+     */
+    paused?: boolean;
 }
 
 /**
@@ -43,7 +57,8 @@ export interface FlipOptions {
  * `offsetParent` reports a different number for the same place.
  */
 export function useFlip(
-    ref: RefObject<HTMLElement>, { selector, axis = "vertical", grow, disabled }: FlipOptions
+    ref: RefObject<HTMLElement>,
+    { selector, axis = "vertical", grow, disabled, paused }: FlipOptions
 ) {
     // Written after every commit, so it holds where the children stood at the previous one.
     const seen = useRef(new Map<Element, Place>());
@@ -76,6 +91,19 @@ export function useFlip(
             return;
         }
 
+        // Measured only when a slide can come of it: reading one position forces a layout of the
+        // whole document, which on a list of thousands is what this hook costs. A growth already
+        // running is called off either way, since the frame it ends on reads the children again.
+        if (paused || disabled) {
+            window.clearTimeout(settled.current);
+            settling.current = false;
+            if (disabled) {
+                seen.current.clear();
+                drawn.current = false;
+            }
+            return;
+        }
+
         const before = seen.current;
         const now = read();
         const moved: { child: HTMLElement, by: number }[] = [];
@@ -87,7 +115,7 @@ export function useFlip(
             const child = element as HTMLElement;
             const previous = before.get(child);
 
-            if (disabled || place.at === null) {
+            if (place.at === null) {
                 continue;
             }
 

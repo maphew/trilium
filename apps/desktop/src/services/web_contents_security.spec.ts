@@ -314,8 +314,12 @@ describe("isPermissionAllowed", () => {
         expect(isPermissionAllowed("guest", "fileSystem")).toBe(false);
         expect(isPermissionAllowed("guest", "local-fonts")).toBe(false);
 
+        // The geo map's locate button asks where the device is; a remote page does not get to.
+        expect(isPermissionAllowed("app", "geolocation")).toBe(true);
+        expect(isPermissionAllowed("guest", "geolocation")).toBe(false);
+
         // Everything else is denied everywhere.
-        for (const permission of ["media", "geolocation", "midi", "hid", "serial", "usb", "pointerLock", "clipboard-read", "openExternal"]) {
+        for (const permission of ["media", "midi", "hid", "serial", "usb", "pointerLock", "clipboard-read", "openExternal"]) {
             expect(isPermissionAllowed("app", permission)).toBe(false);
             expect(isPermissionAllowed("guest", permission)).toBe(false);
         }
@@ -328,11 +332,14 @@ describe("isPermissionAllowedForOrigin", () => {
         expect(isPermissionAllowedForOrigin("app", "notifications", "trilium-app://app")).toBe(true);
         expect(isPermissionAllowedForOrigin("app", "clipboard-sanitized-write", "trilium-app://app/some/path")).toBe(true);
         expect(isPermissionAllowedForOrigin("app", "fileSystem", "trilium-app://app")).toBe(true);
+        expect(isPermissionAllowedForOrigin("app", "geolocation", "trilium-app://app")).toBe(true);
 
         // A remote <iframe> sharing the default session does not.
         expect(isPermissionAllowedForOrigin("app", "notifications", "https://www.youtube-nocookie.com/embed/x")).toBe(false);
         expect(isPermissionAllowedForOrigin("app", "clipboard-sanitized-write", "https://evil.example")).toBe(false);
         expect(isPermissionAllowedForOrigin("app", "fileSystem", "https://evil.example")).toBe(false);
+        // Where the device is stays the app's to ask; an embed does not learn it.
+        expect(isPermissionAllowedForOrigin("app", "geolocation", "https://evil.example")).toBe(false);
         // The installed font list is a fingerprinting surface, so an embed does not get to read it.
         expect(isPermissionAllowedForOrigin("app", "local-fonts", "https://evil.example")).toBe(false);
         // Another host under our own scheme is not the app shell.
@@ -349,7 +356,7 @@ describe("isPermissionAllowedForOrigin", () => {
     });
 
     it("never grants a permission outside the session allowlist, even from the app shell", () => {
-        expect(isPermissionAllowedForOrigin("app", "geolocation", "trilium-app://app")).toBe(false);
+        expect(isPermissionAllowedForOrigin("app", "media", "trilium-app://app")).toBe(false);
         expect(isPermissionAllowedForOrigin("app", "clipboard-read", "trilium-app://app")).toBe(false);
         expect(isPermissionAllowedForOrigin("guest", "notifications", "trilium-app://app")).toBe(false);
     });
@@ -431,7 +438,9 @@ describe("permission handlers", () => {
 
         expect(appCheck({}, "clipboard-sanitized-write", "trilium-app://app")).toBe(true);
         expect(appCheck({}, "clipboard-sanitized-write", "https://www.youtube-nocookie.com")).toBe(false);
-        expect(appCheck({}, "geolocation", "trilium-app://app")).toBe(false);
+        // MapLibre's locate button asks this before enabling itself (`navigator.permissions.query`).
+        expect(appCheck({}, "geolocation", "trilium-app://app")).toBe(true);
+        expect(appCheck({}, "geolocation", "https://evil.example")).toBe(false);
         // Fullscreen is origin-independent.
         expect(guestCheck({}, "fullscreen", "https://www.youtube-nocookie.com")).toBe(true);
         expect(guestCheck({}, "clipboard-sanitized-write", "https://www.youtube-nocookie.com")).toBe(false);

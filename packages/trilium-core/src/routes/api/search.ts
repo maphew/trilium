@@ -1,4 +1,7 @@
-import { dayjs, type SearchResultDetails, type SearchResultDetailsRequest, type SearchResultDetailsResponse, type TemplatesResponse } from "@triliumnext/commons";
+import {
+    dayjs, type SearchResultDetails, type SearchResultDetailsRequest,
+    type SearchResultDetailsResponse, type SearchWithTokensResponse, type TemplatesResponse
+} from "@triliumnext/commons";
 import type { Request } from "express";
 
 import becca from "../../becca/becca.js";
@@ -134,20 +137,42 @@ function quickSearch(req: Request<{ searchString?: string }>) {
     };
 }
 
-function search(req: Request<{ searchString?: string }>) {
+function search(
+    req: Request<{ searchString?: string }, unknown, unknown,
+        { searchString?: string, ancestorNoteId?: string, includeTokens?: string }>
+): string[] | SearchWithTokensResponse {
     const searchString = getSearchString(req);
+    const { ancestorNoteId, includeTokens } = req.query;
 
     const searchContext = new SearchContext({
         fastSearch: false,
         includeArchivedNotes: true,
         fuzzyAttributeSearch: false,
-        ignoreHoistedNote: true
+        ignoreHoistedNote: true,
+        // Restricts the results to one subtree, for callers that filter a collection rather
+        // than search the whole tree.
+        ancestorNoteId: ancestorNoteId || undefined
     });
 
-    return searchService.findResultsWithQuery(searchString, searchContext).map((sr) => sr.noteId);
+    const noteIds = searchService.findResultsWithQuery(searchString, searchContext)
+        .map((sr) => sr.noteId);
+
+    if (includeTokens !== "true") {
+        return noteIds;
+    }
+
+    return {
+        searchResultNoteIds: noteIds,
+        highlightedTokens: searchContext.getHighlightedTokenInfos(),
+        error: searchContext.getError()
+    };
 }
 
-function getSearchString(req: Request<{ searchString?: string }>): string {
+/**
+ * Reads the search string from the query parameter, falling back to the legacy path parameter.
+ * The query form survives proxies that normalize an encoded slash into a path separator.
+ */
+function getSearchString(req: { params: { searchString?: string }; query: { searchString?: unknown } }): string {
     const searchString = req.params.searchString ?? req.query.searchString;
 
     if (typeof searchString !== "string" || searchString.length === 0) {

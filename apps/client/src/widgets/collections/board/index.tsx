@@ -9,16 +9,24 @@ import {
     Dispatch, StateUpdater, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from "preact/hooks";
 
+import { type HighlightedTokenInfo, normalizeBoardGroupBy } from "@triliumnext/commons";
+
+import appContext from "../../../components/app_context";
 import FNote from "../../../entities/fnote";
+import attributes from "../../../services/attributes";
+import froca from "../../../services/froca";
 import { t } from "../../../services/i18n";
+import { getCreationDate, loadCreationDates } from "../../../services/note_dates";
 import type LoadResults from "../../../services/load_results";
 import { ContextMenuEvent } from "../../../menus/context_menu";
 import { isIMEComposing } from "../../../services/shortcuts";
 import type { ShortcutHintDefinition } from "../../../services/shortcut_hints";
 import toast from "../../../services/toast";
+import ws from "../../../services/ws";
 import { escapeHtml, isMobile } from "../../../services/utils";
 import { type NoteTypeOption, resolveNoteTypeOptions } from "../../../services/note_types";
-import type { PromotedAttributeSetting } from "../promoted_attributes";
+import { type PromotedAttributeSetting, resolvePromotedAttributes } from "../promoted_attributes";
+import type { SortContext } from "../sorting";
 import CollectionProperties from "../../note_bars/CollectionProperties";
 import FormTextArea from "../../react/FormTextArea";
 import FormTextBox from "../../react/FormTextBox";
@@ -34,18 +42,28 @@ import ActionButton from "../../react/ActionButton";
 import { IconPickerButton } from "../../react/IconPicker";
 import { useDragPan } from "../../react/drag_pan";
 import { FLIP_SETTLE_MS, useFlip } from "../../react/flip";
+import { SelectionContext, SelectionStore } from "../../react/selection";
+import { CollectionFilterInput, useCollectionFilter } from "../collection_filter";
 import { ViewModeProps } from "../interface";
 import Api, { getPendingWrites, PendingColumnWrites, settleColumn } from "./api";
 import { useBoardDrag } from "./board_drag";
-import { movesColumn } from "./drag_geometry";
+import { columnGapStandsAside, columnStandsAside, movesColumn } from "./drag_geometry";
+import { forgetCardHeights } from "./drag_measure";
+import { BoardDropStateContext, DropStateStore } from "./drop_state";
 import BoardApi from "./api";
+import { adoptLegacyColumns, readColumns } from "./column_storage";
 import { DEFAULT_COLUMN_ICON, DEFAULT_GROUP_BY, getStatusDefinition, INBOX_COLUMN } from "./columns";
-import Column from "./column";
+import Column, { EXPAND_MS, placeCard, settleCards } from "./column";
 import { currentCardTemplate, DEFAULT_CARD_TEMPLATES } from "./card_templates";
 import ColumnLimitDialog from "./column_limit";
+import BoardGroupBy, { groupingOptions } from "./group_by";
 import BoardProperties from "./properties";
 import { openBoardContextMenu, openCreateColumnMenu } from "./context_menu";
-import { applyCardMove, ColumnMap, getBoardData } from "./data";
+import { useBoardSort } from "./sort";
+import {
+    affectsSortOrder, applyCardMoves, ColumnMap, filterColumnMap, getBoardData, resolveColumnSorts,
+    resolveSortWatch, sortColumnMap, unfilteredCardIndex
+} from "./data";
 import { useBoardKeyboard } from "./keyboard";
 
 /**
@@ -60,7 +78,13 @@ export interface HoldOpen {
 }
 
 export interface BoardViewData {
+    /**
+     * The columns of the default grouping. Every other grouping keeps its own list under
+     * `<attribute>ViewColumns`, so switching the grouping cannot mix two of them.
+     */
     columns?: BoardColumnData[];
+    /** @see BoardViewData.columns */
+    [key: `${string}ViewColumns`]: BoardColumnData[] | undefined;
     /**
      * What a new card can be made from, as {@link NoteTypeOption} ids. Absent until the reader picks
      * for the board, which is what `DEFAULT_CARD_TEMPLATES` stands in for.
@@ -73,6 +97,8 @@ export interface BoardViewData {
      * name is shown after the ones it does; see {@link resolvePromotedAttributes}.
      */
     promotedAttributes?: PromotedAttributeSetting[];
+    /** The search query the board is narrowed to, absent while no filter is active. */
+    filterQuery?: string;
 }
 
 export interface BoardColumnData {
@@ -106,10 +132,22 @@ export interface BoardColumnData {
     displayName?: string;
     /** The note limit, absent if disabled. */
     limit?: number;
+    /**
+     * How the column orders its cards, as `SortKey` in `collections/sorting` spells it. Absent for
+     * the manual order, which is the order of the board's children.
+     */
+    orderBy?: string;
+    /** Whether that order runs backwards. Absent while it runs forwards. */
+    descendingOrder?: boolean;
 }
 
 interface CardDrag {
     noteId: string;
+    /**
+     * Every card on the move, this one among them. One entry unless the card was taken hold of as
+     * part of a selection; absent for a drag from the note tree, which carries no card.
+     */
+    noteIds?: string[];
     branchId: string;
     fromColumn: string;
     index: number;
@@ -122,6 +160,10 @@ interface ColumnDrag {
     index: number;
     /** What the column measures, so the gap held open for it is the size it will land in. */
     size?: { width: number, height: number };
+    /** How much room it takes out of the row, its width and the gap after it. */
+    stride?: number;
+    /** Where each column stood before it was taken out, and where one added at the end would. */
+    lefts?: number[];
 }
 
 /**
@@ -152,14 +194,18 @@ interface BoardActions {
     setDropTarget: (target: string | null) => void;
 }
 
-/** The half that changes repeatedly while a card or column is dragged, or a title is being edited. */
+/**
+ * The half that changes when a card or column is taken hold of and let go of, or a title is edited.
+ *
+ * Where the gap stands is not here: it changes on every step of a drag, and a context does that to
+ * every column at once. It is held in a {@link DropStateStore} instead, which each column asks
+ * about itself.
+ */
 interface BoardDragState {
     branchIdToEdit?: string;
     columnNameToEdit?: string;
     draggedCard: CardDrag | null;
     draggedColumn: ColumnDrag | null;
-    dropPosition: ColumnDrag | null;
-    dropTarget: string | null;
 }
 
 // Both defaults are the honest identity value rather than a stand-in, which is what lets consumers
@@ -188,10 +234,17 @@ export const BoardPromotedAttributesContext = createContext<string[] | undefined
 
 export const BoardDragStateContext = createContext<BoardDragState>({
     draggedCard: null,
-    draggedColumn: null,
-    dropPosition: null,
-    dropTarget: null
+    draggedColumn: null
 });
+
+/**
+ * The tokens the active filter matched by, which the cards highlight in their titles. A context
+ * rather than a prop, so a memoized card is not redrawn for it during a drag.
+ */
+export const BoardHighlightTokensContext = createContext<HighlightedTokenInfo[] | null>(null);
+
+/** The cards drawn although the filter does not match them, which say as much on their face. */
+export const BoardKeptCardsContext = createContext<Set<string>>(new Set());
 
 /**
  * What the board answers with when asked for contextual keyboard help. Every entry is a key the
@@ -247,22 +300,74 @@ const BOARD_HINTS: ShortcutHintDefinition = [
                 labelKey: "board_view.hints.move_column_to_edge"
             }
         ]
+    },
+    {
+        titleKey: "board_view.hints.selection",
+        hints: [
+            { keys: [ "Ctrl+A" ], labelKey: "board_view.hints.select_column" },
+            { keys: [ "Escape" ], labelKey: "board_view.hints.clear_selection" }
+        ]
     }
 ];
 
-export default function BoardView({ note: parentNote, noteIds, viewConfig, saveConfig }: ViewModeProps<BoardViewData>) {
+export default function BoardView({
+    note: parentNote, noteIds, viewConfig: storedConfig, saveConfig
+}: ViewModeProps<BoardViewData>) {
     const { noteContext } = useNoteContext();
-    const [ statusAttributeWithPrefix ] = useNoteLabelWithDefault(parentNote, "board:groupBy", DEFAULT_GROUP_BY);
+    const [ requestedGroupBy, setRequestedGroupBy ] =
+        useNoteLabelWithDefault(parentNote, "board:groupBy", DEFAULT_GROUP_BY);
+    /**
+     * The grouping the board draws and writes for.
+     *
+     * It follows `#board:groupBy` only once the columns of the grouping it names are resolved, so
+     * no write can put one grouping's columns under another's key. A different board takes its
+     * label at once: it has no previous grouping of its own to keep in step.
+     */
+    const [ committed, setCommitted ] = useState({ note: parentNote, groupBy: requestedGroupBy });
+    const groupBy = committed.note === parentNote ? committed.groupBy : requestedGroupBy;
+    // A board that has never had its grouping switched keeps its columns under `columns`. They
+    // belong to the grouping it opened on, and are moved under that grouping's own key before
+    // anything reads them. Read from the label the board opened with rather than from the grouping
+    // in force: switching to another one must not carry the columns of the one being left.
+    const openedOn = useRef({ note: parentNote, groupBy: requestedGroupBy });
+    if (openedOn.current.note !== parentNote) {
+        openedOn.current = { note: parentNote, groupBy: requestedGroupBy };
+    }
+    const openedOnGroupBy = openedOn.current.groupBy;
+    const adoptedConfig = useMemo(
+        () => adoptLegacyColumns(storedConfig, openedOnGroupBy), [ storedConfig, openedOnGroupBy ]);
+    let viewConfig = adoptedConfig ?? storedConfig;
     const [ includeArchived ] = useNoteLabelBoolean(parentNote, "includeArchived");
     const [ inboxEnabled ] = useNoteLabelBoolean(parentNote, "enableInboxColumn");
-    const [ byColumn, setByColumn ] = useState<ColumnMap>();
+    /** Every card the board holds, which an active filter narrows before the cards are drawn. */
+    const [ allByColumn, setAllByColumn ] = useState<ColumnMap>();
     const [ columns, setColumns ] = useState<string[]>();
     const [ isInRelationMode, setIsRelationMode ] = useState(false);
     const [ draggedCard, setDraggedCard ] = useState<CardDrag | null>(null);
     /** The column just added, which is revealed once the board has drawn it. */
     const [ createdColumn, setCreatedColumn ] = useState<string>();
-    const [ dropTarget, setDropTarget ] = useState<string | null>(null);
-    const [ dropPosition, setDropPosition ] = useState<{ column: string, index: number } | null>(null);
+    /**
+     * The card just dropped on a sorted column, drawn with the same reveal a new card gets.
+     *
+     * `sortColumnMap` can put it anywhere among the cards, so the reveal is how the user finds it.
+     */
+    const [ landedNoteId, setLandedNoteId ] = useState<string>();
+    /**
+     * Where the gap stands, kept out of the board's state so that a step of a drag draws no column
+     * the gap is not near.
+     */
+    const dropState = useMemo(() => new DropStateStore(), []);
+    /**
+     * Which cards are picked out, kept out of the board's state for the same reason: selecting one
+     * card must wake that card and no other.
+     */
+    const selection = useMemo(() => new SelectionStore(), []);
+    const setDropPosition = useCallback((position: ColumnDrag | null) => {
+        dropState.set({ ...dropState.get(), position });
+    }, [ dropState ]);
+    const setDropTarget = useCallback((target: string | null) => {
+        dropState.set({ ...dropState.get(), target });
+    }, [ dropState ]);
     const [ draggedColumn, setDraggedColumn ] = useState<ColumnDrag | null>(null);
     const [ columnDropPosition, setColumnDropPosition ] = useState<number | null>(null);
     const [ branchIdToEdit, setBranchIdToEdit ] = useState<string>();
@@ -282,6 +387,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** Everything a card could be made from: the note types and every template. */
     const availableTemplates = useNoteTypeOptions();
     const [ isEditingProperties, setIsEditingProperties ] = useState(false);
+    /** Adds `frozen`, which takes `pointer-events` off the cards. Set once the backdrop has faded in. */
+    const [ isFrozen, setIsFrozen ] = useState(false);
     const selectColumn = useCallback<Dispatch<StateUpdater<string | undefined>>>((column) => {
         setIsPeekingAll(false);
         setActiveColumn(column);
@@ -291,6 +398,8 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     const movesInFlight = useRef(0);
     /** Bumped when the definition changes, since it is read off the note rather than held in state. */
     const [ definitionRevision, setDefinitionRevision ] = useState(0);
+    /** Bumped when the titles or dates a sort reads change, since neither is held in state. */
+    const [ sortRevision, setSortRevision ] = useState(0);
     // A ref rather than state: `api` is rebuilt on every refresh, and the map has to outlive those
     // instances to cover a rename (see BoardApi#retireColumn). Mutating it must not re-render.
     const pendingRenamesRef = useRef<{ board: string, writes: PendingColumnWrites }>({
@@ -306,7 +415,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // takes up that board's own, leaving a write still in flight to undo into the one it recorded
     // itself in. Done while rendering, so the `api` below is handed the map the refresh reads.
     useContextualShortcutHints(BOARD_HINTS);
-    const boardIdentity = `${parentNote.noteId}|${statusAttributeWithPrefix}`;
+    const boardIdentity = `${parentNote.noteId}|${groupBy}`;
     if (pendingRenamesRef.current.board !== boardIdentity) {
         pendingRenamesRef.current = {
             board: boardIdentity,
@@ -321,26 +430,86 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         () => (columns ?? []).filter(column => column !== INBOX_COLUMN || inboxEnabled),
         [ columns, inboxEnabled ]);
     const statusDefinition = useMemo(
-        () => getStatusDefinition(parentNote, statusAttributeWithPrefix),
-        [ parentNote, statusAttributeWithPrefix, definitionRevision ]);
+        () => getStatusDefinition(parentNote, groupBy),
+        [ parentNote, groupBy, definitionRevision ]);
     // One api for as long as the board is shown, pointed at each refresh's data rather than built
     // again: a new object would be a new prop on every card, and `memo` would then redraw all of
     // them for a move that touched one. Another board takes a new one, since this instance is
     // reused across boards and the api holds that board's record of the writes in flight.
     const apiRef = useRef<{ board: string, api: Api }>();
+    const persistFilterQuery = useCallback(
+        (query: string) => apiRef.current?.api.setFilterQuery(query), []);
+    const filter = useCollectionFilter(parentNote, {
+        persistedQuery: viewConfig?.filterQuery,
+        onQueryChanged: persistFilterQuery,
+        collectionNoteIds: noteIds
+    });
+    const statusAttribute = groupBy.replace(/^[~#]/, "");
+    // Every promoted attribute the board defines, hidden ones included: a column can sort by a
+    // field its cards do not draw.
+    const promotedAttributes = useMemo(
+        () => resolvePromotedAttributes(
+            parentNote, viewConfig?.promotedAttributes, [ statusAttribute ]),
+        [ parentNote, viewConfig, statusAttribute, definitionRevision ]);
+    // Keyed on the label rather than on the committed grouping, so the button names what the reader
+    // just picked while the columns below are still being read.
+    const groupingChoices = useMemo(
+        () => groupingOptions(parentNote, viewConfig?.promotedAttributes, requestedGroupBy),
+        [ parentNote, viewConfig, requestedGroupBy, definitionRevision ]);
+    const currentGrouping = normalizeBoardGroupBy(requestedGroupBy) || DEFAULT_GROUP_BY;
+    const defaultSort = useBoardSort(parentNote);
+    const columnSorts = useMemo(
+        () => resolveColumnSorts(readColumns(viewConfig, groupBy), defaultSort, usableColumns),
+        [ viewConfig, groupBy, defaultSort, usableColumns ]);
+    const sortContext = useMemo<SortContext>(() => ({
+        definitions: new Map(promotedAttributes.map(attribute => [ attribute.name, attribute ])),
+        creationDate: getCreationDate,
+        noteTitle: (noteId) => froca.getNoteFromCache(noteId)?.title
+    }), [ promotedAttributes ]);
+    // Sorted before the filter: `filterColumnMap` keeps the order it is given, so a card the
+    // filter hides cannot change where the others stand. `sortRevision` is a dependency because
+    // the dates and titles `sortContext` reads live outside the render.
+    const sortedByColumn = useMemo(
+        () => (allByColumn ? sortColumnMap(allByColumn, columnSorts, sortContext) : undefined),
+        [ allByColumn, columnSorts, sortContext, sortRevision ]);
+    // The cards as drawn. Derived rather than held, so what is shown cannot fall behind what the
+    // filter matches, and withheld until a query stored in `board.json` has said what it matches.
+    const byColumn = useMemo(
+        () => (sortedByColumn && !filter.isResolvingStoredQuery
+            ? filterColumnMap(sortedByColumn, filter.shownNoteIds)
+            : undefined),
+        [ sortedByColumn, filter.shownNoteIds, filter.isResolvingStoredQuery ]);
+    const sortWatch = useMemo(
+        () => resolveSortWatch(allByColumn, columnSorts, sortContext.definitions),
+        [ allByColumn, columnSorts, sortContext ]);
+
+    // A card the board has stopped drawing, because it was deleted, archived out of view or moved
+    // off the board, leaves the selection with it. A command would otherwise write to a note the
+    // reader can no longer see.
+    useEffect(() => {
+        if (byColumn) {
+            selection.retain(new Set([ ...byColumn.values() ]
+                .flatMap((items) => items.map((item) => item.note.noteId))));
+        }
+    }, [ byColumn, selection ]);
+
     if (!apiRef.current || apiRef.current.board !== boardIdentity) {
         apiRef.current = {
             board: boardIdentity,
             api: new Api(
-                byColumn, usableColumns, parentNote, statusAttributeWithPrefix, viewConfig,
-                saveConfig, setBranchIdToEdit, pendingRenamesRef.current.writes, statusDefinition)
+                byColumn, usableColumns, parentNote, groupBy, viewConfig,
+                saveConfig, setBranchIdToEdit, pendingRenamesRef.current.writes, statusDefinition,
+                allByColumn, filter.keepNote)
         };
     } else {
         apiRef.current.api.update(
-            byColumn, usableColumns, parentNote, statusAttributeWithPrefix, viewConfig,
-            saveConfig, setBranchIdToEdit, statusDefinition);
+            byColumn, usableColumns, parentNote, groupBy, viewConfig,
+            saveConfig, setBranchIdToEdit, statusDefinition, allByColumn, filter.keepNote);
     }
     const api = apiRef.current.api;
+    // Set here rather than passed in: the api outlives a refresh, and the board can be drawn in a
+    // pane other than the focused one.
+    api.noteContext = noteContext;
     // Every member is one of useState's own setters, so this value is built once and never changes
     // identity -- a drag cannot reach anything that reads only this.
     const openBoardMenu = useCallback((event: ContextMenuEvent) => {
@@ -410,8 +579,9 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
 
     // Read off the config rather than off `columns`, which the resolver hands back as names alone.
     const storedColumns = useMemo(
-        () => new Map((viewConfig?.columns ?? []).map(stored => [ stored.value, stored ])),
-        [ viewConfig ]);
+        () => new Map((readColumns(viewConfig, groupBy) ?? []).map(
+            stored => [ stored.value, stored ])),
+        [ viewConfig, groupBy ]);
 
     // Filtered here rather than in the resolution, which is what gets written back: dropped there,
     // an archived column would be erased from the config and the definition instead of kept out of
@@ -425,16 +595,75 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     /** Until when a column move can still be settling, which is when `useFlip` slides columns. */
     const columnMovedUntil = useRef(0);
 
+    // Neither the creation dates the tie-break needs nor the targets of a sorted relation come
+    // with the board. Both are fetched here, and `sortRevision` redraws it once they land.
+    useEffect(() => {
+        if (!sortWatch.noteIds.size) {
+            return;
+        }
+
+        let isCancelled = false;
+        const settle = (isLoaded: boolean) => {
+            if (isLoaded && !isCancelled) {
+                setSortRevision(revision => revision + 1);
+            }
+        };
+
+        loadCreationDates(sortWatch.noteIds)
+            .then(settle)
+            .catch((error) => console.error("Failed to load the card creation dates:", error));
+
+        const missingTargets = [ ...sortWatch.targetNoteIds ]
+            .filter(noteId => !froca.getNoteFromCache(noteId));
+        if (missingTargets.length) {
+            froca.getNotes(missingTargets, true)
+                .then(() => settle(true))
+                .catch((error) => console.error("Failed to load the sorted relations:", error));
+        }
+
+        return () => { isCancelled = true; };
+    }, [ sortWatch ]);
+
+    // What a card measures is kept between drags, which holds while a column is the width it was
+    // measured at. A phone gives a column a share of the window, so a window that changes size
+    // takes the heights with it.
+    useEffect(() => {
+        window.addEventListener("resize", forgetCardHeights);
+        return () => window.removeEventListener("resize", forgetCardHeights);
+    }, []);
+
+    // Which columns stand narrow, as a line, so that one opening or closing is read off a single
+    // comparison. A column changing width hides or shows its own cards and moves no card inside
+    // any other, so there is nothing for any column to measure while it is happening.
+    const columnResizingUntil = useRef(0);
+    const columnWidths = useRef<string>();
+    const widths = shownColumns
+        .map(column => storedColumns.get(column)?.collapsed
+            && column !== activeColumn && !isPeekingAll ? "1" : "0")
+        .join("");
+    if (columnWidths.current !== undefined && columnWidths.current !== widths) {
+        columnResizingUntil.current = Date.now() + EXPAND_MS;
+    }
+    columnWidths.current = widths;
+    const isResizingColumns = Date.now() < columnResizingUntil.current;
+
     const boardDragState = useMemo<BoardDragState>(() => ({
         branchIdToEdit,
         columnNameToEdit,
         draggedCard,
-        draggedColumn,
-        dropPosition,
-        dropTarget
-    }), [ branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn, dropPosition, dropTarget ]);
+        draggedColumn
+    }), [ branchIdToEdit, columnNameToEdit, draggedCard, draggedColumn ]);
 
-    function refresh() {
+    /**
+     * Reads the board and draws it.
+     *
+     * @param target the grouping to read, which defaults to what `#board:groupBy` names. Where that
+     *               is one the board has not moved to yet, the refresh only reads: it hands the new
+     *               grouping's cards and columns over and commits the switch, and the refresh that
+     *               commit triggers is what stores anything, with the api on the grouping it stores
+     *               for.
+     */
+    function refresh(target = requestedGroupBy) {
         // A move under way has already been drawn where it will land. Held here rather than at each
         // caller, since a card crossing columns changes both the note and the board's children, and
         // either of those reaches this by a path of its own.
@@ -446,9 +675,15 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         // hears every change: a card renamed once redraws each of them, whichever is on screen. The
         // change is remembered instead, and drawn once the tab is looked at again. Asked of the
         // context rather than of the box, which is empty for a board that has not drawn yet.
+        // Compared by main context, not `noteContext.isActive()`: that names one pane across the
+        // whole app, so a board in a split the reader is not focused on is on screen but would
+        // never redraw, the `ResizeObserver` above having no size change to report.
         // Only once it has drawn: a board opened straight into a background tab has to draw at
         // least once, or there is no container to notice the tab being shown and it stays empty.
-        if (byColumn && noteContext && !noteContext.isActive()) {
+        // Nothing is deferred where the active tab cannot be read, so an answer that has yet to
+        // arrive leaves the board drawn rather than blank.
+        const shownTab = appContext.tabManager?.getActiveMainContext();
+        if (byColumn && noteContext && shownTab && shownTab !== noteContext.getMainContext()) {
             isStale.current = true;
             return;
         }
@@ -457,22 +692,41 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         // board the user has left can arrive after the next board's. What it has to say is about
         // sources no longer on screen, the pending renames it reports as settled included.
         const refreshId = ++refreshSeqRef.current;
+        const isSwitching = target !== groupBy;
+        // Read for the grouping being drawn. The renames belong to the grouping the board is on,
+        // and its columns are not the ones being resolved here.
+        const definition = isSwitching ? getStatusDefinition(parentNote, target) : statusDefinition;
+        const renames = isSwitching
+            ? new Map<string, string | undefined>()
+            : pendingRenamesRef.current.writes.renames;
 
         getBoardData(
-            parentNote, statusAttributeWithPrefix, viewConfig ?? {}, includeArchived,
-            statusDefinition?.options ?? [], pendingRenamesRef.current.writes.renames, inboxEnabled)
-            .then(({ byColumn, columns, newPersistedData, isInRelationMode, settledRenames }) => {
+            parentNote, target, viewConfig ?? {}, includeArchived,
+            definition?.options ?? [], renames, inboxEnabled)
+            .then(({
+                byColumn: allCards, columns, newPersistedData, isInRelationMode, settledRenames
+            }) => {
                 if (refreshId !== refreshSeqRef.current) {
                     return;
                 }
 
-                for (const settled of settledRenames) {
-                    settleColumn(pendingRenamesRef.current.writes, settled);
+                if (!isSwitching) {
+                    for (const settled of settledRenames) {
+                        settleColumn(pendingRenamesRef.current.writes, settled);
+                    }
                 }
 
-                setByColumn(byColumn);
+                setAllByColumn(allCards);
                 setIsRelationMode(isInRelationMode);
                 setColumns(columns);
+
+                // The cards, the columns and the api that writes for them move to the new grouping
+                // together. Nothing is stored from here: the api still writes for the grouping the
+                // board is leaving.
+                if (isSwitching) {
+                    setCommitted({ note: parentNote, groupBy: target });
+                    return;
+                }
 
                 // A column a write is carrying has already been taken out of `columns`, and the
                 // two writes below would put that answer on disk before the notes have given it.
@@ -487,7 +741,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 // is changing it: it resolves a name the change has already taken away from
                 // whichever source it has not heard about yet, and writes it back as a column.
                 // What this board itself changes is written where it is changed.
-                if (newPersistedData && !viewConfig?.columns?.length) {
+                if (newPersistedData && !readColumns(viewConfig, groupBy)?.length) {
                     viewConfig = { ...newPersistedData };
                     saveConfig(newPersistedData);
                 }
@@ -510,7 +764,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                     return;
                 }
 
-                api.syncColumnsToDefinition(columns)
+                api.syncColumnsToDefinition(columns, groupBy)
                     .catch((e) => console.error("Failed to sync the board columns to the attribute definition:", e));
             });
     }
@@ -518,16 +772,30 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
     // The gesture drives the same state a drag from the note tree does, so the placeholders and the
     // card's own dimming are drawn from one place whichever brought the card here.
     const { isDragging: isDraggingItem, remeasure } = useBoardDrag(containerRef, {
-        onCardStart: (card) => setDraggedCard({
-            noteId: card.noteId,
-            branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
-            fromColumn: card.fromColumn,
-            index: card.index,
-            height: card.height
-        }),
+        carriedWith: (noteId) => (selection.has(noteId)
+            ? api.getCards(selection.keys).map((card) => card.note.noteId)
+            : [ noteId ]),
+        onCardStart: (card) => {
+            // The card leaves the flow and the gap opens in its place, which eased would read as
+            // the column closing up and sliding back open.
+            holdStill();
+            // A card taken hold of from outside the selection travels alone, and what was picked
+            // out is given up: those cards stay where they are, and would still read as selected.
+            if (!selection.has(card.noteId)) {
+                selection.clear();
+            }
+            setDraggedCard({
+                noteId: card.noteId,
+                noteIds: card.noteIds,
+                branchId: byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId ?? "",
+                fromColumn: card.fromColumn,
+                index: card.index,
+                height: card.height
+            });
+        },
         onCardMove: (position, inside) => {
-            setDropTarget(position?.column ?? null);
-            setDropPosition(position);
+            // Written together: two writes would wake every column watching the gap twice over.
+            dropState.set({ position, target: position?.column ?? null });
             // Answers for what a `dragover` did, for a collapsed column the card is actually over:
             // one merely passed near keeps to itself, and one already opened stays open, since
             // closing it under a drag would move every column after it.
@@ -536,28 +804,58 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
             }
         },
         onCardEnd: (card, position) => {
-            const branchId = byColumn?.get(card.fromColumn)?.[card.index]?.branch.branchId;
-            if (position && branchId && byColumn) {
-                // Drawn where it landed at once, and held there until both writes are in: each of
-                // them lands a redraw, and the first would show the card at the top of the column.
-                setByColumn(applyCardMove(
-                    byColumn, card.noteId, card.fromColumn, position.column, position.index));
+            // The reorder gives the cards below the gap the layout their `translateY` was
+            // standing in for, so clearing it under a transition would slide them up.
+            holdStill();
+            // Put back here rather than left to the columns to draw: the board is about to move a
+            // card, hide the gap and close the room it took, and if those reach the screen in
+            // separate frames the reader sees a gap open where nothing is being carried any more.
+            closeGaps(containerRef.current);
+            // Every card on the move, in the order the board draws them, with the branches they
+            // are moved by. One entry unless the card was carried as part of a selection.
+            const carried = api.getCards(new Set(card.noteIds));
+            const isSortedTarget = !!position && columnSorts.has(position.column);
+            // A drop inside a sorted column changes nothing: `sortColumnMap` already placed the
+            // cards. Only while every card carried is already there; one from another column still
+            // has to be filed under this one.
+            const allInTarget = !!position && carried.every((item) =>
+                api.getCardColumn(item.note.noteId) === position.column);
+            if (isSortedTarget && allInTarget) {
+                setDraggedCard(null);
+                dropState.set({ position: null, target: null });
+                focusCard(card.noteId);
+                return;
+            }
+
+            if (position && carried.length && byColumn && allByColumn) {
+                // Drawn at once, into `allByColumn` since that is what `byColumn` derives from, at
+                // the index `unfilteredCardIndex` translates rather than the visible drop index.
+                // The index does not matter for a sorted column: `sortColumnMap` reorders the
+                // map afterwards.
+                setAllByColumn(applyCardMoves(
+                    allByColumn, carried.map((item) => item.note.noteId), position.column,
+                    unfilteredCardIndex(
+                        byColumn.get(position.column) ?? [],
+                        allByColumn.get(position.column) ?? [],
+                        position.index)));
+                if (isSortedTarget) {
+                    setLandedNoteId(card.noteId);
+                }
                 movesInFlight.current++;
-                // Any refresh already on its way is about the board as it stood before the drop,
-                // and would put the card back where it came from as it resolves.
+                // As `holdMove` does for a move made by the keyboard, and for the same reason: the
+                // board is held where the drop has drawn it until `froca` has the changes.
                 refreshSeqRef.current++;
                 api.moveWithinBoard(
-                    card.noteId, branchId, card.index, position.index,
-                    card.fromColumn, position.column)
-                    // Nothing is asked for once the writes are in: `froca` learns of the branch
-                    // move from the server a moment later, so a refresh here reads the new column
-                    // with the old order and puts the card at the top of it. The change reaches the
-                    // board as an entity reload, which settles it once there is something to read.
+                    carried.map((item) => ({
+                        noteId: item.note.noteId,
+                        branchId: item.branch.branchId
+                    })),
+                    position.column, position.index)
+                    .then(settled)
                     .finally(() => { movesInFlight.current--; });
             }
             setDraggedCard(null);
-            setDropTarget(null);
-            setDropPosition(null);
+            dropState.set({ position: null, target: null });
             // Asked for by name: the card is drawn again where it landed, and a card that crossed
             // columns is drawn as a new element, so the one that was focused is gone.
             focusCard(card.noteId);
@@ -565,11 +863,23 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                 revealColumn(position.column);
             }
         },
-        onColumnStart: (column, index, size) => setDraggedColumn({ column, index, size }),
+        onColumnStart: (column, index, size, row) => setDraggedColumn({
+            column, index, size, stride: row.stride, lefts: row.lefts
+        }),
         onColumnMove: setColumnDropPosition,
         onColumnEnd: (from, to) => {
+            // The row is drawn again as the gesture lets go, and the columns land where their
+            // transforms already had them. No card moves inside a column for that, so the same
+            // window that covers a column changing width covers this too.
+            columnResizingUntil.current = Date.now() + EXPAND_MS;
             if (to !== null && movesColumn(from, to)) {
-                handleColumnDrop(from, to);
+                // The transforms come off in the same frame the row is drawn in its new order,
+                // where each column already stands where that order puts it. Eased to zero they
+                // would carry it a column's width from a place it never stood in, so the frame
+                // that takes them off runs without a transition.
+                holdStill();
+                // Not animated either: the row puts the columns exactly where they already are.
+                handleColumnDrop(from, to, false);
             }
             setDraggedColumn(null);
             setColumnDropPosition(null);
@@ -602,8 +912,10 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         axis: "horizontal",
         // Only for a move the reader made, tracked by `columnMovedUntil`. A value change redraws
         // the columns, and the order churns while the cards, the definition and the stored config
-        // catch up with one another; sliding for that animates a rename as a move.
-        disabled: !draggedColumn && Date.now() > columnMovedUntil.current
+        // catch up with one another; sliding for that animates a rename as a move. A carried
+        // column is left out as well: the columns beside it are moved by their own transforms,
+        // which this would measure and then slide back from.
+        disabled: !!draggedColumn || Date.now() > columnMovedUntil.current
     });
 
     /**
@@ -651,17 +963,67 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
 
     // The board is not drawn afresh for another note, so the column opened on one would otherwise
     // still be open on the next, over whatever that board stores for a column of the same name.
-    useEffect(() => selectColumn(undefined), [ parentNote, selectColumn ]);
+    // The same holds across a grouping, whose columns are a different set entirely.
+    useEffect(() => selectColumn(undefined), [ parentNote, groupBy, selectColumn ]);
 
+    // Stored once, and only for a board still carrying a pre-switching column list.
+    useEffect(() => {
+        if (adoptedConfig) {
+            saveConfig(adoptedConfig);
+        }
+    }, [ adoptedConfig, saveConfig ]);
+
+    // `groupBy` is a dependency as well as `requestedGroupBy`: committing a switch is what asks for
+    // the refresh that stores the new grouping's columns.
     useEffect(refresh, [
-        parentNote, noteIds, viewConfig, statusAttributeWithPrefix, statusDefinition, inboxEnabled
+        parentNote, noteIds, viewConfig, requestedGroupBy, groupBy, statusDefinition, inboxEnabled
     ]);
 
     // The drag reports where the column landed among the ones on screen, which is not where it
     // landed among them all once some are archived and hidden. Translated here so a reorder leaves
     // every hidden column where it was rather than herding them to the end.
-    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number) => {
-        columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+    /**
+     * Draws the next frame without transitions, for the lift and the drop, where every element is
+     * already standing where it is about to be drawn.
+     *
+     * Let go a frame later than the one that draws it, a frame's callbacks running before the
+     * styles it paints are worked out.
+     */
+    const stillFor = useRef<number>();
+    const holdStill = useCallback(() => {
+        const container = containerRef.current;
+        container?.classList.add("board-still");
+        // Started afresh on every call: a lift and the drop that follows it a frame later would
+        // otherwise be let go on the first one's schedule, before the drop has been drawn.
+        if (stillFor.current !== undefined) {
+            cancelAnimationFrame(stillFor.current);
+        }
+
+        stillFor.current = requestAnimationFrame(() => {
+            stillFor.current = requestAnimationFrame(() => {
+                stillFor.current = undefined;
+                container?.classList.remove("board-still");
+            });
+        });
+    }, []);
+
+    // A board taken off the page leaves nothing of a gesture behind it to run in a later frame.
+    // The container is held from the mount: a ref is empty again by the time this is called.
+    useEffect(() => {
+        const container = containerRef.current;
+        return () => {
+            if (stillFor.current !== undefined) {
+                cancelAnimationFrame(stillFor.current);
+            }
+
+            settleCards(container);
+        };
+    }, []);
+
+    const handleColumnDrop = useCallback((fromIndex: number, toIndex: number, animate = true) => {
+        if (animate) {
+            columnMovedUntil.current = Date.now() + FLIP_SETTLE_MS;
+        }
         // The list the api holds, which is also the one it reorders. A column the board is not
         // showing is in neither, so indexing into `columns` would be off by one.
         const allColumns = api.columns;
@@ -678,23 +1040,108 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         setColumnDropPosition(null);
     }, [ api, shownColumns ]);
 
-    const { onKeyDown: handleKeyDown, focusColumn, focusCard } = useBoardKeyboard({
+    /**
+     * Draws a move where it will leave the cards and holds the board there until the writes are in.
+     *
+     * A move is a write per card that changes column and one per branch being placed, and each
+     * lands a redraw of its own. Drawn as they arrive, the cards are seen to shuffle into place one
+     * after another: under their new column in the order their old branches give them, then each
+     * into the position the next write settles. The board is drawn where the move ends instead.
+     */
+    const holdMove = useCallback((
+        cards: { noteId: string, branchId: string }[],
+        targetColumn: string,
+        targetIndex: number,
+        done: Promise<unknown>
+    ) => {
+        if (allByColumn) {
+            setAllByColumn(applyCardMoves(
+                allByColumn, cards.map((card) => card.noteId), targetColumn, targetIndex));
+        }
+
+        movesInFlight.current++;
+        // Any refresh already on its way is about the board as it stood before the move, and would
+        // put the cards back where they came from as it resolves.
+        refreshSeqRef.current++;
+
+        // Held until `froca` has the changes, not merely until the server has answered for them:
+        // the answers come back over HTTP and the changes over the websocket, so a refresh let
+        // through in between reads a board with some of the cards moved and the rest still where
+        // they were, and draws that.
+        return done
+            .then(settled)
+            .finally(() => { movesInFlight.current--; });
+    }, [ allByColumn ]);
+
+    /** Sends cards to the end of another column, which is where the keyboard puts them. */
+    const sendCardsToColumn = useCallback((
+        cards: { noteId: string, branchId: string }[], targetColumn: string
+    ) => holdMove(
+        cards, targetColumn, api.getColumnNoteIds(targetColumn).length,
+        api.moveToColumnEnd(cards, targetColumn)),
+    [ api, holdMove ]);
+
+    /** Moves cards to a place among the ones already in a column. */
+    const moveCardsWithin = useCallback((
+        cards: { noteId: string, branchId: string }[], column: string, index: number
+    ) => holdMove(cards, column, index, api.moveWithinBoard(cards, column, index)),
+    [ api, holdMove ]);
+
+    const clearSelectionOutsideCards = useCallback((e: MouseEvent) => {
+        if (!(e.target as HTMLElement | null)?.closest(".board-note")) {
+            selection.clear();
+        }
+    }, [ selection ]);
+
+    const { onKeyDown: handleBoardKeys, focusColumn, focusCard } = useBoardKeyboard({
         containerRef,
         setActiveColumn,
         columns: shownColumns,
         byColumn,
         api,
         moveColumn: handleColumnDrop,
+        selection,
+        sendCardsToColumn,
+        moveCardsWithin,
         insertColumn: useCallback(async (relativeTo: string, direction: "before" | "after") => {
             setColumnNameToEdit(await api.insertColumn(relativeTo, direction));
         }, [ api ])
     });
 
+    // Escape gives the selection up, before the board's own keys are offered the press: nothing
+    // else on the board answers for Escape, and a reader who has picked cards out expects it to
+    // undo that first.
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === "Escape" && selection.size) {
+            e.stopPropagation();
+            selection.clear();
+            return;
+        }
+
+        handleBoardKeys(e);
+    }, [ selection, handleBoardKeys ]);
+
+    // The note actions menu offers the properties dialog, which lives here rather than in the menu.
+    useTriliumEvent("showBoardProperties", ({ ntxId }) => {
+        if (ntxId === noteContext?.ntxId) {
+            setIsEditingProperties(true);
+        }
+    });
+
     useTriliumEvent("entitiesReloaded", ({ loadResults }) => {
         // The column list is read off the definition, which may be edited from the attribute panel,
         // another split, or a synced instance. Re-reading it re-runs the refresh through the effect.
-        if (loadResults.getAttributeRows().some(attr => attr.name === `label:${api.statusAttribute}`)) {
+        // Any definition the board carries, not only the grouping's: the others are what it offers
+        // to group by instead.
+        if (loadResults.getAttributeRows().some(attr =>
+                attr.name?.startsWith("label:") && attributes.isAffecting(attr, parentNote))) {
             setDefinitionRevision(revision => revision + 1);
+        }
+
+        // `findRefreshReason` ignores a note row, since a card keeps its own title in step. A
+        // column sorting by title still has to reorder, and this does it without a refresh.
+        if (affectsSortOrder(loadResults, sortWatch)) {
+            setSortRevision(revision => revision + 1);
         }
 
         if (findRefreshReason(loadResults, api.statusAttribute, noteIds, parentNote.noteId)) {
@@ -709,11 +1156,40 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
         : undefined;
 
     return (
-        <div className="board-view">
-            <CollectionProperties note={parentNote} />
+        <div className={clsx("board-view", { frozen: isFrozen })}>
+            {/* Dims the board while a title is being typed, with the edited card lifted above it.
+                Always rendered so that it can fade in. `index.css` picks the fields that raise it
+                with `:has()`, since each column holds its own editing state.
+
+                `frozen` waits for the fade to finish: setting it restyles every card, which in the
+                same frame drops the fade's frames. */}
+            <div
+                className="board-edit-backdrop"
+                onTransitionEnd={(e) => setIsFrozen(
+                    getComputedStyle(e.currentTarget as HTMLElement).opacity === "1")}
+            />
+            <CollectionProperties
+                note={parentNote}
+                rightChildren={<>
+                    <BoardGroupBy
+                        note={parentNote}
+                        options={groupingChoices}
+                        current={currentGrouping}
+                        onSelect={setRequestedGroupBy}
+                    />
+                    <CollectionFilterInput
+                        filter={filter}
+                        placeholder={t("board_view.filter-placeholder")}
+                    />
+                </>}
+            />
             <BoardActionsContext.Provider value={boardActions}>
                 <BoardPromotedAttributesContext.Provider value={shownAttributes}>
+                <BoardHighlightTokensContext.Provider value={filter.highlightedTokens}>
+                <BoardKeptCardsContext.Provider value={filter.keptNoteIds}>
+                <BoardDropStateContext.Provider value={dropState}>
                 <BoardDragStateContext.Provider value={boardDragState}>
+                <SelectionContext.Provider value={selection}>
                     {byColumn && columns && <div
                         ref={containerRef}
                         className={clsx("board-view-container", {
@@ -721,6 +1197,7 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                             panning: isPanning
                         })}
                         onKeyDown={handleKeyDown}
+                        onClick={clearSelectionOutsideCards}
                         onContextMenu={openBoardMenu}
                         onWheel={onWheelHorizontalScroll}
                     >
@@ -737,10 +1214,16 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                         <div className="board-columns">
                         {shownColumns.map((column, index) => (
                             <Fragment key={column}>
-                                {columnDropPosition === index && (
+                                {draggedColumn?.index === index && (
                                     <div
                                         className="column-drop-placeholder show"
-                                        style={placeholderSize}
+                                        style={{
+                                            ...placeholderSize,
+                                            transform: `translateX(${columnGapStandsAside(
+                                                draggedColumn.index, columnDropPosition,
+                                                draggedColumn.lefts ?? [],
+                                                draggedColumn.stride ?? 0)}px)`
+                                        }}
                                     />
                                 )}
                                 <Column
@@ -755,6 +1238,11 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     keepCollapsed={storedColumns.get(column)?.keepCollapsed}
                                     isActive={activeColumn === column}
                                     isPeeked={isPeekingAll}
+                                    isResizing={isResizingColumns}
+                                    standsAside={draggedColumn
+                                        ? columnStandsAside(index, draggedColumn.index,
+                                            columnDropPosition, draggedColumn.stride ?? 0)
+                                        : 0}
                                     cardTemplates={cardTemplates}
                                     nested={storedColumns.get(column)?.nested}
                                     limit={storedColumns.get(column)?.limit}
@@ -764,13 +1252,14 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                                     onFocusColumn={focusColumn}
                                     onFocusCard={focusCard}
                                     columnItems={byColumn.get(column)}
+                                    totalCount={allByColumn?.get(column)?.length}
+                                    sort={columnSorts.get(column)}
+                                    landedNoteId={landedNoteId}
                                     isNew={column === createdColumn}
                                 />
                             </Fragment>
                         ))}
-                        {columnDropPosition === shownColumns.length && draggedColumn && (
-                            <div className="column-drop-placeholder show" style={placeholderSize} />
-                        )}
+
                         </div>
 
                         <AddNewColumn
@@ -810,7 +1299,11 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
                             />
                         )}
                     </div>}
+                </SelectionContext.Provider>
                 </BoardDragStateContext.Provider>
+                </BoardDropStateContext.Provider>
+                </BoardKeptCardsContext.Provider>
+                </BoardHighlightTokensContext.Provider>
                 </BoardPromotedAttributesContext.Provider>
             </BoardActionsContext.Provider>
         </div>
@@ -829,6 +1322,50 @@ export default function BoardView({ note: parentNote, noteIds, viewConfig, saveC
  * Naming the winning check, rather than returning a boolean, is what lets the profiler attribute a
  * redraw to a cause.
  */
+/** How long the board waits for a move's changes before drawing again regardless. */
+const SETTLE_TIMEOUT_MS = 10000;
+
+/**
+ * Waits for `froca` to hold what a move has written.
+ *
+ * `waitForMaxKnownEntityChangeId` never settles while the websocket delivers nothing, and the board
+ * holds its refreshes until this resolves: unlimited, a connection gone quiet would stop the board
+ * redrawing for the rest of the session.
+ */
+function settled() {
+    return Promise.race([
+        ws.waitForMaxKnownEntityChangeId(),
+        new Promise<void>((resolve) => { window.setTimeout(resolve, SETTLE_TIMEOUT_MS); })
+    ]);
+}
+
+/**
+ * Puts every card back where the column draws it, closes every gap and gives back the room they
+ * took.
+ *
+ * The columns do this for themselves as they are drawn, but a drop is three changes at once and
+ * the reader sees a gap standing open if they reach the screen in separate frames.
+ */
+function closeGaps(container: HTMLElement | null) {
+    if (!container) {
+        return;
+    }
+
+    for (const card of container.querySelectorAll<HTMLElement>(".board-note")) {
+        if (card.style.transform) {
+            placeCard(card, null, true);
+        }
+    }
+
+    for (const gap of container.querySelectorAll(".board-drop-placeholder")) {
+        gap.classList.remove("show");
+    }
+
+    for (const room of container.querySelectorAll<HTMLElement>(".board-drop-room")) {
+        room.style.height = "0px";
+    }
+}
+
 export function findRefreshReason(loadResults: LoadResults, statusAttribute: string, noteIds: string[], parentNoteId: string): string | null {
     // A card moved between columns.
     if (loadResults.getAttributeRows().some(attr => attr.name === statusAttribute && noteIds.includes(attr.noteId ?? ""))) {

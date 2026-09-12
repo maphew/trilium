@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 
 import appContext from "../../../components/app_context";
 import { consumeBookmark } from "../../../services/bookmark_jump";
+import dateNoteService from "../../../services/date_notes";
 import dialog from "../../../services/dialog";
 import { t } from "../../../services/i18n";
 import link, { parseNavigationStateFromUrl } from "../../../services/link";
@@ -159,8 +160,8 @@ export default function EditableText({ note, parentComponent, ntxId, noteContext
             linkEmbedService.renderMentionPreview(container, metadata, editable);
         },
         // Creating notes in @-completion
-        async createNoteForReferenceLink(title: string) {
-            const notePath = noteContext?.notePath;
+        async createNoteForReferenceLink(title: string, intoInbox: boolean) {
+            const notePath = intoInbox ? await dateNoteService.getInboxNotePath() : noteContext?.notePath;
             if (!notePath) return;
 
             const resp = await note_create.createNoteWithTypePrompt(notePath, {

@@ -23,8 +23,8 @@ overrides:
   # facets to work. A partial bump leaves two copies in the tree, which breaks
   # both typechecking (nominal type clashes) and runtime (lint markers, etc.).
   # Keep every core singleton pinned here so the whole tree resolves to one copy.
-  "@codemirror/view": "6.43.10"
-  "@codemirror/state": "6.7.2"
+  "@codemirror/view": "6.43.11"
+  "@codemirror/state": "6.7.4"
   "@codemirror/language": "6.12.4"
   "@codemirror/commands": "6.11.0"
   "@codemirror/autocomplete": "6.20.3"
@@ -123,8 +123,10 @@ ignoredOptionalDependencies:
 
 patchedDependencies:
   '@excalidraw/excalidraw@0.18.1': patches/@excalidraw__excalidraw@0.18.1.patch
+  html@1.0.0: patches/html@1.0.0.patch
 
 allowBuilds:
+  "@parcel/watcher": false
   better-sqlite3: false
   core-js: false
   edgedriver: false

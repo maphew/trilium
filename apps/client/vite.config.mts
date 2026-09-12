@@ -151,7 +151,9 @@ export default defineConfig(() => ({
             // every path is unambiguous.
             reporter: ["text", "html", ["lcov", { projectRoot: join(import.meta.dirname, "../..") }]],
             include: ["src/**/*.{ts,tsx}"],
-            exclude: ["**/*.{test,spec}.{ts,mts,cts,tsx,js,jsx}", "**/*.d.ts"]
+            // Benchmarks are measured by `vitest bench`, which the test run never invokes, so a
+            // `*.bench.ts` left in scope reports as wholly uncovered source.
+            exclude: ["**/*.{test,spec}.{ts,mts,cts,tsx,js,jsx}", "**/*.bench.{ts,mts,cts,tsx}", "**/*.d.ts"]
         },
     },
     commonjsOptions: {

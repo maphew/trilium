@@ -1539,8 +1539,7 @@ div.promoted-attribute-cell {
 }
 
 /* A promoted attribute card (boolean attribute) */
-div.promoted-attribute-cell:has(input[type="checkbox"]):not(:has(.multiplicity > span)) {
-    /* Checbox attribute, without multiplicity */
+div.promoted-attribute-cell:has(input[type="checkbox"]) {
     padding-inline-end: var(--pa-card-padding-inline-start);
 }
 
@@ -1612,22 +1611,6 @@ div.promoted-attribute-cell .tn-checkbox > input[type="checkbox"] {
 
 div.promoted-attribute-cell.promoted-attribute-label-boolean > div:first-of-type {
     margin-inline-end: 0.5em;
-}
-
-/* The element containing the "new attribute" and "remove this attribute button" */
-div.promoted-attribute-cell .multiplicity:has(span) {
-    --icon-button-size: 24px;
-
-    margin-inline-start: 8px;
-    margin-inline-end: calc(var(--pa-card-padding-inline-start) - var(--pa-card-padding-inline-end));
-    font-size: 0; /* Prevent whitespaces creating a gap between buttons */
-    display: flex;
-}
-
-div.promoted-attribute-cell .multiplicity:has(span) span {
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 div.promoted-attribute-cell.promoted-attribute-label-color {

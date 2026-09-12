@@ -132,3 +132,55 @@ export function columnInsertionIndex(columns: ColumnBox[], x: number): number {
 export function movesColumn(from: number, to: number): boolean {
     return to !== from && to !== from + 1;
 }
+
+/**
+ * How far a column stands aside while another is carried past it, in pixels.
+ *
+ * The board is not reordered as the reader drags: the carried column's place is held open where it
+ * was lifted from, and the columns between there and where it would land step aside by its width
+ * instead. A step of the gesture then costs each of them a transform, where reordering the elements
+ * costs a fresh layout of every card on the board.
+ *
+ * @param index which column is being asked about.
+ * @param from where the carried column was lifted from.
+ * @param to the place it would take, counting the columns as they stand, or nothing while it is
+ * over nowhere it could land.
+ * @param width what it takes up, its own width and the gap after it.
+ */
+export function columnStandsAside(
+    index: number, from: number, to: number | null, width: number
+): number {
+    if (to === null || index === from) {
+        return 0;
+    }
+
+    // Landing further along: everything between the place it left and the place it takes closes up
+    // behind it. Landing at the place just after its own leaves it where it is.
+    if (to > from) {
+        return index > from && index < to ? -width : 0;
+    }
+
+    return index >= to && index < from ? width : 0;
+}
+
+/**
+ * How far the gap held open for a carried column stands from where that column was lifted, in
+ * pixels.
+ *
+ * The gap is drawn where the column was picked up and carried to where it would land, the columns
+ * it passes having stepped aside to leave the room. Read against `lefts`, which holds where each
+ * column stood before the drag began and, last of all, where a column added at the end would.
+ */
+export function columnGapStandsAside(
+    from: number, to: number | null, lefts: number[], stride: number
+): number {
+    const origin = lefts[from];
+    if (to === null || origin === undefined) {
+        return 0;
+    }
+
+    const at = lefts[Math.min(to, lefts.length - 1)];
+    // Landing further along, the gap opens after the column it is carried past rather than before
+    // it, which is that column's own place less the room the gap takes.
+    return (to > from ? at - stride : at) - origin;
+}

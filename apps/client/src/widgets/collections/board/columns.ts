@@ -1,4 +1,4 @@
-import { type DefinitionObject } from "@triliumnext/commons";
+import { DEFAULT_BOARD_GROUP_BY, type DefinitionObject } from "@triliumnext/commons";
 
 import type FAttribute from "../../../entities/fattribute";
 import type FNote from "../../../entities/fnote";
@@ -12,7 +12,7 @@ import type FNote from "../../../entities/fnote";
 export const BOARD_TEMPLATE_ID = "_template_board";
 
 /** The label a board groups by when `#board:groupBy` does not name one. */
-export const DEFAULT_GROUP_BY = "status";
+export const DEFAULT_GROUP_BY = DEFAULT_BOARD_GROUP_BY;
 
 /** The icon a column shows until one is picked for it. */
 export const DEFAULT_COLUMN_ICON = "bx bx-circle";
@@ -164,10 +164,37 @@ export function resolveBoardColumns(
     // list holds every one of them: that list is the arrangement made here, which a definition
     // shared with other notes cannot express, and which it lags by a round trip after every insert
     // and reorder. Equal lengths are enough to tell, the attachment being one of the sources above.
-    return persisted.length === columns.length ? persisted : columns;
+    const ordered = persisted.length === columns.length ? persisted : columns;
+
+    // The inbox leads whatever the board groups by. It collects the cards carrying no value, which
+    // is a different set under every grouping, and only the board's own list can name it: a
+    // definition cannot, so the columns it leads with would otherwise push the inbox to the end.
+    const inbox = ordered.indexOf(INBOX_COLUMN);
+    if (inbox > 0) {
+        ordered.unshift(...ordered.splice(inbox, 1));
+    }
+
+    return ordered;
 }
 
 /** Whether a value identifies a column of its own, rather than the absence of one. */
 function named(value: string) {
     return value.trim() !== INBOX_COLUMN;
+}
+
+/**
+ * Whether the column holds another card below this one.
+ *
+ * Asked rather than read off `nextElementSibling`: the gap a drag opens, and the room it takes,
+ * stand below the cards for the length of the board's life, so the last card is never the last
+ * thing in its column.
+ */
+export function cardFollows(card: Element) {
+    for (let next = card.nextElementSibling; next; next = next.nextElementSibling) {
+        if (next.classList.contains("board-note")) {
+            return true;
+        }
+    }
+
+    return false;
 }

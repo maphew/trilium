@@ -107,13 +107,13 @@ export default class App {
         await autocomplete.clear();
         await autocomplete.pressSequentially(noteTitle);
 
-        // The second suggestion is the best candidate; the first is "Create a
-        // new note". Asserting on the suggestion itself (instead of the parent
+        // The best candidate follows the two creation suggestions ("Create note" and
+        // "Create child note"). Asserting on the suggestion itself (instead of the parent
         // `.note-detail-empty-results`, which also contains the recent-notes
         // list) ensures the dropdown actually opened.
         const suggestionSelector = this.currentNoteSplit
             .locator(".note-detail-empty-results .aa-suggestion")
-            .nth(1);
+            .nth(2);
         await expect(suggestionSelector).toContainText(noteTitle);
         await suggestionSelector.click();
     }

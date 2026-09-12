@@ -9,8 +9,9 @@ import attributes, { removeOwnedAttributesByNameOrType } from "../../services/at
 import dialog from "../../services/dialog";
 import { t } from "../../services/i18n";
 import {
-    AttributeDetail, type AttributeDetailOpts, DEFINITION_TYPES, RELATION_DEFINITION_TYPE
+    AttributeDetail, type AttributeDetailOpts, DEFINITION_TYPES
 } from "../attribute_widgets/attribute_detail";
+import { RELATION_DEFINITION_TYPE } from "../attribute_widgets/attribute_types";
 import {
     deleteAttributeInSubtree, type PromotedAttribute, type PromotedAttributeSetting,
     renameAttributeInSubtree, resolvePromotedAttributes, storedPromotedAttributes
@@ -81,7 +82,7 @@ export default function PromotedAttributesCard({
     const items = useMemo(() => shown.map((attribute) => ({
         key: attribute.name,
         caption: attribute.title,
-        icon: typeOf(attribute).icon
+        icon: promotedAttributeType(attribute).icon
     })), [ shown ]);
 
     const store = useCallback((next: PromotedAttribute[]) => {
@@ -208,7 +209,7 @@ export default function PromotedAttributesCard({
 
                             <Badge
                                 className="promoted-attribute-type"
-                                text={typeOf(attribute).title}
+                                text={promotedAttributeType(attribute).title}
                                 outline
                             />
 
@@ -272,7 +273,7 @@ export default function PromotedAttributesCard({
 }
 
 /** The kind entry for an attribute: its `labelType`, or the relation kind for a relation. */
-function typeOf(attribute: PromotedAttribute) {
+function promotedAttributeType(attribute: PromotedAttribute) {
     const kind = attribute.type === "relation"
         ? RELATION_DEFINITION_TYPE
         : attribute.labelType ?? "text";
